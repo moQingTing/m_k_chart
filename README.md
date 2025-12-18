@@ -4,7 +4,7 @@
 
 ## 视频展示
 
-<video src="https://github.com/moQingTing/m_k_chart/raw/main/example/615b5c9757136bc8a0fa2a18d4ebdcfa.mp4" controls width="100%"></video>
+📹 [点击查看视频演示](https://github.com/moQingTing/m_k_chart/raw/main/example/615b5c9757136bc8a0fa2a18d4ebdcfa.mp4)
 
 ## 致谢
 
