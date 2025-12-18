@@ -2,6 +2,10 @@
 
 一个功能强大的 Flutter K线图表库，支持多种技术指标和深度图展示。
 
+## 视频展示
+
+<video src="https://github.com/moQingTing/m_k_chart/raw/main/example/615b5c9757136bc8a0fa2a18d4ebdcfa.mp4" controls width="100%"></video>
+
 ## 致谢
 
 本项目参考了 [flutter_k_chart](https://github.com/gwhcn/flutter_k_chart) 的设计思路与实现方案，感谢原作者 [@gwhcn](https://github.com/gwhcn) 的贡献。
