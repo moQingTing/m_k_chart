@@ -1,0 +1,24 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # 启用常用规则
+    - always_declare_return_types
+    - avoid_print
+    - avoid_unnecessary_containers
+    - prefer_const_constructors
+    - prefer_const_literals_to_create_immutables
+    - prefer_final_fields
+    - prefer_single_quotes
+    - require_trailing_commas
+
+analyzer:
+  exclude:
+    - example/**
+    - build/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+  errors:
+    # 将某些警告视为错误
+    invalid_annotation_target: ignore
+
