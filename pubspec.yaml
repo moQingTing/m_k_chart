@@ -1,6 +1,6 @@
 name: m_k_chart
 description: A Flutter K-line chart widget package with depth chart support.
-version: 1.0.2
+version: 1.0.3
 homepage: https://github.com/moQingTing/m_k_chart
 repository: https://github.com/moQingTing/m_k_chart
 license: Apache-2.0
