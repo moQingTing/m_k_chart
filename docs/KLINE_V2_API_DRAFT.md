@@ -16,7 +16,7 @@
 
 ```dart
 final class Kline {
-  const Kline({
+  Kline({
     required this.symbol,
     required this.interval,
     required this.openTime,
@@ -37,14 +37,16 @@ final class Kline {
   });
 }
 
-enum KlinePriceSource { trade, mark, index }
-
-final class KlineInterval {
-  const KlineInterval({required this.duration, required this.code});
+enum KlinePriceSource {
+  trade('trade'),
+  mark('mark'),
+  indexPrice('index');
 }
+
+final class KlineInterval { /* fixed Duration 或 calendarMonth */ }
 ```
 
-时间戳 API 使用 UTC `DateTime`；内部计算层可缓存毫秒整数。
+内部时间戳使用 UTC Unix 毫秒，并提供只读 UTC `DateTime` getter。周期支持内置常用值和校验后的自定义值；`1M` 使用自然月语义，不等同于固定 30 天。
 
 ## 3. Widget 与 Controller 草案
 
@@ -132,7 +134,7 @@ Overlay 只保存绘制所需的公开数据和事件 ID，不保存账户对象
 ## 8. 待决策问题
 
 - 新 Widget 最终命名采用 `KChart` 还是保留 `KChartWidget`。
-- `KlineInterval` 是否提供内置常量并允许自定义周期。
+- ~~`KlineInterval` 是否提供内置常量并允许自定义周期。~~ 已决定：同时支持内置常用周期与自定义周期。
 - 指标插件是否允许宿主提供自定义 Renderer。
-- Controller 状态采用单一快照还是多个细粒度 Listenable。
+- ~~Controller 状态采用单一快照还是多个细粒度 Listenable。~~ 已决定：对外单一只读快照，内部按 StateSlice 版本细粒度判断。
 - Web 是否需要单独的文本测量和鼠标交互策略。

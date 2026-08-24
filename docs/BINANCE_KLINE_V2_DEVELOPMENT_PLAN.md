@@ -423,8 +423,8 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 ### Phase 2：不可变数据模型与实时 Store，5～7 人日
 
-- [ ] `P2-01` 实现不可变 Kline、Interval、PriceSource 和数据版本。
-- [ ] `P2-02` 实现旧 `KLineEntity` 双向 adapter，旧 API 继续可用。
+- [x] `P2-01` 实现不可变 Kline、Interval、PriceSource 和数据版本。
+- [ ] `P2-02` 实现旧 `KLineEntity` 双向 adapter，旧 API 继续可用。（进行中）
 - [ ] `P2-03` 实现 replace/prepend/append/update 和只读数据视图。
 - [ ] `P2-04` 实现重复、乱序、闭合校正和 generation token 规则。
 - [ ] `P2-05` 实现 Binance REST/WebSocket 示例 adapter，但核心包不依赖 Binance API。
@@ -651,6 +651,15 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 决策：新链路不得声明可变 static 运行字段；Phase 1 关闭结构契约风险，legacy `maxScrollX` 和 paint Stream 副作用仍分别由 P4/P5 实际移除。
 - 性能：冻结空事务零通知、复合事件单通知、切片版本重绘和禁止状态列表复制等结构保证。
 - 后续：进入 `P2-01`，实现不可变 Kline、Interval、PriceSource 和数据版本；继续禁止提前迁移生产 Painter。
+
+### 2026-08-24 / P2-01
+
+- 状态：已完成。
+- 变更：新增不可变 `Kline`、固定/自然月 `KlineInterval`、`KlinePriceSource` 和单调 `KlineDataVersion`，归档模型契约。
+- 验证：15 组模型测试覆盖字段、UTC、身份、复制、相等、周期、版本和异常输入；架构守卫与定向静态检查通过。
+- 决策：内部时间统一 UTC 毫秒；月线使用自然月；枚举源码名采用 `indexPrice`、传输代码保持 `index`；构造校验在 release 同样执行。
+- 性能：Kline 不保存指标字段；热路径依靠身份和数据版本，不通过复制大列表比较状态。
+- 后续：进入 `P2-02`，建立 legacy `KLineEntity` 双向 adapter 与精度/缺省映射规则。
 
 ## 13. 参考资料
 
