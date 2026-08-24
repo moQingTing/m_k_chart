@@ -427,8 +427,8 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P2-02` 实现旧 `KLineEntity` 双向 adapter，旧 API 继续可用。
 - [x] `P2-03` 实现 replace/prepend/append/update 和只读数据视图。
 - [x] `P2-04` 实现重复、乱序、闭合校正和 generation token 规则。
-- [ ] `P2-05` 实现 Binance REST/WebSocket 示例 adapter，但核心包不依赖 Binance API。（进行中）
-- [ ] `P2-06` 完成 10,000 根数据合并 benchmark、内存基线和异常输入测试。
+- [x] `P2-05` 实现 Binance REST/WebSocket 示例 adapter，但核心包不依赖 Binance API。
+- [ ] `P2-06` 完成 10,000 根数据合并 benchmark、内存基线和异常输入测试。（进行中）
 
 阶段门禁：`ARCH-01` 的行情侧整改完成；事件幂等；旧 Demo 可经 adapter 运行；历史合并满足 50 ms 预算。
 
@@ -687,6 +687,15 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 决策：所有忽略/拒绝路径保持快照和版本不变；超窗返回 `requiresReload`；替换快照成功后才推进 generation。
 - 性能：实时定位使用二分查找；duplicate/stale/rejected 零快照分配；窗口插入只预分配一次最终列表。
 - 后续：进入 `P2-05`，实现无网络依赖的 Binance REST/WebSocket payload adapter 和 Example 接入示例。
+
+### 2026-08-24 / P2-05
+
+- 状态：已完成。
+- 变更：新增纯 `BinanceKlinePayloadAdapter`、REST 12 元组、raw/combined WebSocket、16 个周期和毫秒/微秒映射。
+- 验证：11 组 Binance 解析测试覆盖批量闭合判断、时区、价格源、官方周期、异常字段和无网络依赖；静态检查通过。
+- 决策：核心只接受已解码 Map/List；HTTP/WebSocket/JSON/retry/heartbeat 归宿主；异常 OHLC 不自动修正。
+- 依据：2026-08-24 复核 Binance 官方 Spot REST 与 WebSocket Streams 文档。
+- 后续：进入 `P2-06`，执行 10,000 根合并耗时、内存、异常输入与 Phase 2 退出门禁。
 
 ## 13. 参考资料
 

@@ -123,8 +123,8 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 | `P2-02` | KLineEntity 双向 adapter | P2-01 | 已完成 |
 | `P2-03` | replace/prepend/append/update 与只读视图 | P2-01 | 已完成 |
 | `P2-04` | 重复、乱序、闭合校正、generation token | P2-03 | 已完成 |
-| `P2-05` | Binance REST/WebSocket 示例 adapter | P2-03、P2-04 | 进行中 |
-| `P2-06` | 10,000 根合并、内存和异常输入基准 | P2-02～P2-05 | 待开始 |
+| `P2-05` | Binance REST/WebSocket 示例 adapter | P2-03、P2-04 | 已完成 |
+| `P2-06` | 10,000 根合并、内存和异常输入基准 | P2-02～P2-05 | 进行中 |
 
 退出条件：行情侧 `ARCH-01` 关闭；事件幂等；历史合并 P95 ≤ 50 ms；旧 Demo 经 adapter 可运行。
 
@@ -308,6 +308,6 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 
 ## 9. 当前立即执行队列
 
-1. `P2-05`：实现核心包无网络依赖的 Binance REST/WebSocket 示例 adapter。
-2. `P2-06`：执行 10,000 根合并、内存和异常输入门禁。
+1. `P2-06`：执行 10,000 根合并、内存和异常输入门禁。
+2. 完成 Phase 2 退出审查并确认行情侧 `ARCH-01` 关闭。
 3. P2 门禁通过前不改写生产 Renderer 或公开 2.0 内部入口。
