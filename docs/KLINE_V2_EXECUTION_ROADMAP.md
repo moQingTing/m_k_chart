@@ -108,8 +108,8 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 | `P1-02` | 不可变 KChartState、StateSlice 和版本协议 | P1-01 | 已完成 |
 | `P1-03` | 最小 KChartController 与每实例容器 | P1-02 | 已完成 |
 | `P1-04` | 单向事件流和 Painter 无副作用契约 | P1-02 | 已完成 |
-| `P1-05` | 公共入口、API allowlist 和兼容导出 | P1-01、P0-06 | 进行中 |
-| `P1-06` | 依赖、双实例、dispose、API 守护测试 | P1-03～P1-05 | 待开始 |
+| `P1-05` | 公共入口、API allowlist 和兼容导出 | P1-01、P0-06 | 已完成 |
+| `P1-06` | 依赖、双实例、dispose、API 守护测试 | P1-03～P1-05 | 进行中 |
 
 退出条件：`ARCH-02/03/04` 的结构风险关闭；旧 Demo 和现有测试不回归；接口评审记录归档。
 
@@ -308,6 +308,6 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 
 ## 9. 当前立即执行队列
 
-1. `P1-05`：统一公共入口、API allowlist 和兼容导出。
-2. `P1-06`：补齐依赖、双实例、dispose 和 API surface 总门禁。
-3. Phase 1 总门禁通过前不迁移生产 Renderer。
+1. `P1-06`：汇总依赖、双实例、dispose、Renderer 纯度和 API surface 总门禁。
+2. 完成 Phase 1 退出审查并冻结架构契约。
+3. 门禁通过后进入 `P2-01` 不可变 Kline 模型。

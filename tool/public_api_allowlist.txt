@@ -1,0 +1,33 @@
+# m_k_chart 1.x compatibility surface frozen by P1-05.
+# One canonical barrel export or public declaration per line.
+export:chart_style.dart
+export:depth_chart.dart
+export:entity/depth_entity.dart
+export:entity/info_window_entity.dart
+export:entity/k_line_entity.dart
+export:k_chart_widget.dart
+export:utils/data_util.dart
+export:utils/date_format_util.dart
+export:utils/number_util.dart
+symbol:ChartColors
+symbol:ChartStyle
+symbol:CustomHorizontalDragGestureRecognizer
+symbol:CustomLongGestureRecognizer
+symbol:CustomScaleGestureRecognizer
+symbol:DataUtil
+symbol:DepthChart
+symbol:DepthChartPainter
+symbol:DepthEntity
+symbol:EMAConfig
+symbol:InfoWindowEntity
+symbol:KChartWidget
+symbol:KChartWidgetState
+symbol:KLineEntity
+symbol:MainState
+symbol:MainStateEx
+symbol:NumberUtil
+symbol:SecondaryState
+symbol:SecondaryStateEx
+symbol:TradeKlineChartStyle
+symbol:dateFormat
+symbol:dayInYear

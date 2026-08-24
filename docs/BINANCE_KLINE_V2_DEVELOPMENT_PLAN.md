@@ -416,8 +416,8 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P1-02` 定义不可变 `KChartState`、StateSlice 和版本号协议，区分数据、视口、选择、布局和主题变化。
 - [x] `P1-03` 实现最小 `KChartController` 生命周期与每实例状态容器，禁止 static 运行状态。
 - [x] `P1-04` 定义单向事件流：输入/数据 → Controller/Store → State → Renderer；Painter 必须无副作用。
-- [ ] `P1-05` 统一 `m_k_chart.dart` 公共入口，建立 public API allowlist、deprecated 和兼容导出策略。（进行中）
-- [ ] `P1-06` 建立架构守护测试：依赖方向、双实例隔离、dispose 和 API surface。
+- [x] `P1-05` 统一 `m_k_chart.dart` 公共入口，建立 public API allowlist、deprecated 和兼容导出策略。
+- [ ] `P1-06` 建立架构守护测试：依赖方向、双实例隔离、dispose 和 API surface。（进行中）
 
 阶段门禁：关闭 `ARCH-02`、`ARCH-03`、`ARCH-04` 的结构风险；Controller 骨架可独立单测；旧组件行为不变。
 
@@ -634,6 +634,14 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 决策：复合输入先合并变化切片，再发布一次快照；新 Renderer 禁止 Stream 写入、Controller dispatch、`notifyListeners` 和 `setState`。
 - 边界：legacy Painter 的已知 Stream 副作用保留至 `P5-06` 迁移，本任务阻止新 Renderer 继续引入同类问题。
 - 后续：进入 `P1-05`，冻结公共入口、allowlist 与兼容导出策略。
+
+### 2026-08-24 / P1-05
+
+- 状态：已完成。
+- 变更：冻结正式入口的导出文件与公共符号 allowlist；旧 `flutter_k_chart.dart` 改为 deprecated 单向转发；归档 2.0 API 准入和兼容策略。
+- 验证：正式入口、旧入口转发、23 个公共声明快照测试和定向静态检查通过。
+- 决策：当前 `lib/src` 不提前公开；只有替代 API 已可用时才给 legacy 符号添加代码级 deprecated，避免产生无法消除的迁移警告。
+- 后续：进入 `P1-06`，汇总依赖、实例隔离、dispose、Renderer 纯度和 API surface 门禁，完成 Phase 1 退出审查。
 
 ## 13. 参考资料
 
