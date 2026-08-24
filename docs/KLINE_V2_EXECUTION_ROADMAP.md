@@ -104,8 +104,8 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 
 | ID | 开发项 | 前置 | 状态 |
 | --- | --- | --- | --- |
-| `P1-01` | 模块目录和依赖规则 | Phase 0 | 待开始 |
-| `P1-02` | 不可变 KChartState、StateSlice 和版本协议 | P1-01 | 待开始 |
+| `P1-01` | 模块目录和依赖规则 | Phase 0 | 已完成 |
+| `P1-02` | 不可变 KChartState、StateSlice 和版本协议 | P1-01 | 进行中 |
 | `P1-03` | 最小 KChartController 与每实例容器 | P1-02 | 待开始 |
 | `P1-04` | 单向事件流和 Painter 无副作用契约 | P1-02 | 待开始 |
 | `P1-05` | 公共入口、API allowlist 和兼容导出 | P1-01、P0-06 | 待开始 |
@@ -308,6 +308,6 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 
 ## 9. 当前立即执行队列
 
-1. `P1-01`：建立模块目录、依赖方向和架构守护规则。
-2. `P1-02`：评审不可变 KChartState、StateSlice 和版本协议。
-3. 在 P1-01/P1-02 评审通过前不迁移生产 Renderer。
+1. `P1-02`：评审并实现不可变 KChartState、StateSlice 和版本协议。
+2. `P1-03`：在状态协议冻结后实现最小 Controller 与每实例容器。
+3. 在 P1-02 评审通过前不迁移生产 Renderer。
