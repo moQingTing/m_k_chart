@@ -421,14 +421,14 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 阶段门禁：关闭 `ARCH-02`、`ARCH-03`、`ARCH-04` 的结构风险；Controller 骨架可独立单测；旧组件行为不变。
 
-### Phase 2：不可变数据模型与实时 Store，5～7 人日
+### Phase 2：不可变数据模型与实时 Store，5～7 人日（已完成）
 
 - [x] `P2-01` 实现不可变 Kline、Interval、PriceSource 和数据版本。
 - [x] `P2-02` 实现旧 `KLineEntity` 双向 adapter，旧 API 继续可用。
 - [x] `P2-03` 实现 replace/prepend/append/update 和只读数据视图。
 - [x] `P2-04` 实现重复、乱序、闭合校正和 generation token 规则。
 - [x] `P2-05` 实现 Binance REST/WebSocket 示例 adapter，但核心包不依赖 Binance API。
-- [ ] `P2-06` 完成 10,000 根数据合并 benchmark、内存基线和异常输入测试。（进行中）
+- [x] `P2-06` 完成 10,000 根数据合并 benchmark、内存基线和异常输入测试。
 
 阶段门禁：`ARCH-01` 的行情侧整改完成；事件幂等；旧 Demo 可经 adapter 运行；历史合并满足 50 ms 预算。
 
@@ -696,6 +696,15 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 决策：核心只接受已解码 Map/List；HTTP/WebSocket/JSON/retry/heartbeat 归宿主；异常 OHLC 不自动修正。
 - 依据：2026-08-24 复核 Binance 官方 Spot REST 与 WebSocket Streams 文档。
 - 后续：进入 `P2-06`，执行 10,000 根合并耗时、内存、异常输入与 Phase 2 退出门禁。
+
+### 2026-08-24 / P2-06
+
+- 状态：已完成，Phase 2 退出审查通过。
+- 变更：新增 10,000 根 opt-in Store benchmark、RSS 基线、v2→legacy Demo 桥接测试和退出审查。
+- 性能：replace P95 1,726 μs；prepend 1,000→9,000 P95 955 μs；append P95 546 μs；last update P95 656 μs；RSS 增量约 1.63 MiB。
+- 验证：历史合并 P95 ≤ 50 ms 门禁通过；异常模型/Store/实时/Binance 输入均有拒绝测试；legacy Widget 经 adapter 构建通过。
+- 决策：行情侧 `ARCH-01` 已关闭；指标侧由 Phase 3 完成；RSS 是 Host Debug 粗测，加入多指标后必须复测综合内存。
+- 后续：进入 `P3-01`，定义注册式 Indicator/Config/Series/RendererDescriptor 协议。
 
 ## 13. 参考资料
 
