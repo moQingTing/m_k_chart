@@ -413,8 +413,8 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 ### Phase 1：架构契约与状态骨架，4～6 人日
 
 - [x] `P1-01` 建立 `src/model|data|indicator|drawing|controller|viewport|render|interaction|theme|widget|adapter` 模块边界和依赖规则。
-- [ ] `P1-02` 定义不可变 `KChartState`、StateSlice 和版本号协议，区分数据、视口、选择、布局和主题变化。（进行中）
-- [ ] `P1-03` 实现最小 `KChartController` 生命周期与每实例状态容器，禁止 static 运行状态。
+- [x] `P1-02` 定义不可变 `KChartState`、StateSlice 和版本号协议，区分数据、视口、选择、布局和主题变化。
+- [ ] `P1-03` 实现最小 `KChartController` 生命周期与每实例状态容器，禁止 static 运行状态。（进行中）
 - [ ] `P1-04` 定义单向事件流：输入/数据 → Controller/Store → State → Renderer；Painter 必须无副作用。
 - [ ] `P1-05` 统一 `m_k_chart.dart` 公共入口，建立 public API allowlist、deprecated 和兼容导出策略。
 - [ ] `P1-06` 建立架构守护测试：依赖方向、双实例隔离、dispose 和 API surface。
@@ -608,6 +608,15 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：`flutter test test/architecture/module_dependency_test.dart`、`dart analyze lib/src test/architecture/module_dependency_test.dart` 均通过。
 - 决策：`adapter` 是新架构中唯一允许依赖 legacy 实现的模块；`drawing` 独立于 Renderer，避免绘图模型再次与手势和画布实现耦合。
 - 后续：进入 `P1-02`，在状态协议冻结前不迁移生产 Renderer。
+
+### 2026-08-24 / P1-02
+
+- 状态：已完成。
+- 变更：新增不可变 `KChartState`、五类 `StateSlice`、切片版本向量和状态版本协议文档。
+- 验证：状态协议 6 组单测、模块依赖守卫和定向静态检查通过。
+- 决策：一次非空事务只增加一次总修订号；仅实际变化切片增加版本；空事务保持快照实例不变。
+- 性能：后续 Layer 只比较其依赖的切片版本，不复制数据列表，也不使用总修订号触发无差别重绘。
+- 后续：进入 `P1-03`，实现每图表实例独立的最小 Controller 生命周期。
 
 ## 13. 参考资料
 
