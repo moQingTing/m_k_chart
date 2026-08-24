@@ -2,3 +2,4 @@
 library;
 
 export 'kline_store.dart';
+export 'kline_realtime_coordinator.dart';

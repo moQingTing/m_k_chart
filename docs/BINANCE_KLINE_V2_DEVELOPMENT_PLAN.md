@@ -426,8 +426,8 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P2-01` 实现不可变 Kline、Interval、PriceSource 和数据版本。
 - [x] `P2-02` 实现旧 `KLineEntity` 双向 adapter，旧 API 继续可用。
 - [x] `P2-03` 实现 replace/prepend/append/update 和只读数据视图。
-- [ ] `P2-04` 实现重复、乱序、闭合校正和 generation token 规则。（进行中）
-- [ ] `P2-05` 实现 Binance REST/WebSocket 示例 adapter，但核心包不依赖 Binance API。
+- [x] `P2-04` 实现重复、乱序、闭合校正和 generation token 规则。
+- [ ] `P2-05` 实现 Binance REST/WebSocket 示例 adapter，但核心包不依赖 Binance API。（进行中）
 - [ ] `P2-06` 完成 10,000 根数据合并 benchmark、内存基线和异常输入测试。
 
 阶段门禁：`ARCH-01` 的行情侧整改完成；事件幂等；旧 Demo 可经 adapter 运行；历史合并满足 50 ms 预算。
@@ -678,6 +678,15 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 决策：Store 是严格有序的底层提交器，不在本层静默排序/去重；重复、乱序和闭合校正由 P2-04 策略层处理。
 - 性能：读路径零复制；批量合并预分配一次；update O(log n) 定位并只复制一次；空操作不创建快照或增加版本。
 - 后续：进入 `P2-04`，实现幂等事件、有限乱序窗口、闭合校正授权与 generation token。
+
+### 2026-08-24 / P2-04
+
+- 状态：已完成。
+- 变更：新增 `KlineRealtimeCoordinator`、generation token、有限乱序窗口、闭合校正授权和结构化合并结果。
+- 验证：11 组策略测试覆盖追加、更新、duplicate、闭合拒绝/授权、窗口插入、超窗重拉、旧 token、跨序列和失败原子性；静态检查通过。
+- 决策：所有忽略/拒绝路径保持快照和版本不变；超窗返回 `requiresReload`；替换快照成功后才推进 generation。
+- 性能：实时定位使用二分查找；duplicate/stale/rejected 零快照分配；窗口插入只预分配一次最终列表。
+- 后续：进入 `P2-05`，实现无网络依赖的 Binance REST/WebSocket payload adapter 和 Example 接入示例。
 
 ## 13. 参考资料
 
