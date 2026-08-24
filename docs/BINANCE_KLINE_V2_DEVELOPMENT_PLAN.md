@@ -410,14 +410,14 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 阶段门禁：有可重复的计算/绘制基线、视觉基线和 API 基线。禁止在门禁完成前改写生产 Painter。
 
-### Phase 1：架构契约与状态骨架，4～6 人日
+### Phase 1：架构契约与状态骨架，4～6 人日（已完成）
 
 - [x] `P1-01` 建立 `src/model|data|indicator|drawing|controller|viewport|render|interaction|theme|widget|adapter` 模块边界和依赖规则。
 - [x] `P1-02` 定义不可变 `KChartState`、StateSlice 和版本号协议，区分数据、视口、选择、布局和主题变化。
 - [x] `P1-03` 实现最小 `KChartController` 生命周期与每实例状态容器，禁止 static 运行状态。
 - [x] `P1-04` 定义单向事件流：输入/数据 → Controller/Store → State → Renderer；Painter 必须无副作用。
 - [x] `P1-05` 统一 `m_k_chart.dart` 公共入口，建立 public API allowlist、deprecated 和兼容导出策略。
-- [ ] `P1-06` 建立架构守护测试：依赖方向、双实例隔离、dispose 和 API surface。（进行中）
+- [x] `P1-06` 建立架构守护测试：依赖方向、双实例隔离、dispose 和 API surface。
 
 阶段门禁：关闭 `ARCH-02`、`ARCH-03`、`ARCH-04` 的结构风险；Controller 骨架可独立单测；旧组件行为不变。
 
@@ -642,6 +642,15 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：正式入口、旧入口转发、23 个公共声明快照测试和定向静态检查通过。
 - 决策：当前 `lib/src` 不提前公开；只有替代 API 已可用时才给 legacy 符号添加代码级 deprecated，避免产生无法消除的迁移警告。
 - 后续：进入 `P1-06`，汇总依赖、实例隔离、dispose、Renderer 纯度和 API surface 门禁，完成 Phase 1 退出审查。
+
+### 2026-08-24 / P1-06
+
+- 状态：已完成，Phase 1 退出审查通过。
+- 变更：新增运行状态 static 守卫和 Phase 1 退出审查文件，汇总依赖、版本、事件、实例、生命周期、纯渲染与 API 证据。
+- 验证：架构/Controller 定向测试 20 项通过；全量测试、定向静态检查和 diff 检查通过。
+- 决策：新链路不得声明可变 static 运行字段；Phase 1 关闭结构契约风险，legacy `maxScrollX` 和 paint Stream 副作用仍分别由 P4/P5 实际移除。
+- 性能：冻结空事务零通知、复合事件单通知、切片版本重绘和禁止状态列表复制等结构保证。
+- 后续：进入 `P2-01`，实现不可变 Kline、Interval、PriceSource 和数据版本；继续禁止提前迁移生产 Painter。
 
 ## 13. 参考资料
 
