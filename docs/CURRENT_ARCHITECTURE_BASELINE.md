@@ -87,6 +87,7 @@ Phase 3 开始前应将核心状态转换为自动化 Golden：蜡烛、分时�
 | `BASE-R09` | 指标选择通过 enum/switch 固化，新增指标要修改多层。 | `ARCH-08` |
 | `BASE-R10` | 两个库入口导出不一致，内部工具已经暴露为公共 API。 | `ARCH-08` |
 | `BASE-R11` | Widget State 同时管理手势、动画、滚动、选中和 UI 刷新。 | `ARCH-02` |
+| `BASE-R12` | 默认十字线信息框固定宽度会发生 RenderFlex overflow。 | `ARCH-06` |
 
 这些问题在 Phase 0 只记录不修改，避免在建立性能和视觉基线前改变行为。
 
@@ -106,8 +107,10 @@ Phase 3 开始前应将核心状态转换为自动化 Golden：蜡烛、分时�
 | --- | --- | --- | --- |
 | Android Debug | 通过 | 2026-08-24 | Flutter 3.44，APK 构建成功 |
 | Android Release | 通过 | 2026-08-24 | APK 构建成功，主清单含联网权限 |
-| iOS | 待验证 | — | Phase 0 需要模拟器或真机环境 |
-| Web | 环境未启用 | 2026-08-24 | 当前 Flutter 环境未启用 Web |
+| iOS Simulator | 通过 | 2026-08-24 | Flutter 3.44，迁移至 iOS 13/UIScene 后构建成功 |
+| Web | 环境未启用 | 2026-08-24 | `flutter build web` 明确提示需先 `flutter config --enable-web` |
+
+性能明细见 [m_k_chart 1.x 性能基线](PERFORMANCE_BASELINE.md)。
 
 ## 8. 基线变更规则
 

@@ -263,6 +263,7 @@ K线图表主组件。
 
 - [m_k_chart 2.0：币安风格 K 线整改开发计划](docs/BINANCE_KLINE_V2_DEVELOPMENT_PLAN.md)
 - [m_k_chart 2.0：开发清单与时序线](docs/KLINE_V2_EXECUTION_ROADMAP.md)
+- [m_k_chart 1.x：性能基线](docs/PERFORMANCE_BASELINE.md)
 
 运行示例：
 

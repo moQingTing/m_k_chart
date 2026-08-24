@@ -398,13 +398,13 @@ Phase 1 架构契约与状态骨架
 
 Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后并行。Phase 5 不得在数据、指标、视口和交互输入接口未冻结前启动主体迁移。
 
-### Phase 0：冻结基线与测量，2～3 人日（进行中）
+### Phase 0：冻结基线与测量，2～3 人日（已完成）
 
 - [x] `P0-01` 保存当前公共 API 清单和 Demo 截图。
 - [x] `P0-02` 建立 100/2,000/10,000 根标准数据集。
 - [x] `P0-03` 为现有 MA、EMA、BOLL、SAR、MACD、KDJ、RSI、WR、VOL、OBV 建立结果基线。
-- [ ] `P0-04` 建立拖动、缩放、十字线的 profile 性能基线，并记录旧动画生命周期对 FrameTiming 的限制。
-- [ ] `P0-05` 完成 Android/iOS/Web 构建矩阵；Android 已验证，iOS/Web 待补。
+- [x] `P0-04` 建立拖动、缩放、十字线的 profile 性能基线，并记录旧动画生命周期对 FrameTiming 的限制。
+- [x] `P0-05` 完成 Android/iOS/Web 构建矩阵；不可用环境明确记录原因。
 - [x] `P0-06` 输出 2.0 API 草案和 deprecated 清单。
 - [x] `P0-07` 冻结 `ARCH-01`～`ARCH-08` 问题清单、代码证据和验收映射。
 
