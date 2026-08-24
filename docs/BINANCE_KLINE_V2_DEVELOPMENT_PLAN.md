@@ -414,8 +414,8 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 - [x] `P1-01` 建立 `src/model|data|indicator|drawing|controller|viewport|render|interaction|theme|widget|adapter` 模块边界和依赖规则。
 - [x] `P1-02` 定义不可变 `KChartState`、StateSlice 和版本号协议，区分数据、视口、选择、布局和主题变化。
-- [ ] `P1-03` 实现最小 `KChartController` 生命周期与每实例状态容器，禁止 static 运行状态。（进行中）
-- [ ] `P1-04` 定义单向事件流：输入/数据 → Controller/Store → State → Renderer；Painter 必须无副作用。
+- [x] `P1-03` 实现最小 `KChartController` 生命周期与每实例状态容器，禁止 static 运行状态。
+- [ ] `P1-04` 定义单向事件流：输入/数据 → Controller/Store → State → Renderer；Painter 必须无副作用。（进行中）
 - [ ] `P1-05` 统一 `m_k_chart.dart` 公共入口，建立 public API allowlist、deprecated 和兼容导出策略。
 - [ ] `P1-06` 建立架构守护测试：依赖方向、双实例隔离、dispose 和 API surface。
 
@@ -617,6 +617,14 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 决策：一次非空事务只增加一次总修订号；仅实际变化切片增加版本；空事务保持快照实例不变。
 - 性能：后续 Layer 只比较其依赖的切片版本，不复制数据列表，也不使用总修订号触发无差别重绘。
 - 后续：进入 `P1-03`，实现每图表实例独立的最小 Controller 生命周期。
+
+### 2026-08-24 / P1-03
+
+- 状态：已完成。
+- 变更：新增每实例 `KChartController`、只读 `ValueListenable<KChartState>`、原子通知和幂等销毁契约。
+- 验证：5 组 Controller 单测覆盖单事务通知、空事务、双实例隔离、初始快照和 dispose；模块守卫与静态检查通过。
+- 决策：Controller 不保存 static 运行状态；销毁后事务抛出 `StateError`；外部注入与 Widget 内建 Controller 的所有权在 P1-05 Widget API 中落实。
+- 后续：进入 `P1-04`，以类型化事件替换临时内部提交桥，并冻结 Painter 只读边界。
 
 ## 13. 参考资料
 

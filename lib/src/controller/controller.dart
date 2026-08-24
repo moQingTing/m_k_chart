@@ -2,3 +2,4 @@
 library;
 
 export 'k_chart_state.dart';
+export 'k_chart_controller.dart';
