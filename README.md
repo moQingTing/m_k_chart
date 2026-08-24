@@ -259,6 +259,10 @@ K线图表主组件。
 
 项目包含完整的示例代码，位于 `example` 目录下。
 
+## 开发规划
+
+- [m_k_chart 2.0：币安风格 K 线整改开发计划](docs/BINANCE_KLINE_V2_DEVELOPMENT_PLAN.md)
+
 运行示例：
 
 ```bash

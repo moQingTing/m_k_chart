@@ -3,6 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:m_k_chart/m_k_chart.dart';
 import 'chart_datas_fetcher.dart';
 
+typedef ChartDataLoader = Future<void> Function(
+  String symbol,
+  String timeType,
+  int size,
+  void Function(bool success, List<KLineEntity> data) callback,
+);
+
 void main() {
   runApp(const MyApp());
 }
@@ -24,7 +31,10 @@ class MyApp extends StatelessWidget {
 }
 
 class ExamplePage extends StatefulWidget {
-  const ExamplePage({super.key});
+  const ExamplePage({super.key, this.chartDataLoader});
+
+  /// Allows the demo's data source to be replaced in tests.
+  final ChartDataLoader? chartDataLoader;
 
   @override
   State<ExamplePage> createState() => _ExamplePageState();
@@ -35,7 +45,7 @@ class _ExamplePageState extends State<ExamplePage> {
   List<KLineEntity> _klineData = [];
   
   // 加载状态
-  bool _isLoading = true;
+  bool _isLoading = false;
   String? _errorMessage;
 
   // 定时器
@@ -164,7 +174,9 @@ class _ExamplePageState extends State<ExamplePage> {
     // timeType: 使用当前选择的时间周期
     // size: 100 (获取100条数据)
     final symbol = '$_currentSymbol-USDT';
-    await ChartDatasFetcher.shared.getRemoteChartData(
+    final loadChartData = widget.chartDataLoader ??
+        ChartDatasFetcher.shared.getRemoteChartData;
+    await loadChartData(
       symbol,
       _currentTimeType,
       100,
@@ -1144,6 +1156,5 @@ class _ExamplePageState extends State<ExamplePage> {
     );
   }
 }
-
 
 
