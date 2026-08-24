@@ -8,10 +8,10 @@ void main() {
       var notifications = 0;
       controller.addListener(() => notifications++);
 
-      controller.commitStateChange(const [
-        StateSlice.data,
-        StateSlice.viewport,
-        StateSlice.data,
+      controller.dispatchBatch(const [
+        ChartDataChanged(),
+        ChartViewportChanged(),
+        ChartDataChanged(),
       ]);
 
       expect(controller.value.revision, 1);
@@ -26,7 +26,7 @@ void main() {
       var notifications = 0;
       controller.addListener(() => notifications++);
 
-      controller.commitStateChange(const []);
+      controller.dispatchBatch(const []);
 
       expect(identical(controller.value, before), isTrue);
       expect(notifications, 0);
@@ -36,7 +36,7 @@ void main() {
       final first = KChartController();
       final second = KChartController();
 
-      first.commitStateChange(const [StateSlice.selection]);
+      first.dispatch(const ChartSelectionChanged());
 
       expect(first.value.revision, 1);
       expect(first.value.versionOf(StateSlice.selection), 1);
@@ -63,7 +63,7 @@ void main() {
 
       expect(controller.isDisposed, isTrue);
       expect(
-        () => controller.commitStateChange(const [StateSlice.data]),
+        () => controller.dispatch(const ChartDataChanged()),
         throwsStateError,
       );
     });

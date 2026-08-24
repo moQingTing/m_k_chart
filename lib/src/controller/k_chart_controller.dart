@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 
+import 'k_chart_event.dart';
 import 'k_chart_state.dart';
 
 /// Owns one chart instance's state and notification lifecycle.
 ///
-/// The public package does not export this internal entrypoint yet. Commands
-/// added by later phases will use [_commit] so all mutations remain atomic.
+/// The public package does not export this internal entrypoint yet. Inputs are
+/// reduced through [dispatch] or [dispatchBatch] so mutations remain atomic.
 final class KChartController extends ChangeNotifier
     implements ValueListenable<KChartState> {
   KChartController({KChartState initialState = const KChartState()})
@@ -19,13 +20,21 @@ final class KChartController extends ChangeNotifier
 
   bool get isDisposed => _isDisposed;
 
-  /// Internal bridge used until typed chart commands are introduced in P1-04.
+  /// Reduces one typed event into one immutable state transaction.
+  void dispatch(KChartEvent event) {
+    dispatchBatch([event]);
+  }
+
+  /// Atomically reduces multiple events and publishes at most one notification.
   ///
-  /// It is deliberately not exported by the package public API. Empty changes
-  /// preserve identity and do not notify listeners.
-  @internal
-  void commitStateChange(Iterable<StateSlice> changedSlices) {
+  /// The batch collects the union of affected state slices. An empty batch
+  /// preserves state identity and does not notify listeners.
+  void dispatchBatch(Iterable<KChartEvent> events) {
     _ensureActive();
+    final changedSlices = <StateSlice>{};
+    for (final event in events) {
+      changedSlices.addAll(event.changedSlices);
+    }
     _commit(_value.bump(changedSlices));
   }
 

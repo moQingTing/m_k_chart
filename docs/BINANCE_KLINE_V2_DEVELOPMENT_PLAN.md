@@ -415,8 +415,8 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P1-01` 建立 `src/model|data|indicator|drawing|controller|viewport|render|interaction|theme|widget|adapter` 模块边界和依赖规则。
 - [x] `P1-02` 定义不可变 `KChartState`、StateSlice 和版本号协议，区分数据、视口、选择、布局和主题变化。
 - [x] `P1-03` 实现最小 `KChartController` 生命周期与每实例状态容器，禁止 static 运行状态。
-- [ ] `P1-04` 定义单向事件流：输入/数据 → Controller/Store → State → Renderer；Painter 必须无副作用。（进行中）
-- [ ] `P1-05` 统一 `m_k_chart.dart` 公共入口，建立 public API allowlist、deprecated 和兼容导出策略。
+- [x] `P1-04` 定义单向事件流：输入/数据 → Controller/Store → State → Renderer；Painter 必须无副作用。
+- [ ] `P1-05` 统一 `m_k_chart.dart` 公共入口，建立 public API allowlist、deprecated 和兼容导出策略。（进行中）
 - [ ] `P1-06` 建立架构守护测试：依赖方向、双实例隔离、dispose 和 API surface。
 
 阶段门禁：关闭 `ARCH-02`、`ARCH-03`、`ARCH-04` 的结构风险；Controller 骨架可独立单测；旧组件行为不变。
@@ -625,6 +625,15 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：5 组 Controller 单测覆盖单事务通知、空事务、双实例隔离、初始快照和 dispose；模块守卫与静态检查通过。
 - 决策：Controller 不保存 static 运行状态；销毁后事务抛出 `StateError`；外部注入与 Widget 内建 Controller 的所有权在 P1-05 Widget API 中落实。
 - 后续：进入 `P1-04`，以类型化事件替换临时内部提交桥，并冻结 Painter 只读边界。
+
+### 2026-08-24 / P1-04
+
+- 状态：已完成。
+- 变更：新增五类 `KChartEvent`、Controller 单事件/批量事件入口、单向事件流文档和 Renderer 纯度守卫。
+- 验证：类型化事件映射、复合事件单事务、Controller 生命周期、模块依赖与 Renderer 纯度测试通过；定向静态检查无问题。
+- 决策：复合输入先合并变化切片，再发布一次快照；新 Renderer 禁止 Stream 写入、Controller dispatch、`notifyListeners` 和 `setState`。
+- 边界：legacy Painter 的已知 Stream 副作用保留至 `P5-06` 迁移，本任务阻止新 Renderer 继续引入同类问题。
+- 后续：进入 `P1-05`，冻结公共入口、allowlist 与兼容导出策略。
 
 ## 13. 参考资料
 
