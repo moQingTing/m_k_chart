@@ -14,8 +14,13 @@ final class KlineInterval {
     if (code.trim().isEmpty) {
       throw ArgumentError.value(code, 'code', 'Must not be empty.');
     }
-    if (duration <= Duration.zero) {
-      throw ArgumentError.value(duration, 'duration', 'Must be positive.');
+    if (duration.inMilliseconds <= 0 ||
+        duration.inMicroseconds % Duration.microsecondsPerMillisecond != 0) {
+      throw ArgumentError.value(
+        duration,
+        'duration',
+        'Must be a positive whole number of milliseconds.',
+      );
     }
     return KlineInterval._(
       code: code,

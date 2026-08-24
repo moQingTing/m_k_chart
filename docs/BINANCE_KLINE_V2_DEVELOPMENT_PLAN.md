@@ -424,8 +424,8 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 ### Phase 2：不可变数据模型与实时 Store，5～7 人日
 
 - [x] `P2-01` 实现不可变 Kline、Interval、PriceSource 和数据版本。
-- [ ] `P2-02` 实现旧 `KLineEntity` 双向 adapter，旧 API 继续可用。（进行中）
-- [ ] `P2-03` 实现 replace/prepend/append/update 和只读数据视图。
+- [x] `P2-02` 实现旧 `KLineEntity` 双向 adapter，旧 API 继续可用。
+- [ ] `P2-03` 实现 replace/prepend/append/update 和只读数据视图。（进行中）
 - [ ] `P2-04` 实现重复、乱序、闭合校正和 generation token 规则。
 - [ ] `P2-05` 实现 Binance REST/WebSocket 示例 adapter，但核心包不依赖 Binance API。
 - [ ] `P2-06` 完成 10,000 根数据合并 benchmark、内存基线和异常输入测试。
@@ -660,6 +660,15 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 决策：内部时间统一 UTC 毫秒；月线使用自然月；枚举源码名采用 `indexPrice`、传输代码保持 `index`；构造校验在 release 同样执行。
 - 性能：Kline 不保存指标字段；热路径依靠身份和数据版本，不通过复制大列表比较状态。
 - 后续：进入 `P2-02`，建立 legacy `KLineEntity` 双向 adapter 与精度/缺省映射规则。
+
+### 2026-08-24 / P2-02
+
+- 状态：已完成。
+- 变更：新增 `KLineEntityAdapter`、legacy 秒/毫秒时间策略、固定周期 closeTime 推导和有损字段说明。
+- 验证：7 组 adapter 测试覆盖共有字段正反映射、自然月、毫秒输入、往返、精度拒绝和异常 legacy 值；静态检查与架构守卫通过。
+- 决策：legacy 默认时间单位保持现状的秒；自然月必须显式传 closeTime；反向秒转换不能整除 1000 时抛错，不静默截断。
+- 边界：adapter 是唯一允许依赖 `KLineEntity` 的新模块；当前仍不从正式入口导出，待 Store 和新用户 API 冻结后再评审。
+- 后续：进入 `P2-03`，实现版本化 KlineStore 的 replace/prepend/append/update 和只读视图。
 
 ## 13. 参考资料
 

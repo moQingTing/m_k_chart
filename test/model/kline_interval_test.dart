@@ -64,6 +64,13 @@ void main() {
         throwsArgumentError,
       );
       expect(
+        () => KlineInterval.fixed(
+          code: 'sub-ms',
+          duration: const Duration(microseconds: 1500),
+        ),
+        throwsArgumentError,
+      );
+      expect(
         () => KlineInterval.calendarMonth(code: '0M', calendarMonths: 0),
         throwsArgumentError,
       );
