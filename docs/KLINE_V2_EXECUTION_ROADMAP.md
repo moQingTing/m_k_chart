@@ -134,7 +134,7 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 
 | ID | 开发项 | 前置 | 状态 |
 | --- | --- | --- | --- |
-| `P3-01` | Indicator/Config/Series/RendererDescriptor 协议 | P2-01、P2-03 | 待开始 |
+| `P3-01` | Indicator/Config/Series/RendererDescriptor 协议 | P2-01、P2-03 | 已完成 |
 | `P3-02` | 指标缓存和增量更新 | P3-01、P2-04 | 待开始 |
 | `P3-03` | 迁移现有指标并对照快照 | P3-02、P0-03 | 待开始 |
 | `P3-04` | VWAP/ATR/CCI/DMI/ROC/Stoch RSI | P3-02 | 待开始 |
@@ -308,6 +308,6 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 
 ## 9. 当前立即执行队列
 
-1. `P3-01`：定义注册式 Indicator/Config/Series/RendererDescriptor 协议。
-2. `P3-02`：实现以数据版本、参数和价格源为键的指标缓存与增量协议。
-3. 指标协议冻结前不迁移 legacy 公式或生产 Renderer。
+1. `P3-02`：实现以数据版本、参数和价格源为键的指标缓存与增量协议。
+2. `P3-03`：在增量协议冻结后迁移 legacy 指标公式并做快照对照。
+3. Phase 5 前不修改生产 Painter。

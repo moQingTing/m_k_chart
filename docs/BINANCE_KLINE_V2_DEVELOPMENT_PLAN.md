@@ -434,7 +434,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 ### Phase 3：独立指标引擎，6～8 人日
 
-- [ ] `P3-01` 定义注册式 Indicator、IndicatorConfig、IndicatorSeries 和 RendererDescriptor 协议。
+- [x] `P3-01` 定义注册式 Indicator、IndicatorConfig、IndicatorSeries 和 RendererDescriptor 协议。
 - [ ] `P3-02` 实现以数据版本、参数和数据源为键的缓存及增量更新协议。
 - [ ] `P3-03` 迁移现有指标并与 Phase 0 快照对照。
 - [ ] `P3-04` 增加 VWAP、ATR、CCI、DMI、ROC、Stoch RSI。
@@ -705,6 +705,16 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：历史合并 P95 ≤ 50 ms 门禁通过；异常模型/Store/实时/Binance 输入均有拒绝测试；legacy Widget 经 adapter 构建通过。
 - 决策：行情侧 `ARCH-01` 已关闭；指标侧由 Phase 3 完成；RSS 是 Host Debug 粗测，加入多指标后必须复测综合内存。
 - 后续：进入 `P3-01`，定义注册式 Indicator/Config/Series/RendererDescriptor 协议。
+
+### 2026-08-24 / P3-01
+
+- 状态：已完成，指标基础协议冻结。
+- 变更：新增实例级 `IndicatorRegistry`、不可变 Config/Series/Result、版本化输入边界和 RendererDescriptor；`KlineSnapshot` 零复制接入指标输入协议。
+- 验证：8 组协议测试覆盖自定义注册、同定义多实例、不可变配置、注册冲突、结果身份/版本/长度/Series 校验和非有限值拒绝；模块依赖守卫通过。
+- 决策：指标层只依赖 model；RendererDescriptor 不携带 Canvas/Color；计算结果独立存储，不回写 Kline；新协议暂不从正式入口导出。
+- 性能：行情输入复用不可变 snapshot，不复制 10,000 根 Kline；缓存和最后一根增量计算由 P3-02 落地并单独建立 P95 基线。
+- 边界：未修改 legacy 公式和生产 Painter；缓存、增量失败恢复、legacy 迁移不在本任务范围。
+- 后续：进入 `P3-02`，实现以数据版本、配置和价格源为键的缓存与增量更新协议。
 
 ## 13. 参考资料
 

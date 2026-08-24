@@ -1,11 +1,14 @@
 part of 'kline_store.dart';
 
 /// Immutable, versioned view of one Kline series.
-final class KlineSnapshot {
+final class KlineSnapshot implements VersionedKlineData {
   KlineSnapshot._(List<Kline> items, this.version)
       : data = UnmodifiableListView(items);
 
+  @override
   final List<Kline> data;
+
+  @override
   final KlineDataVersion version;
 
   int get length => data.length;
