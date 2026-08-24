@@ -126,9 +126,11 @@ final class Kline {
       DateTime.fromMillisecondsSinceEpoch(closeTime, isUtc: true);
 
   bool hasSameIdentity(Kline other) =>
+      hasSameSeries(other) && openTime == other.openTime;
+
+  bool hasSameSeries(Kline other) =>
       symbol == other.symbol &&
       interval == other.interval &&
-      openTime == other.openTime &&
       priceSource == other.priceSource;
 
   Kline copyWith({

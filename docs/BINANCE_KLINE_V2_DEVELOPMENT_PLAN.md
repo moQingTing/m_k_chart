@@ -425,8 +425,8 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 - [x] `P2-01` 实现不可变 Kline、Interval、PriceSource 和数据版本。
 - [x] `P2-02` 实现旧 `KLineEntity` 双向 adapter，旧 API 继续可用。
-- [ ] `P2-03` 实现 replace/prepend/append/update 和只读数据视图。（进行中）
-- [ ] `P2-04` 实现重复、乱序、闭合校正和 generation token 规则。
+- [x] `P2-03` 实现 replace/prepend/append/update 和只读数据视图。
+- [ ] `P2-04` 实现重复、乱序、闭合校正和 generation token 规则。（进行中）
 - [ ] `P2-05` 实现 Binance REST/WebSocket 示例 adapter，但核心包不依赖 Binance API。
 - [ ] `P2-06` 完成 10,000 根数据合并 benchmark、内存基线和异常输入测试。
 
@@ -669,6 +669,15 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 决策：legacy 默认时间单位保持现状的秒；自然月必须显式传 closeTime；反向秒转换不能整除 1000 时抛错，不静默截断。
 - 边界：adapter 是唯一允许依赖 `KLineEntity` 的新模块；当前仍不从正式入口导出，待 Store 和新用户 API 冻结后再评审。
 - 后续：进入 `P2-03`，实现版本化 KlineStore 的 replace/prepend/append/update 和只读视图。
+
+### 2026-08-24 / P2-03
+
+- 状态：已完成。
+- 变更：新增版本化 `KlineStore`、不可变 `KlineSnapshot`、replace/prepend/append/update 和二分查找更新。
+- 验证：11 组 Store 测试覆盖只读视图、版本、无操作、旧快照稳定、批量边界、系列隔离和异常输入；静态检查与架构守卫通过。
+- 决策：Store 是严格有序的底层提交器，不在本层静默排序/去重；重复、乱序和闭合校正由 P2-04 策略层处理。
+- 性能：读路径零复制；批量合并预分配一次；update O(log n) 定位并只复制一次；空操作不创建快照或增加版本。
+- 后续：进入 `P2-04`，实现幂等事件、有限乱序窗口、闭合校正授权与 generation token。
 
 ## 13. 参考资料
 
