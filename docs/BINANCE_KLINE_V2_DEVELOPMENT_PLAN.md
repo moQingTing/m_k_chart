@@ -450,7 +450,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P4-03` 实现确定性 LayoutModel，修复网格数量、初始化顺序、多副图尺寸和嵌套偏移问题。
 - [x] `P4-04` 实现遵循 Gesture Arena 的单指平移、焦点缩放、长按十字线互斥状态机。
 - [x] `P4-05` 实现惯性、磁吸、回到最新、指定时间定位和历史分页状态。
-- [ ] `P4-06` 实现双图表隔离、父滚动容器、横屏、鼠标和触控板策略。
+- [x] `P4-06` 实现双图表隔离、父滚动容器、横屏、鼠标和触控板策略。
 - [ ] `P4-07` 完成坐标往返、手势竞争和输入延迟自动化测试。
 
 阶段门禁：关闭 `ARCH-06`、`ARCH-07`，并验证 `ARCH-04`；不得强制接受已被 Gesture Arena 拒绝的手势。
@@ -833,6 +833,20 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：功能矩阵等待 V2 Widget/Renderer 正式消费后勾选；双实例、父滚动、横屏、鼠标和触控板属于 P4-06；production KChartWidget/Painter 未修改。
 - 证据：`docs/architecture/KLINE_V2_NAVIGATION_PROTOCOL.md`。
 - 后续：进入 `P4-06`，验证多实例与跨平台输入策略。
+
+### 2026-08-25 / P4-06
+
+- 状态：已完成，双实例、父滚动、横竖屏 resize、鼠标和触控板策略已冻结。
+- Arena：新增 axis-gated scale recognizer；单指横向复用 pan/scale 连续序列，单指纵向 rejected 后让父 Scrollable 获胜，第二指继续使用标准焦点缩放；不覆写接受/拒绝回调。
+- 鼠标：支持 local hover crosshair、exit 隐藏、纵向滚轮焦点缩放、横向滚轮 pan 和水平拖动；PointerSignalResolver 只消费启用的行为。
+- 触控板：原生 pan-zoom 由独立 Listener 路径处理，cumulative scale 与 local pan 同时进入焦点缩放；触摸 recognizer 不重复接管 trackpad。
+- 尺寸：验证 600×260 嵌套宽屏 local 坐标及 240×360→600×260 resize 后的 Viewport 正规化与继续导航。
+- 实例：两个 ChartGestureRegion 各自持有 InteractionMachine、NavigationMachine、Ticker、Viewport 与输入策略，触摸和桌面事件均不串扰。
+- 验证：父 ListView 纵向让行/横向独占、双实例、hover/exit、滚轮、trackpad、策略禁用、Ticker dispose 和 Arena 架构守卫均通过。
+- 风险：V2 新链路已提供 ARCH-04/06/07 的 P4-06 证据；legacy ChartPainter.maxScrollX 仍由 P5-06 移除，Phase 4 最终退出由 P4-07 审查。
+- 边界：功能矩阵等待 V2 Widget/Renderer 正式消费后勾选；production KChartWidget/Painter 未修改。
+- 证据：`docs/architecture/KLINE_V2_CROSS_PLATFORM_INPUT_PROTOCOL.md`。
+- 后续：进入 `P4-07`，完成 Phase 4 自动化门禁与退出审查。
 
 ## 13. 参考资料
 

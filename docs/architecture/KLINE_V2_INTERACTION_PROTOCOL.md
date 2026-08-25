@@ -36,7 +36,7 @@ Flutter Gesture Arena / chart-local callbacks
 - 手指数从 2 降为 1时，不在同一序列重新开启 pan，直到本次 scale end；
 - 标准 LongPress recognizer 与 Scale recognizer 在 Arena 中竞争；静止长按胜出后独占 crosshair，移动/缩放不会同时产生十字线意图。
 
-P4-06 将在父滚动、鼠标和触控板场景继续验证 Arena 策略；本任务冻结图表内部单指/双指/长按互斥规则。
+P4-06 已通过轴向门控 recognizer 验证父滚动让行，并补充鼠标与触控板策略，见 `KLINE_V2_CROSS_PLATFORM_INPUT_PROTOCOL.md`。本协议继续冻结图表内部单指/双指/长按互斥规则。
 
 ## 3. 状态机
 
@@ -94,6 +94,6 @@ Controller 的 `dispatchInteraction` 将 Viewport 与 crosshair 意图分别提�
 ## 7. 后续边界
 
 - P4-05：已使用 pan end 速度实现惯性，并补充磁吸、回到最新、时间定位与分页锚定，见 `KLINE_V2_NAVIGATION_PROTOCOL.md`；
-- P4-06：父滚动、横屏、鼠标、触控板与双实例 Widget 场景；
+- P4-06：已验证父滚动、横屏、鼠标、触控板与双实例 Widget 场景；
 - P4-07：输入延迟和完整竞争矩阵；
 - P5/P6：新 Renderer/Widget 正式消费该适配器；当前 production `KChartWidget` 仍保留 legacy 行为作为迁移基线。

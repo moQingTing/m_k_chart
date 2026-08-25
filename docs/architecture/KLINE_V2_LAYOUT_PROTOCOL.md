@@ -70,7 +70,7 @@ panel.height = panel.minHeight + extra * panel.weight / sum(weights)
 - `ChartLayoutRect` 只表达输出边界，不承担 Flutter `Rect` 生命周期；
 - 价格范围、平盘 padding 和极值查询不是布局职责；
 - P4-04 的输入状态机已统一消费 chart-local 坐标；正式 Widget 的 panel 边界策略待 P4-06 接入；
-- P4-06 在横屏、父滚动和双实例 Widget 场景验证约束输入；
+- P4-06 已在横屏 resize、嵌套偏移、父滚动和双实例 Widget 场景验证约束输入；
 - P5 Layer 使用只读 LayoutModel 生成网格、坐标轴和裁剪区域。
 
 ## 6. 验证
