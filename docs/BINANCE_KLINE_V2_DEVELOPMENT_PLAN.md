@@ -458,7 +458,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 ### Phase 5：纯函数分层渲染与性能整改，8～12 人日
 
 - [x] `P5-01` 定义 RenderSnapshot 和 Layer 协议，Renderer 只读状态且无副作用。
-- [ ] `P5-02` 实现网格、主图、副图、轴标签、标记、十字线和绘图独立 Layer。
+- [x] `P5-02` 实现网格、主图、副图、轴标签、标记、十字线和绘图独立 Layer。
 - [ ] `P5-03` 实现可见区裁剪、极值缓存、文本/Path/Picture 缓存。
 - [ ] `P5-04` 用数据、视口、样式和 Layer 版本正确实现重绘判定。
 - [ ] `P5-05` 迁移蜡烛、分时、面积图及现有指标绘制。
@@ -870,6 +870,19 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：覆盖完整快照、不复制数据、不可变集合、全部装配错误、选择元组、六切片版本、Layer 依赖/顺序/重复 ID、Canvas 上下文、模块依赖与纯度扫描。
 - 证据：`docs/architecture/KLINE_V2_RENDER_PROTOCOL.md`。
 - 后续：进入 `P5-02`，在本协议上实现独立绘制 Layer。
+
+### 2026-08-25 / P5-02
+
+- 状态：已完成，标准 Layer Stack 与 Phase 5 内部绘制样式已建立。
+- 样式：新增不可变 `ChartRenderStyle` 最小接口和 `DefaultChartRenderStyle`；颜色、线宽、字号及指标 palette 均经过校验，Series 颜色按 instanceId/seriesId 稳定解析；P6-01 再扩展为完整公开主题。
+- 值域：新增确定性 panel range 解析；主图合并可见 Kline high/low 与声明参与范围的指标，副图读取 Descriptor 的 includeInRange/includeZero，平值和空值使用有限 padding/fallback。
+- Layer：标准顺序冻结为 grid → main → secondary → axis → marker → drawing → crosshair；主图支持涨跌蜡烛和主图线，副图统一消费 line/histogram/points Descriptor，轴使用实际时间转换，标记覆盖可见高低点与最新价。
+- Overlay：十字线只读取 chart-local selection 且越界不绘制；绘图线段投影进入 RenderSnapshot，ID/坐标/集合均校验后由独立 Drawing Layer 裁剪绘制，变化暂归 data 版本，P7 再加入锚点工具状态。
+- 性能边界：各 Layer 只遍历可见范围，不调用 `saveLayer`；P5-03 负责消除多 Layer 重复极值扫描并缓存 Text/Path/Picture，P5-04 负责精确重绘。
+- 验证：离屏 Canvas 像素测试分别确认背景/网格、涨跌蜡烛、三种指标、价格/时间轴、marker/drawing/crosshair 独立出图；hidden/越界 crosshair 无输出；纯度门禁新增禁止 saveLayer。
+- 边界：当前是内部 V2 参考绘制链路，未修改 production Painter；分时/面积和完整 legacy 视觉迁移属于 P5-05，Golden 属于 P5-07。
+- 证据：`docs/architecture/KLINE_V2_STANDARD_LAYERS.md`。
+- 后续：进入 `P5-03`，实现可见区与绘制缓存。
 
 ## 13. 参考资料
 

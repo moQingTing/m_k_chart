@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:ui';
 
 import '../indicator/indicator.dart';
 import '../model/model.dart';
@@ -127,6 +128,29 @@ final class RenderHistorySnapshot {
   final RenderHistoryPhase phase;
 }
 
+/// Chart-local drawing projection. P7 will add data/time/price anchored tools.
+final class RenderLineDrawing {
+  RenderLineDrawing({
+    required this.id,
+    required this.start,
+    required this.end,
+  }) {
+    if (id.trim().isEmpty) {
+      throw ArgumentError.value(id, 'id', 'Must not be empty.');
+    }
+    if (!start.dx.isFinite ||
+        !start.dy.isFinite ||
+        !end.dx.isFinite ||
+        !end.dy.isFinite) {
+      throw ArgumentError('Drawing coordinates must be finite.');
+    }
+  }
+
+  final String id;
+  final Offset start;
+  final Offset end;
+}
+
 /// Calculated indicator output projected without private continuation state.
 final class RenderIndicatorSnapshot {
   factory RenderIndicatorSnapshot.fromResult({
@@ -200,6 +224,7 @@ final class RenderSnapshot<TTheme extends Object> {
     Iterable<RenderIndicatorSnapshot> indicators = const [],
     RenderSelectionSnapshot selection = const RenderSelectionSnapshot.hidden(),
     RenderHistorySnapshot history = const RenderHistorySnapshot(),
+    Iterable<RenderLineDrawing> drawings = const [],
   }) {
     if (viewport.itemCount != data.data.length) {
       throw ArgumentError(
@@ -256,6 +281,19 @@ final class RenderSnapshot<TTheme extends Object> {
       }
     }
 
+    final immutableDrawings = List<RenderLineDrawing>.unmodifiable(drawings);
+    final drawingById = <String, RenderLineDrawing>{};
+    for (final drawing in immutableDrawings) {
+      if (drawingById.containsKey(drawing.id)) {
+        throw ArgumentError.value(
+          drawing.id,
+          'drawings',
+          'Duplicate drawing id.',
+        );
+      }
+      drawingById[drawing.id] = drawing;
+    }
+
     return RenderSnapshot._(
       data: data,
       viewport: viewport,
@@ -269,6 +307,8 @@ final class RenderSnapshot<TTheme extends Object> {
       }),
       selection: selection,
       history: history,
+      drawings: immutableDrawings,
+      drawingById: UnmodifiableMapView(drawingById),
     );
   }
 
@@ -282,6 +322,8 @@ final class RenderSnapshot<TTheme extends Object> {
     required this.indicatorById,
     required this.selection,
     required this.history,
+    required this.drawings,
+    required this.drawingById,
   });
 
   final VersionedKlineData data;
@@ -293,11 +335,21 @@ final class RenderSnapshot<TTheme extends Object> {
   final Map<String, RenderIndicatorSnapshot> indicatorById;
   final RenderSelectionSnapshot selection;
   final RenderHistorySnapshot history;
+  final List<RenderLineDrawing> drawings;
+  final Map<String, RenderLineDrawing> drawingById;
 
   RenderIndicatorSnapshot indicator(String instanceId) {
     final result = indicatorById[instanceId];
     if (result == null) {
       throw ArgumentError.value(instanceId, 'instanceId', 'Unknown indicator.');
+    }
+    return result;
+  }
+
+  RenderLineDrawing drawing(String id) {
+    final result = drawingById[id];
+    if (result == null) {
+      throw ArgumentError.value(id, 'id', 'Unknown drawing.');
     }
     return result;
   }

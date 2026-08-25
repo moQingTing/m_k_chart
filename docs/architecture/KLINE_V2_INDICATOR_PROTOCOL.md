@@ -68,7 +68,7 @@ P3-05 增加实例级 `IndicatorEngine.resolveAll`。一个批次要求 instance
 ## 6. 后续冻结点
 
 - P3-06：指标独立性守卫已冻结，禁止 legacy 实体、旧枚举/switch 分发和输入回写。
-- P5：RendererDescriptor 才接入 RenderSnapshot/Layer；此前生产 Painter 保持不变。
+- P5-02：RendererDescriptor 已由主图/副图 Layer 统一消费 line/histogram/points；生产 Painter 仍保持不变，完整视觉迁移属于 P5-05。
 
 ## 7. 验证
 

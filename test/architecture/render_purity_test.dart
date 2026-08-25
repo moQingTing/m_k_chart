@@ -20,6 +20,7 @@ void main() {
           'retains private indicator continuation state',
       RegExp(r'\.computationState\b'):
           'reads private indicator continuation state',
+      RegExp(r'\.saveLayer\s*\('): 'uses an unapproved offscreen saveLayer',
     };
 
     final sources = renderRoot
