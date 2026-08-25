@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../interaction/interaction.dart';
+import '../model/model.dart';
 import 'k_chart_event.dart';
 import 'k_chart_state.dart';
 
@@ -21,6 +22,69 @@ final class KChartController extends ChangeNotifier
 
   bool get isDisposed => _isDisposed;
 
+  void scrollToLatest() {
+    dispatch(
+      ChartViewportChanged(ChartViewportNavigator.toLatest(_value.viewport)),
+    );
+  }
+
+  void scrollToTime({
+    required VersionedKlineData data,
+    required int epochMilliseconds,
+    double alignment = 0.5,
+  }) {
+    dispatch(
+      ChartViewportChanged(
+        ChartViewportNavigator.locateTime(
+          viewport: _value.viewport,
+          data: data,
+          epochMilliseconds: epochMilliseconds,
+          alignment: alignment,
+        ),
+      ),
+    );
+  }
+
+  void preserveViewportAfterPrepend({required int prependedItemCount}) {
+    dispatch(
+      ChartViewportChanged(
+        ChartViewportNavigator.preserveAfterPrepend(
+          _value.viewport,
+          prependedItemCount: prependedItemCount,
+        ),
+      ),
+    );
+  }
+
+  bool requestHistoryIfNeeded({double thresholdItems = 2}) {
+    _ensureActive();
+    final next = _value.historyPaging.requestIfNeeded(
+      _value.viewport,
+      thresholdItems: thresholdItems,
+    );
+    if (identical(next, _value.historyPaging)) {
+      return false;
+    }
+    dispatch(ChartHistoryPagingChanged(next));
+    return true;
+  }
+
+  void completeHistoryRequest({required bool hasMore}) {
+    dispatch(
+      ChartHistoryPagingChanged(
+        _value.historyPaging.complete(hasMore: hasMore),
+      ),
+    );
+  }
+
+  void failHistoryRequest() {
+    dispatch(ChartHistoryPagingChanged(_value.historyPaging.fail()));
+  }
+
+  void resetHistoryPaging() {
+    dispatch(ChartHistoryPagingChanged(_value.historyPaging.reset()));
+  }
+
   /// Reduces one typed event into one immutable state transaction.
   void dispatch(KChartEvent event) {
     dispatchBatch([event]);
@@ -33,6 +97,8 @@ final class KChartController extends ChangeNotifier
         dispatch(ChartViewportChanged(viewport));
       case ChartCrosshairIntent(:final state):
         dispatch(ChartSelectionChanged(state));
+      case ChartHistoryPagingIntent(:final state):
+        dispatch(ChartHistoryPagingChanged(state));
     }
   }
 
@@ -46,6 +112,7 @@ final class KChartController extends ChangeNotifier
     var viewport = _value.viewport;
     var layout = _value.layout;
     var crosshair = _value.crosshair;
+    var historyPaging = _value.historyPaging;
     for (final event in events) {
       if (event case ChartViewportChanged(viewport: final next)) {
         viewport = next;
@@ -57,6 +124,10 @@ final class KChartController extends ChangeNotifier
       }
       if (event case ChartSelectionChanged(crosshair: final next)) {
         crosshair = next;
+        continue;
+      }
+      if (event case ChartHistoryPagingChanged(state: final next)) {
+        historyPaging = next;
         continue;
       }
       changedSlices.addAll(event.changedSlices);
@@ -73,12 +144,16 @@ final class KChartController extends ChangeNotifier
     if (crosshair != _value.crosshair) {
       changedSlices.add(StateSlice.selection);
     }
+    if (historyPaging != _value.historyPaging) {
+      changedSlices.add(StateSlice.history);
+    }
     _commit(
       _value.bump(
         changedSlices,
         viewport: viewport,
         layout: layout,
         crosshair: crosshair,
+        historyPaging: historyPaging,
       ),
     );
   }

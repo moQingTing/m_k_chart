@@ -51,7 +51,7 @@
 
 - P4-02：数据槽边界/中心、local X、时间和价格转换已冻结，见 `KLINE_V2_COORDINATE_PROTOCOL.md`。
 - P4-03：`drawingBounds.width` 已通过 `ChartLayoutModel` 原子接入 Viewport，见 `KLINE_V2_LAYOUT_PROTOCOL.md`。
-- P4-04/P4-05：交互状态机把像素输入转换成 Viewport 意图，并实现焦点缩放、惯性与历史锚定。
+- P4-04/P4-05：交互与导航状态机已把像素输入转换成 Viewport 意图，并实现焦点缩放、惯性、时间定位与历史锚定。
 - P4-06：在 Widget 场景验证双实例、父滚动、横屏、鼠标和触控板策略。
 
 ## 6. 验证

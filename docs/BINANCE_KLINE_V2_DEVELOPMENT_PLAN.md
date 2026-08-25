@@ -449,7 +449,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P4-02` 实现数据坐标、图表 local 坐标、价格和时间的双向转换。
 - [x] `P4-03` 实现确定性 LayoutModel，修复网格数量、初始化顺序、多副图尺寸和嵌套偏移问题。
 - [x] `P4-04` 实现遵循 Gesture Arena 的单指平移、焦点缩放、长按十字线互斥状态机。
-- [ ] `P4-05` 实现惯性、磁吸、回到最新、指定时间定位和历史分页状态。
+- [x] `P4-05` 实现惯性、磁吸、回到最新、指定时间定位和历史分页状态。
 - [ ] `P4-06` 实现双图表隔离、父滚动容器、横屏、鼠标和触控板策略。
 - [ ] `P4-07` 完成坐标往返、手势竞争和输入延迟自动化测试。
 
@@ -821,6 +821,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：惯性、磁吸、定位和历史分页属于 P4-05；production KChartWidget/Painter 未修改。
 - 证据：`docs/architecture/KLINE_V2_INTERACTION_PROTOCOL.md`。
 - 后续：进入 `P4-05`，实现导航与分页状态。
+
+### 2026-08-25 / P4-05
+
+- 状态：已完成，惯性、OHLC 磁吸、确定性定位和历史分页协议已冻结。
+- 惯性：新增每实例 `ChartNavigationMachine`，按 pan end local X 速度和帧增量执行恒减速积分；弱速度、边界外向速度、新手势和 dispose 均正确停止。
+- 导航：新增 `toLatest`、不规则 openTime 定位与 alignment、prepend 后保持 local X 的锚定操作，全部复用 Viewport/X Transform 边界。
+- 磁吸：新增 `ChartOhlcSnapper`，选择数据槽中心及最近 open/high/low/close，并将 index/field/price/local 坐标写入 selection 状态。
+- 分页：新增 idle/loading/noMore/failure 不可变状态、requestSerial、failureCount、阈值触发、重复抑制、retry 和 reset；Controller 使用独立 history 切片。
+- 验证：覆盖惯性积分/边界、最新端/时间定位/锚定、OHLC 选择、分页完整状态流、Controller 切片隔离和 Widget 释放后惯性。
+- 边界：功能矩阵等待 V2 Widget/Renderer 正式消费后勾选；双实例、父滚动、横屏、鼠标和触控板属于 P4-06；production KChartWidget/Painter 未修改。
+- 证据：`docs/architecture/KLINE_V2_NAVIGATION_PROTOCOL.md`。
+- 后续：进入 `P4-06`，验证多实例与跨平台输入策略。
 
 ## 13. 参考资料
 

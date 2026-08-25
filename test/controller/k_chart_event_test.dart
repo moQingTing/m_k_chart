@@ -10,6 +10,12 @@ void main() {
       const ChartViewportChanged(ChartViewport.initial()): StateSlice.viewport,
       const ChartSelectionChanged(ChartCrosshairState.hidden()):
           StateSlice.selection,
+      const ChartHistoryPagingChanged(
+        ChartHistoryPagingState(
+          phase: ChartHistoryPagingPhase.loading,
+          requestSerial: 1,
+        ),
+      ): StateSlice.history,
       ChartLayoutChanged(_layout()): StateSlice.layout,
       const ChartThemeChanged(): StateSlice.theme,
     };

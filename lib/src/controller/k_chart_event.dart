@@ -35,6 +35,15 @@ final class ChartSelectionChanged implements KChartEvent {
   Set<StateSlice> get changedSlices => const {StateSlice.selection};
 }
 
+final class ChartHistoryPagingChanged implements KChartEvent {
+  const ChartHistoryPagingChanged(this.state);
+
+  final ChartHistoryPagingState state;
+
+  @override
+  Set<StateSlice> get changedSlices => const {StateSlice.history};
+}
+
 final class ChartLayoutChanged implements KChartEvent {
   const ChartLayoutChanged(this.layout);
 

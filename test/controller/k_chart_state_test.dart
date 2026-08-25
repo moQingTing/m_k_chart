@@ -12,6 +12,7 @@ void main() {
       expect(state.viewport, const ChartViewport.initial());
       expect(state.layout, isNull);
       expect(state.crosshair, const ChartCrosshairState.hidden());
+      expect(state.historyPaging, const ChartHistoryPagingState());
       for (final slice in StateSlice.values) {
         expect(state.versionOf(slice), 0);
       }
@@ -113,6 +114,22 @@ void main() {
       expect(after.crosshair, crosshair);
       expect(after.revision, 1);
       expect(after.versionOf(StateSlice.selection), 1);
+    });
+
+    test('history paging payload marks only its dedicated state slice', () {
+      const before = KChartState();
+      const paging = ChartHistoryPagingState(
+        phase: ChartHistoryPagingPhase.loading,
+        requestSerial: 1,
+      );
+
+      final after = before.bump(const [], historyPaging: paging);
+
+      expect(after.historyPaging, paging);
+      expect(after.revision, 1);
+      expect(after.versionOf(StateSlice.history), 1);
+      expect(after.versionOf(StateSlice.data), 0);
+      expect(after.versionOf(StateSlice.viewport), 0);
     });
   });
 }

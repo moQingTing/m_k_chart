@@ -1,14 +1,14 @@
 # K 线 2.0 状态与版本协议
 
 > 任务：P1-02
-> 状态：已实现，P4-01 已接入 Viewport 载荷
+> 状态：已实现，P4-05 已接入导航与历史分页载荷
 > 日期：2026-08-25
 
 ## 1. 目标
 
 `KChartState` 是 Controller 对外发布的不可变快照。状态使用总修订号和切片版本向量，避免十字线、主题等局部变化触发全部 Layer 重绘，也避免通过复制大数据列表判断状态是否变化。
 
-P4-01 已将不可变 `ChartViewport` 组合进快照，P4-03 已接入可空的 `ChartLayoutModel`，P4-04 已接入 `ChartCrosshairState`；其他载荷仍由其所属任务实现后逐步接入。
+P4-01 已将不可变 `ChartViewport` 组合进快照，P4-03 已接入可空的 `ChartLayoutModel`，P4-04 已接入 `ChartCrosshairState`，P4-05 已接入独立的 `ChartHistoryPagingState`；其他载荷仍由其所属任务实现后逐步接入。
 
 ## 2. 状态切片
 
@@ -17,6 +17,7 @@ P4-01 已将不可变 `ChartViewport` 组合进快照，P4-03 已接入可空的
 | `data` | replace、prepend、append、实时 K 线更新、指标结果就绪 | 蜡烛、指标、坐标轴 |
 | `viewport` | 平移、缩放、定位时间、回到最新 | 数据层、指标层、Overlay |
 | `selection` | 十字线、选中 K 线、绘图对象选中 | Overlay、信息窗 |
+| `history` | 历史 loading、noMore、failure、retry | 加载提示、宿主分页协调器 |
 | `layout` | 尺寸、面板分配、设备像素比变化 | 所有依赖坐标的 Layer |
 | `theme` | 颜色、线宽、字体、涨跌色变化 | 所有可见 Layer |
 
@@ -50,6 +51,7 @@ P4-01 已将不可变 `ChartViewport` 组合进快照，P4-03 已接入可空的
 - `ChartViewportChanged` 携带完整不可变 Viewport；相同值不提交版本，不通知监听器。
 - `ChartLayoutChanged` 携带完整不可变 LayoutModel；绘制宽度变化时与 Viewport 在同一事务更新。
 - `ChartSelectionChanged` 携带不可变 crosshair 状态；相同 local 位置不提交重复 selection 版本。
+- `ChartHistoryPagingChanged` 携带不可变分页状态；loading/error 变化只增加 history 版本，不伪装成 data 更新。
 
 ## 6. 验证
 

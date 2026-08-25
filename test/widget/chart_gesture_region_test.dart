@@ -69,12 +69,57 @@ void main() {
     expect(crosshair.last, const ChartCrosshairIntent.hide());
     expect(harness.machine.isIdle, isTrue);
   });
+
+  testWidgets('release velocity continues as bounded inertial navigation',
+      (tester) async {
+    final harness = _Harness();
+    await tester.pumpWidget(harness.build());
+    final target = find.byKey(_Harness.targetKey);
+
+    await tester.fling(target, const Offset(80, 0), 1200);
+    final afterRelease = harness.viewport.scrollOffsetItems;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(harness.viewport.scrollOffsetItems, greaterThan(afterRelease));
+    expect(harness.navigationMachine.isInertiaActive, isTrue);
+  });
+
+  testWidgets('crosshair builder can publish snapped selection metadata',
+      (tester) async {
+    final harness = _Harness(
+      crosshairIntentBuilder: (localX, localY) => ChartCrosshairIntent.show(
+        localX: localX,
+        localY: localY,
+        dataIndex: 3,
+        price: 101,
+        ohlcField: ChartOhlcField.close,
+      ),
+    );
+    await tester.pumpWidget(harness.build());
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(_Harness.targetKey)),
+    );
+
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 10));
+    final shown = harness.intents.whereType<ChartCrosshairIntent>().last;
+
+    expect(shown.state.isSnapped, isTrue);
+    expect(shown.state.dataIndex, 3);
+    expect(shown.state.ohlcField, ChartOhlcField.close);
+    await gesture.up();
+  });
 }
 
 final class _Harness {
+  _Harness({this.crosshairIntentBuilder});
+
   static const targetKey = Key('gesture-target');
 
   final machine = ChartInteractionMachine();
+  final navigationMachine = ChartNavigationMachine();
+  final ChartCrosshairIntent Function(double localX, double localY)?
+      crosshairIntentBuilder;
   final intents = <ChartInteractionIntent>[];
   ChartViewport viewport = ChartViewport(
     itemCount: 100,
@@ -94,6 +139,7 @@ final class _Harness {
             height: 300,
             child: ChartGestureRegion(
               machine: machine,
+              navigationMachine: navigationMachine,
               viewport: () => viewport,
               onIntent: (intent) {
                 intents.add(intent);
@@ -101,6 +147,7 @@ final class _Harness {
                   this.viewport = viewport;
                 }
               },
+              crosshairIntentBuilder: crosshairIntentBuilder,
               child: const ColoredBox(color: Color(0xff000000)),
             ),
           ),
