@@ -75,6 +75,13 @@ final class ChartViewport {
 
   double get visibleItemCapacity => width / itemExtent;
 
+  /// Continuous data-slot coordinate at the left edge of the viewport.
+  double get visibleLeftDataPosition =>
+      visibleRightDataPosition - visibleItemCapacity;
+
+  /// Continuous data-slot coordinate at the right edge of the viewport.
+  double get visibleRightDataPosition => itemCount - scrollOffsetItems;
+
   double get maxScrollOffsetItems => _maximumScrollOffsetItems(
         itemCount: itemCount,
         width: width,
@@ -89,10 +96,8 @@ final class ChartViewport {
       return const VisibleIndexRange.empty();
     }
 
-    final right = itemCount - scrollOffsetItems;
-    final left = right - visibleItemCapacity;
-    final start = left.floor().clamp(0, itemCount);
-    final end = right.ceil().clamp(0, itemCount);
+    final start = visibleLeftDataPosition.floor().clamp(0, itemCount);
+    final end = visibleRightDataPosition.ceil().clamp(0, itemCount);
     return VisibleIndexRange(start, end);
   }
 

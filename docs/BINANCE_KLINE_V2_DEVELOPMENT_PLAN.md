@@ -446,7 +446,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 ### Phase 4：视口、布局与手势状态机，6～8 人日
 
 - [x] `P4-01` 实现每实例 ChartViewport、可见范围和缩放/滚动边界。
-- [ ] `P4-02` 实现数据坐标、图表 local 坐标、价格和时间的双向转换。
+- [x] `P4-02` 实现数据坐标、图表 local 坐标、价格和时间的双向转换。
 - [ ] `P4-03` 实现确定性 LayoutModel，修复网格数量、初始化顺序、多副图尺寸和嵌套偏移问题。
 - [ ] `P4-04` 实现遵循 Gesture Arena 的单指平移、焦点缩放、长按十字线互斥状态机。
 - [ ] `P4-05` 实现惯性、磁吸、回到最新、指定时间定位和历史分页状态。
@@ -784,6 +784,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：本任务不实现 data/local/时间/价格转换、焦点缩放或历史分页锚定，不修改生产 Painter 和 Demo。
 - 证据：`docs/architecture/KLINE_V2_VIEWPORT_PROTOCOL.md`。
 - 后续：进入 `P4-02`，实现坐标双向转换和往返测试。
+
+### 2026-08-25 / P4-02
+
+- 状态：已完成，data/local/时间/价格坐标协议已冻结。
+- X 轴：新增不可变 `ChartXTransform`；第 i 根数据占 `[i, i+1]` 且中心为 `i+0.5`，结合 Viewport 的 visible left 和 item extent 完成连续 data/local 双向转换。
+- 时间：以稳定 `VersionedKlineData` 的实际 openTime 建立严格有序时间轴；二分查找后按相邻 Kline 插值，不假设固定周期，支持缺口及 calendar interval；端点外约束到首尾。
+- 价格：新增 `ChartPriceTransform`，统一 chart-local、Y 向下为正的 panel 价格映射；最高价对应 top、最低价对应 bottom，范围外保持线性外推供 Renderer 裁剪。
+- 正确性：data/local 测试往返误差 ≤1e-12，time/local ≤1 ms，price/local ≤1e-9；覆盖槽边界选中、端点约束、空数据、乱序、长度不匹配、退化范围和非有限值。
+- ARCH-06：新增 viewport 独立性守卫，禁止 Flutter/dart:ui、globalToLocal、RenderBox、legacy Painter/Widget 进入坐标模块；嵌套图表只消费自身 local 坐标。
+- 边界：平盘价格 padding、panel top/bottom、网格与多副图布局属于 P4-03；焦点缩放和时间定位属于 P4-04/P4-05；生产 Painter 和 Demo 未修改。
+- 证据：`docs/architecture/KLINE_V2_COORDINATE_PROTOCOL.md`。
+- 后续：进入 `P4-03`，实现确定性 LayoutModel、网格和多副图尺寸。
 
 ## 13. 参考资料
 
