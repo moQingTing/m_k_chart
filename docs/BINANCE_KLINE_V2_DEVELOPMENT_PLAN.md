@@ -438,7 +438,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P3-02` 实现以数据版本、参数和数据源为键的缓存及增量更新协议。
 - [x] `P3-03` 迁移现有指标并与 Phase 0 快照对照。
 - [x] `P3-04` 增加 VWAP、ATR、CCI、DMI、ROC、Stoch RSI。
-- [ ] `P3-05` 支持同类多实例、数据不足状态、NaN/Infinity 隔离。
+- [x] `P3-05` 支持同类多实例、数据不足状态、NaN/Infinity 隔离。
 - [ ] `P3-06` 删除新链路对实体 `late` 指标字段及核心 enum/switch 的依赖。
 
 阶段门禁：关闭 `ARCH-01` 的指标侧风险和 `ARCH-08` 的指标扩展风险；最后一根更新 P95 ≤ 8 ms；注册一个测试指标无需修改核心代码。
@@ -749,6 +749,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：解析性平盘/上涨序列、VWAP 手算、预热边界、注册 6/16 项、append/update 全量等价、参数拒绝和 opt-in benchmark 通过。
 - 边界：本任务只提供指标计算与描述符，BN-I05/I16～I20 的最终产品勾选待 Phase 5/6 Renderer 和配置 UI 接入后完成。
 - 后续：进入 `P3-05`，完成多实例、不足状态和非有限值故障隔离门禁。
+
+### 2026-08-25 / P3-05
+
+- 状态：已完成，多实例与故障隔离门禁通过。
+- 变更：新增实例级 `IndicatorEngine`，统一持有 Registry/Cache；`resolveAll` 返回不可变结果与 failure 映射，单个未知定义、算法异常或非法输出不再中断其他实例。
+- 多实例：同一定义可按不同 instanceId、参数和样式语义同时计算并独立命中缓存；批次内重复 instanceId 在任何计算前原子拒绝。
+- 隔离：失败实例不进入缓存且可在后续批次重试；两个 Engine 的注册表、缓存和 failure 完全隔离；批量结果与 failure 映射不可写。
+- 有限值：16 个内置指标在 1 根短数据及 100 根平盘、零成交量数据上逐项检查可绘制 Series 和私有状态，只允许有限值或 `null`；注入 NaN、主动抛错和未知定义均被实例级隔离。
+- 性能：10,000 根、MA/MACD/RSI/VOL/DMI/Stoch RSI 六实例，Host Debug RSS 粗测增量 6,574,080 bytes（约 6.27 MiB，目标 ≤35 MiB）；末项批量更新 P95 2,776 μs（目标 ≤8 ms）。
+- 验证：多实例缓存、失败重试、短数据/平盘有限值、重复 ID 原子性、双 Engine 隔离及 opt-in 性能/RSS benchmark 通过。
+- 边界：RSS 为进程级粗测，不代表精确 retained size；Phase 5 仍需在 Profile 场景复测完整 Kline + 6 指标 + Renderer 内存。
+- 后续：进入 `P3-06`，增加新链路实体字段/enum/switch 守卫并执行 Phase 3 退出审查。
 
 ## 13. 参考资料
 

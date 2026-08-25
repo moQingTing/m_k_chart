@@ -20,6 +20,7 @@
 | `IndicatorComputationState` | 递归公式的不可变延续状态 | Renderer 不可见；长度与结果一致；只允许有限值或 null |
 | `IndicatorRendererDescriptor` | Renderer 中立的绘制描述 | 只包含主图/副图、line/histogram/points、量程语义；不含 Color/Canvas |
 | `IndicatorRegistry` | 实例级定义注册和契约校验 | 无全局可变注册表；拒绝重复 ID、未知定义和不符合描述符的结果 |
+| `IndicatorEngine` | 实例级批量计算与故障隔离 | 组合 Registry/Cache；按 instanceId 返回不可变结果和 failure |
 
 ## 3. 数据流
 
@@ -60,11 +61,12 @@ P3-03 为递归指标补充 `IndicatorComputationState`。MACD 的 EMA12/26、RS
 
 P3-04 增加六个内置定义并冻结默认口径：VWAP 累计典型价成交量加权、ATR Wilder 14、CCI 20/0.015、DMI 14+14、ROC 12、Stoch RSI 14/14/3/3。`registerBuiltInIndicatorDefinitions` 一次注册 10 个 legacy 和 6 个新增定义，仍不使用核心 enum/switch。
 
-缓存协议性能见 `PERFORMANCE_P3_INDICATOR_CACHE_BASELINE.md`，十类迁移指标性能见 `PERFORMANCE_P3_LEGACY_INDICATORS_BASELINE.md`，六类新增指标性能见 `PERFORMANCE_P3_ADDITIONAL_INDICATORS_BASELINE.md`。
+P3-05 增加实例级 `IndicatorEngine.resolveAll`。一个批次要求 instanceId 唯一；每个配置独立经过 Cache/Registry，异常被记录为 `IndicatorCalculationFailure`，其他实例继续。失败结果不写缓存，下一批可重试。Engine 不使用全局注册表或缓存，因此双图表之间不会传播定义、结果或 failure。
+
+缓存协议性能见 `PERFORMANCE_P3_INDICATOR_CACHE_BASELINE.md`，十类迁移指标性能见 `PERFORMANCE_P3_LEGACY_INDICATORS_BASELINE.md`，六类新增指标性能见 `PERFORMANCE_P3_ADDITIONAL_INDICATORS_BASELINE.md`，多实例与内存见 `PERFORMANCE_P3_INDICATOR_ENGINE_BASELINE.md`。
 
 ## 6. 后续冻结点
 
-- P3-05：在 Registry/Cache 边界细化单指标失败隔离与多实例压力测试。
 - P5：RendererDescriptor 才接入 RenderSnapshot/Layer；此前生产 Painter 保持不变。
 
 ## 7. 验证
