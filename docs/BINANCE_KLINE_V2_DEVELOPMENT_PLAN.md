@@ -437,7 +437,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P3-01` 定义注册式 Indicator、IndicatorConfig、IndicatorSeries 和 RendererDescriptor 协议。
 - [x] `P3-02` 实现以数据版本、参数和数据源为键的缓存及增量更新协议。
 - [x] `P3-03` 迁移现有指标并与 Phase 0 快照对照。
-- [ ] `P3-04` 增加 VWAP、ATR、CCI、DMI、ROC、Stoch RSI。
+- [x] `P3-04` 增加 VWAP、ATR、CCI、DMI、ROC、Stoch RSI。
 - [ ] `P3-05` 支持同类多实例、数据不足状态、NaN/Infinity 隔离。
 - [ ] `P3-06` 删除新链路对实体 `late` 指标字段及核心 enum/switch 的依赖。
 
@@ -737,6 +737,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：注册数量、历史公式对照、不足状态、append/update 等价、参数拒绝、状态长度、写时复制不可变性和 520 次展平路径均通过。
 - 边界：未修改 legacy `DataUtil` 和生产 Painter；新定义仍仅从内部 indicator 模块导出。
 - 后续：进入 `P3-04`，新增 VWAP、ATR、CCI、DMI、ROC 和 Stoch RSI。
+
+### 2026-08-25 / P3-04
+
+- 状态：已完成，六类新增指标已接入注册式引擎。
+- 变更：新增 VWAP、ATR、CCI、DMI（+DI/-DI/ADX）、ROC、Stoch RSI（K/D）定义；增加一次注册全部 16 个内置指标的入口。
+- 口径：VWAP 使用累计典型价成交量加权；ATR 为 Wilder RMA(14)；CCI 为 20/0.015；DMI 为 14+14 Wilder；ROC 为 12 周期百分比；Stoch RSI 为 14/14/3/3。
+- 边界：预热不足返回 `null`；成交量或指标分母为零时输出 `null` 或有限值 0，不产生 NaN/Infinity；周期和常数参数拒绝零、负数及非整数周期。
+- 增量：六类定义均支持 append 和末项 update；VWAP、DMI、Stoch RSI 的递归中间量进入 Renderer 不可见状态，结果不回写 Kline。
+- 性能：10,000 根 Host Debug，六指标全量 P95 10,516 μs；Store + 六指标末项增量合计 P95 1,689 μs；单指标 P95 377～853 μs，全部低于 8 ms 门禁。
+- 验证：解析性平盘/上涨序列、VWAP 手算、预热边界、注册 6/16 项、append/update 全量等价、参数拒绝和 opt-in benchmark 通过。
+- 边界：本任务只提供指标计算与描述符，BN-I05/I16～I20 的最终产品勾选待 Phase 5/6 Renderer 和配置 UI 接入后完成。
+- 后续：进入 `P3-05`，完成多实例、不足状态和非有限值故障隔离门禁。
 
 ## 13. 参考资料
 

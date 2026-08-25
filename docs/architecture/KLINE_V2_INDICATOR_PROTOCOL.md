@@ -58,7 +58,9 @@ KlineStore.snapshot (VersionedKlineData)
 
 P3-03 为递归指标补充 `IndicatorComputationState`。MACD 的 EMA12/26、RSI 的平滑分子/分母、SAR 的趋势/AF/EP 和 KDJ 的内部 K/D 保存在该状态中，不污染可绘制 Series。增量输出使用写时复制值列表：未变化前缀共享，稀疏覆盖超过 512 项时自动物化，限制查找层级和长期持有成本。
 
-缓存协议性能见 `PERFORMANCE_P3_INDICATOR_CACHE_BASELINE.md`，十类迁移指标性能见 `PERFORMANCE_P3_LEGACY_INDICATORS_BASELINE.md`。
+P3-04 增加六个内置定义并冻结默认口径：VWAP 累计典型价成交量加权、ATR Wilder 14、CCI 20/0.015、DMI 14+14、ROC 12、Stoch RSI 14/14/3/3。`registerBuiltInIndicatorDefinitions` 一次注册 10 个 legacy 和 6 个新增定义，仍不使用核心 enum/switch。
+
+缓存协议性能见 `PERFORMANCE_P3_INDICATOR_CACHE_BASELINE.md`，十类迁移指标性能见 `PERFORMANCE_P3_LEGACY_INDICATORS_BASELINE.md`，六类新增指标性能见 `PERFORMANCE_P3_ADDITIONAL_INDICATORS_BASELINE.md`。
 
 ## 6. 后续冻结点
 
