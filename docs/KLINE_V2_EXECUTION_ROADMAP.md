@@ -165,7 +165,7 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 
 | ID | 开发项 | 前置 | 状态 |
 | --- | --- | --- | --- |
-| `P5-01` | RenderSnapshot 和 Layer 协议 | Phase 3、Phase 4 | 待开始 |
+| `P5-01` | RenderSnapshot 和 Layer 协议 | Phase 3、Phase 4 | 已完成 |
 | `P5-02` | 网格、主图、副图、轴、标记、十字线 Layer | P5-01 | 待开始 |
 | `P5-03` | 可见区、极值、文本、Path、Picture 缓存 | P5-02 | 待开始 |
 | `P5-04` | 数据/视口/样式/Layer 版本重绘判定 | P5-01、P1-02 | 待开始 |
@@ -308,6 +308,6 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 
 ## 9. 当前立即执行队列
 
-1. `P5-01`：冻结 RenderSnapshot 和 Layer 协议。
-2. `P5-02`：在协议冻结后实现首批独立 Layer。
+1. `P5-02`：实现网格、主图、副图、轴、标记和十字线独立 Layer。
+2. `P5-03`：在 Layer 主链路完成后接入可见区与绘制缓存。
 3. 新 Renderer 就绪前不修改生产 Painter。

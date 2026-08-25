@@ -32,6 +32,8 @@ Renderer 不存在回指 Controller 的边；绘制结果也不作为修改业�
 
 新 `lib/src/render` 只能读取 RenderSnapshot、模型、主题、指标、绘图和视口结果。绘制调用必须满足：相同输入产生相同可见输出，且不会改变业务状态。
 
+P5-01 已实现该协议边界：后续 Widget 装配层必须把 Controller/Interaction 状态投影为 Renderer 自有的选择、历史和版本值；RenderSnapshot 不 import 状态生产者，Layer 只接收 Canvas 与只读快照。指标结果只投影可绘制 Series，不携带递归计算私有状态。
+
 禁止行为：
 
 - import Controller、Data Store、Interaction 或 Widget 模块；

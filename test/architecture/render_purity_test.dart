@@ -16,6 +16,10 @@ void main() {
       RegExp(r'\bcommitStateChange\s*\('): 'commits controller state',
       RegExp(r'\.dispatch(?:Batch)?\s*\('): 'dispatches controller events',
       RegExp(r'\bsetState\s*\('): 'mutates widget state',
+      RegExp(r'\bIndicatorComputationState\b'):
+          'retains private indicator continuation state',
+      RegExp(r'\.computationState\b'):
+          'reads private indicator continuation state',
     };
 
     final sources = renderRoot

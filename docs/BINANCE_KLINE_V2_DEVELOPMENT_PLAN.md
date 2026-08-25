@@ -457,7 +457,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 ### Phase 5：纯函数分层渲染与性能整改，8～12 人日
 
-- [ ] `P5-01` 定义 RenderSnapshot 和 Layer 协议，Renderer 只读状态且无副作用。
+- [x] `P5-01` 定义 RenderSnapshot 和 Layer 协议，Renderer 只读状态且无副作用。
 - [ ] `P5-02` 实现网格、主图、副图、轴标签、标记、十字线和绘图独立 Layer。
 - [ ] `P5-03` 实现可见区裁剪、极值缓存、文本/Path/Picture 缓存。
 - [ ] `P5-04` 用数据、视口、样式和 Layer 版本正确实现重绘判定。
@@ -858,6 +858,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 风险：V2 路径关闭 ARCH-06/07 并验证 ARCH-04；legacy `ChartPainter.maxScrollX` 与 production Painter 迁移仍由 P5-06 处理，不回流 V2 实例状态。
 - 证据：`docs/PERFORMANCE_P4_INTERACTION_BASELINE.md`、`docs/architecture/PHASE_4_EXIT_REVIEW.md`。
 - 后续：进入 `P5-01`，冻结 RenderSnapshot 和 Layer 协议。
+
+### 2026-08-25 / P5-01
+
+- 状态：已完成，Renderer 的只读输入、指标投影和 Layer 扩展边界已冻结。
+- 快照：新增泛型不可变 `RenderSnapshot<TTheme>`，组合稳定 `VersionedKlineData`、Viewport、Layout、主题、版本向量、指标投影、选择和历史显示状态；P6 再以正式不可变 `KChartTheme` 收敛主题类型。
+- 校验：装配时拒绝数据长度不一致、Viewport/Layout 宽度不一致、越界选择、过期指标版本、Series/Descriptor 不匹配、重复实例及指标面板放置错误。
+- 指标：`RenderIndicatorSnapshot.fromResult` 只投影可绘制 Series 和 Descriptor，不保留 `IndicatorComputationState` 递归私有状态，也不复制 Series 数值列表。
+- Layer：新增 `ChartRenderLayer`、`RenderLayerContext` 和 `RenderLayerStack`；Layer 只获得 Canvas 与快照，ID、依赖切片、绘制顺序和查找表均不可变且重复 ID 被拒绝。
+- 架构：render 模块仍不依赖 Controller、Store、Interaction 或 Widget；纯度守卫新增禁止读取指标私有 continuation state，production Painter 未修改。
+- 验证：覆盖完整快照、不复制数据、不可变集合、全部装配错误、选择元组、六切片版本、Layer 依赖/顺序/重复 ID、Canvas 上下文、模块依赖与纯度扫描。
+- 证据：`docs/architecture/KLINE_V2_RENDER_PROTOCOL.md`。
+- 后续：进入 `P5-02`，在本协议上实现独立绘制 Layer。
 
 ## 13. 参考资料
 

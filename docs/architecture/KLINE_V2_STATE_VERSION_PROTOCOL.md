@@ -1,7 +1,7 @@
 # K 线 2.0 状态与版本协议
 
 > 任务：P1-02
-> 状态：已实现，P4-05 已接入导航与历史分页载荷
+> 状态：已实现，P5-01 已接入 RenderSnapshot 版本投影
 > 日期：2026-08-25
 
 ## 1. 目标
@@ -46,7 +46,7 @@ P4-01 已将不可变 `ChartViewport` 组合进快照，P4-03 已接入可空的
 
 - P1-03 的 Controller 必须以每实例状态持有版本，不使用 static 运行状态。
 - P1-04 的事件处理必须先计算变化，再原子提交状态，Painter 不得调用 `bump`。
-- P5-04 的 Layer 重绘判断必须声明依赖切片，并比较对应版本。
+- P5-01 的 Layer 已声明依赖切片并由独立 RenderSnapshot 版本向量承接；P5-04 的重绘判断必须只比较这些依赖版本。
 - 数据列表由 Store 提供只读版本化视图；状态提交不得为了比较变化而复制整份列表。
 - `ChartViewportChanged` 携带完整不可变 Viewport；相同值不提交版本，不通知监听器。
 - `ChartLayoutChanged` 携带完整不可变 LayoutModel；绘制宽度变化时与 Viewport 在同一事务更新。
