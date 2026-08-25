@@ -8,6 +8,7 @@ import '../theme/theme.dart';
 import '../viewport/viewport.dart';
 import 'render_cache.dart';
 import 'render_layer.dart';
+import 'render_repaint.dart';
 import 'render_snapshot.dart';
 
 final class ChartGridLayer<TTheme extends ChartRenderStyle>
@@ -387,18 +388,24 @@ final class StandardChartRenderPipeline<TTheme extends ChartRenderStyle> {
   StandardChartRenderPipeline({ChartRenderCache? cache})
       : cache = cache ?? ChartRenderCache() {
     layers = buildStandardChartLayerStack<TTheme>(this.cache);
+    compositor = RetainedRenderLayerCompositor(layers);
   }
 
   final ChartRenderCache cache;
   late final RenderLayerStack<TTheme> layers;
+  late final RetainedRenderLayerCompositor<TTheme> compositor;
 
-  void paint(RenderLayerContext<TTheme> context) {
-    for (final layer in layers.layers) {
-      layer.paint(context);
-    }
+  RenderLayerRepaintStats get repaintStats => compositor.stats;
+
+  RenderLayerFrameReport paint(RenderLayerContext<TTheme> context) =>
+      compositor.paint(context);
+
+  void clearRetainedLayers() => compositor.clear();
+
+  void dispose() {
+    compositor.dispose();
+    cache.dispose();
   }
-
-  void dispose() => cache.dispose();
 }
 
 Picture _recordGridPicture<TTheme extends ChartRenderStyle>(

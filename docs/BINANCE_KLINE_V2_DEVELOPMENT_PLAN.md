@@ -354,7 +354,7 @@ lib/
 
 - [x] `PERF-20` 拆分静态背景、数据、Overlay、十字线和绘图 Layer。
 - [ ] `PERF-21` 每个 Layer 独立 `RepaintBoundary`/Listenable，只重绘变化部分。
-- [ ] `PERF-22` 正确实现 `shouldRepaint()`，比较数据版本、视口版本和样式版本。
+- [x] `PERF-22` 正确实现 `shouldRepaint()`，比较数据版本、视口版本和样式版本。
 - [ ] `PERF-23` 复用 Paint、Path 缓冲区和常用 TextPainter/Paragraph。
 - [x] `PERF-24` 网格、固定标签等静态内容缓存为 Picture，尺寸或主题变化时失效。
 - [ ] `PERF-25` 依据屏幕密度和缩放级别做绘制抽稀，避免亚像素级无效细节。
@@ -363,7 +363,7 @@ lib/
 #### 调度与交互
 
 - [ ] `PERF-30` WebSocket 高频 tick 采用一帧最多提交一次的合并策略。
-- [ ] `PERF-31` 十字线 Overlay 与主数据层分离，移动时不重绘全部蜡烛。
+- [x] `PERF-31` 十字线 Overlay 与主数据层分离，移动时不重绘全部蜡烛。
 - [ ] `PERF-32` 手势状态使用专用 Listenable，不刷新外围业务 Widget。
 - [ ] `PERF-33` 文本详情由选中索引变化触发，不从 `paint()` 内发送事件。
 - [ ] `PERF-34` 后台、不可见和 Offstage 状态暂停动画与非必要刷新。
@@ -460,7 +460,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P5-01` 定义 RenderSnapshot 和 Layer 协议，Renderer 只读状态且无副作用。
 - [x] `P5-02` 实现网格、主图、副图、轴标签、标记、十字线和绘图独立 Layer。
 - [x] `P5-03` 实现可见区裁剪、极值缓存、文本/Path/Picture 缓存。
-- [ ] `P5-04` 用数据、视口、样式和 Layer 版本正确实现重绘判定。
+- [x] `P5-04` 用数据、视口、样式和 Layer 版本正确实现重绘判定。
 - [ ] `P5-05` 迁移蜡烛、分时、面积图及现有指标绘制。
 - [ ] `P5-06` 移除 paint 内 Stream 写入、全局 maxScrollX 和 Widget 全量 setState 链路。
 - [ ] `P5-07` 建立多尺寸、多主题、多副图 Golden 和 repaint 计数测试。
@@ -895,6 +895,19 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：Host Canvas 录制不代表真机 UI/Raster；连续新窗口仍扫描可见值域，`PERF-12` 未关闭；Paint 复用尚未完成，因此 `PERF-23` 未关闭。
 - 证据：`docs/architecture/KLINE_V2_RENDER_CACHE_PROTOCOL.md`、`docs/PERFORMANCE_P5_RENDER_CACHE_BASELINE.md`。
 - 后续：进入 `P5-04`，实现按 Layer 依赖版本的精确重绘判定与计数。
+
+### 2026-08-25 / P5-04
+
+- 状态：已完成，标准 Renderer 已按 Layer 依赖版本精确重录并保留合成。
+- 判定：每个 Layer 捕获只包含自身 dependencies 的版本戳；首帧全部录制，未依赖切片变化不失效，任一版本倒退立即拒绝。
+- 合成：每层保留一张最新 Picture；变化层事务式重录，未变化层复用，但输出 Canvas 每帧仍按 grid → crosshair 固定顺序合成完整图像。
+- 矩阵：selection 仅重录 crosshair；viewport 重录 main/secondary/axis/marker；data 额外重录 drawing；layout/theme 重录全部；当前 history 无可见消费者，因此不触发误重绘。
+- 诊断：每帧报告 repaint/reuse Layer ID 与失效切片，并累计每层 repaint/reuse 次数；报告和统计集合不可修改。
+- 可靠性：任一 Layer 录制失败时丢弃该帧全部候选 Picture，不推进版本与计数；clear 保留累计诊断，dispose 幂等且实例隔离。
+- 性能：2,000 根 + 2 副图 Host Debug 下，无变化保留帧 P50/P95/P99 为 309.7/414.9/459.85 μs；selection-only 为 375.15/487.6/534.5 μs，均低于 3,000 μs 回归阈值。
+- 边界：Host Picture 录制/复合不代表真机 Raster；production Painter/Widget 尚未接线，`PERF-21` 与 P5-08 真机门禁仍未关闭。
+- 证据：`docs/architecture/KLINE_V2_LAYER_REPAINT_PROTOCOL.md`、`docs/PERFORMANCE_P5_LAYER_REPAINT_BASELINE.md`。
+- 后续：进入 `P5-05`，迁移分时、面积及完整 legacy 绘制能力。
 
 ## 13. 参考资料
 

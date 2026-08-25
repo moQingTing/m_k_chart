@@ -11,23 +11,24 @@ import 'package:m_k_chart/src/viewport/viewport.dart';
 
 const _runBenchmark = bool.fromEnvironment('RUN_KLINE_BENCHMARK');
 const _hostP95BudgetMicroseconds = 10000.0;
+const _retainedP95BudgetMicroseconds = 3000.0;
 
 void main() {
   test(
-    'records warm cached standard pipeline host latency',
+    'records warm cached standard Layer stack host latency',
     () {
       final pipeline = StandardChartRenderPipeline<DefaultChartRenderStyle>();
       final snapshot = _snapshot();
 
       for (var index = 0; index < 20; index++) {
-        _paint(pipeline, snapshot);
+        _paintLayerStack(pipeline, snapshot);
       }
       final samples = <double>[];
       const iterations = 20;
       for (var sample = 0; sample < 100; sample++) {
         final stopwatch = Stopwatch()..start();
         for (var iteration = 0; iteration < iterations; iteration++) {
-          _paint(pipeline, snapshot);
+          _paintLayerStack(pipeline, snapshot);
         }
         stopwatch.stop();
         samples.add(stopwatch.elapsedMicroseconds / iterations);
@@ -42,14 +43,14 @@ void main() {
         expect(
           pipeline.cache.stats.hitCount(kind),
           greaterThan(0),
-          reason: '$kind should be exercised by the warm pipeline',
+          reason: '$kind should be exercised by the warm Layer stack',
         );
       }
       // Host Debug is a regression signal, not a UI/Raster frame measurement.
       // ignore: avoid_print
       print(
         jsonEncode(<String, Object>{
-          'metric': 'warm_standard_render_pipeline',
+          'metric': 'warm_standard_layer_stack',
           'p50_us': p50,
           'p95_us': p95,
           'p99_us': p99,
@@ -63,21 +64,126 @@ void main() {
     },
     skip: !_runBenchmark,
   );
+
+  test(
+    'records retained unchanged and selection-only host latency',
+    () {
+      final pipeline = StandardChartRenderPipeline<DefaultChartRenderStyle>();
+      final snapshot = _snapshot();
+      _paintRetained(pipeline, snapshot);
+
+      final unchanged = _measure(() => _paintRetained(pipeline, snapshot));
+      var selectionVersion = 0;
+      final selectionOnly = _measure(() {
+        selectionVersion++;
+        final report = _paintRetained(
+          pipeline,
+          _selectionSnapshot(snapshot, selectionVersion),
+        );
+        expect(report.repaintedLayerIds, ['crosshair']);
+      });
+
+      for (final entry in <String, _LatencyMetric>{
+        'retained_unchanged_frame': unchanged,
+        'retained_selection_only_frame': selectionOnly,
+      }.entries) {
+        expect(
+          entry.value.p95,
+          lessThanOrEqualTo(_retainedP95BudgetMicroseconds),
+        );
+        // ignore: avoid_print
+        print(
+          jsonEncode(<String, Object>{
+            'metric': entry.key,
+            'p50_us': entry.value.p50,
+            'p95_us': entry.value.p95,
+            'p99_us': entry.value.p99,
+            'samples': entry.value.samples,
+            'data_points': snapshot.data.data.length,
+            'secondary_panels': snapshot.layout.secondaryPanels.length,
+            'mode': 'flutter_test_host_debug_retained_layer_recording',
+          }),
+        );
+      }
+      expect(pipeline.repaintStats.repaintCount('grid'), 1);
+      expect(pipeline.repaintStats.repaintCount('crosshair'), greaterThan(1));
+      pipeline.dispose();
+    },
+    skip: !_runBenchmark,
+  );
 }
 
-void _paint(
+void _paintLayerStack(
   StandardChartRenderPipeline<DefaultChartRenderStyle> pipeline,
   RenderSnapshot<DefaultChartRenderStyle> snapshot,
 ) {
   final recorder = PictureRecorder();
-  pipeline.paint(
+  final context = RenderLayerContext(
+    canvas: Canvas(recorder),
+    snapshot: snapshot,
+  );
+  for (final layer in pipeline.layers.layers) {
+    layer.paint(context);
+  }
+  recorder.endRecording().dispose();
+}
+
+RenderLayerFrameReport _paintRetained(
+  StandardChartRenderPipeline<DefaultChartRenderStyle> pipeline,
+  RenderSnapshot<DefaultChartRenderStyle> snapshot,
+) {
+  final recorder = PictureRecorder();
+  final report = pipeline.paint(
     RenderLayerContext(
       canvas: Canvas(recorder),
       snapshot: snapshot,
     ),
   );
   recorder.endRecording().dispose();
+  return report;
 }
+
+_LatencyMetric _measure(void Function() operation) {
+  for (var index = 0; index < 20; index++) {
+    operation();
+  }
+  final samples = <double>[];
+  const iterations = 20;
+  for (var sample = 0; sample < 100; sample++) {
+    final stopwatch = Stopwatch()..start();
+    for (var iteration = 0; iteration < iterations; iteration++) {
+      operation();
+    }
+    stopwatch.stop();
+    samples.add(stopwatch.elapsedMicroseconds / iterations);
+  }
+  samples.sort();
+  return _LatencyMetric(
+    p50: _percentile(samples, 0.50),
+    p95: _percentile(samples, 0.95),
+    p99: _percentile(samples, 0.99),
+    samples: samples.length,
+  );
+}
+
+RenderSnapshot<DefaultChartRenderStyle> _selectionSnapshot(
+  RenderSnapshot<DefaultChartRenderStyle> source,
+  int selectionVersion,
+) =>
+    RenderSnapshot(
+      data: source.data,
+      viewport: source.viewport,
+      layout: source.layout,
+      theme: source.theme,
+      versions: RenderSnapshotVersions(selection: selectionVersion),
+      indicators: source.indicators,
+      selection: RenderSelectionSnapshot.visible(
+        localX: 100 + selectionVersion % 100,
+        localY: 200,
+      ),
+      history: source.history,
+      drawings: source.drawings,
+    );
 
 double _percentile(List<double> sorted, double percentile) {
   final index = ((sorted.length - 1) * percentile).ceil();
@@ -209,4 +315,18 @@ final class _StableData implements VersionedKlineData {
 
   @override
   KlineDataVersion get version => KlineDataVersion.zero;
+}
+
+final class _LatencyMetric {
+  const _LatencyMetric({
+    required this.p50,
+    required this.p95,
+    required this.p99,
+    required this.samples,
+  });
+
+  final double p50;
+  final double p95;
+  final double p99;
+  final int samples;
 }

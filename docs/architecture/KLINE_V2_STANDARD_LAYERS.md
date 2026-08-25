@@ -20,7 +20,7 @@
 | 6 | `drawing` | chart-local 投影线段 | data、layout、theme |
 | 7 | `crosshair` | chart-local 十字线和价格标签 | selection、layout、theme |
 
-Crosshair 最后绘制且不依赖 data/viewport，因此 P5-04 可以让选择移动只失效 Overlay，不重新绘制蜡烛和指标。
+Crosshair 最后绘制且不依赖 data/viewport。P5-04 已验证选择移动只重录 Crosshair Picture，不重新执行蜡烛和指标 paint。
 
 ## 2. 内部绘制样式
 
@@ -69,9 +69,10 @@ Layer 不按指标 definitionId 使用 switch：
 - 标准 Layer 不发送事件、不修改状态、不保存 Canvas；
 - 使用 `save/clipRect/restore`，架构门禁禁止 `saveLayer`；
 - 常用 `TextPainter`、指标 line `Path` 与网格 `Picture` 使用有界 LRU；版本或实际样式键变化时自然 miss，淘汰与 pipeline dispose 会释放原生资源；
+- 每个 Layer 保留一张最新 Picture；版本未变化时直接复合，变化时事务式重录，任一 Layer 失败则不提交该帧的新 Picture/版本/计数；
 - production Painter 未接线，旧 Demo 行为不变。
 
-后续任务：P5-04 精确失效、P5-05 完整视觉迁移、P5-07 Golden。
+后续任务：P5-05 完整视觉迁移、P5-07 Golden 与 Widget repaint 计数。
 
 ## 7. 自动门禁
 

@@ -10,7 +10,7 @@
 
 - 2,000 根 K 线，390×600 logical px，item extent 8，距最新端 200 根；
 - 1 个主图 line 指标，2 个副图分别绘制 histogram 和 line；
-- 标准七层 Pipeline 预热 20 帧，随后记录 100 个批次，每批录制 20 帧并折算单帧耗时；
+- 标准七层 Layer Stack 预热 20 帧，随后记录 100 个批次，每批录制 20 帧并折算单帧耗时；
 - 每帧创建并结束外层 `PictureRecorder`，Pipeline 内部复用 window/extrema/panel range/TextPainter/Path/Grid Picture；
 - Host Debug 回归阈值为 P95 ≤ 10,000 μs。
 
@@ -18,7 +18,7 @@
 
 | 场景 | P50 | P95 | P99 | P95 阈值 | 结论 |
 | --- | ---: | ---: | ---: | ---: | --- |
-| 缓存热路径标准 Pipeline Canvas 录制 | 192.85 μs | 533.35 μs | 741.05 μs | ≤10,000 μs | 通过 |
+| 缓存热路径标准 Layer Stack Canvas 录制 | 192.85 μs | 533.35 μs | 741.05 μs | ≤10,000 μs | 通过 |
 
 基准同时断言六类缓存均产生命中，防止结果在缓存未实际接入时误通过。
 

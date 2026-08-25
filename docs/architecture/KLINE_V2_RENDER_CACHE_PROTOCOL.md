@@ -33,7 +33,7 @@
 - Axis、Marker 与 Crosshair 复用已布局文本。
 - Grid 录制为 Picture，尺寸、布局或主题版本变化时重新生成。
 
-选择版本不属于 geometry key，因此仅移动十字线不会冲掉可见窗口、极值或值域。数据、Viewport、Layout 或 Theme 的调用方版本必须单调反映对应输入变化；P5-04 将使用相同切片版本决定 Layer 是否需要重绘。
+选择版本不属于 geometry key，因此仅移动十字线不会冲掉可见窗口、极值或值域。数据、Viewport、Layout 或 Theme 的调用方版本必须单调反映对应输入变化；P5-04 已使用相同切片版本决定 Layer 是否需要重录。
 
 ## 4. 已知边界
 

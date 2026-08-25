@@ -2,7 +2,7 @@
 
 > 任务：P5-01
 >
-> 状态：已实现，P5-03 已接入实例级有界缓存
+> 状态：已实现，P5-04 已接入精确 Layer 重绘
 >
 > 日期：2026-08-25
 
@@ -10,7 +10,7 @@
 
 新 Renderer 只读取一个完整、稳定且经过校验的 `RenderSnapshot`。Layer 只能把该快照转换为 Canvas 可见输出，不能修改 Controller、Store、Interaction 或 Widget 状态。
 
-P5-01 冻结输入与扩展协议；P5-02 已实现内部标准 Layer Stack，P5-03 已接入实例级缓存，但仍不修改 production Painter。
+P5-01 冻结输入与扩展协议；P5-02 已实现内部标准 Layer Stack，P5-03 已接入实例级缓存，P5-04 已按依赖版本保留并重录独立 Layer Picture，但仍不修改 production Painter。
 
 ## 2. RenderSnapshot
 
@@ -60,7 +60,7 @@ Render 模块不允许依赖 Interaction，因此装配层把状态转换为 Ren
 
 Context 只提供当前 Canvas 与只读 Snapshot。Layer 可以持有由输入版本控制的 Paint/Path/Text/Picture 缓存，但不得保留 Canvas、发布业务事件或写入应用状态。
 
-`RenderLayerStack` 冻结绘制顺序和 ID 查找表，拒绝重复 ID。P5-02 已注册 grid/main/secondary/axis/marker/drawing/crosshair；P5-04 只比较每个 Layer 声明的版本依赖来决定重绘。
+`RenderLayerStack` 冻结绘制顺序和 ID 查找表，拒绝重复 ID。P5-02 已注册 grid/main/secondary/axis/marker/drawing/crosshair；P5-04 的保留式 Compositor 只比较每个 Layer 声明的版本依赖，重录变化层并按固定顺序合成全部 Picture。
 
 ## 6. 自动门禁
 
@@ -76,6 +76,6 @@ Context 只提供当前 Canvas 与只读 Snapshot。Layer 可以持有由输入�
 
 - P5-02：已实现网格、主图、副图、轴、标记、绘图和十字线 Layer；
 - P5-03：已实现可见区、极值、Text/Path/Picture 有界缓存；
-- P5-04：按 Layer 依赖切片实现精确失效与 repaint 计数；
+- P5-04：已按 Layer 依赖切片实现精确失效、保留式 Picture 合成与 repaint 计数；
 - P5-06：新链路完成后移除 legacy paint 写状态和 static 边界；
 - P6-01：将泛型主题收敛为完整不可变 KChartTheme。

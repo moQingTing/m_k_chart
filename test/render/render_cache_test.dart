@@ -117,15 +117,16 @@ void main() {
     cache.dispose();
   });
 
-  test('standard pipeline reuses every cache class on an unchanged frame', () {
+  test('standard Layer stack reuses every cache class when repainted', () {
     final fixture = _fixture();
-    final pipeline = StandardChartRenderPipeline<DefaultChartRenderStyle>();
+    final cache = ChartRenderCache();
+    final layers = buildStandardChartLayerStack<DefaultChartRenderStyle>(cache);
     final snapshot = fixture.snapshot();
 
-    _paint(pipeline, snapshot);
-    final afterFirst = pipeline.cache.stats;
-    _paint(pipeline, snapshot);
-    final afterSecond = pipeline.cache.stats;
+    _paintLayers(layers, snapshot);
+    final afterFirst = cache.stats;
+    _paintLayers(layers, snapshot);
+    final afterSecond = cache.stats;
 
     for (final kind in <RenderCacheKind>[
       RenderCacheKind.window,
@@ -141,7 +142,7 @@ void main() {
         reason: '$kind should hit on the unchanged second frame',
       );
     }
-    pipeline.dispose();
+    cache.dispose();
   });
 
   test('two chart caches never share entries or counters', () {
@@ -208,13 +209,16 @@ void main() {
   });
 }
 
-void _paint(
-  StandardChartRenderPipeline<DefaultChartRenderStyle> pipeline,
+void _paintLayers(
+  RenderLayerStack<DefaultChartRenderStyle> layers,
   RenderSnapshot<DefaultChartRenderStyle> snapshot,
 ) {
   final recorder = PictureRecorder();
   final canvas = Canvas(recorder);
-  pipeline.paint(RenderLayerContext(canvas: canvas, snapshot: snapshot));
+  final context = RenderLayerContext(canvas: canvas, snapshot: snapshot);
+  for (final layer in layers.layers) {
+    layer.paint(context);
+  }
   recorder.endRecording().dispose();
 }
 
