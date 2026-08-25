@@ -10,8 +10,13 @@ import 'package:m_k_chart/src/theme/theme.dart';
 import 'package:m_k_chart/src/viewport/viewport.dart';
 
 void main() {
+  late ChartRenderCache cache;
+
+  setUp(() => cache = ChartRenderCache());
+  tearDown(() => cache.dispose());
+
   test('standard stack freezes deterministic independent Layer order', () {
-    final stack = buildStandardChartLayerStack<DefaultChartRenderStyle>();
+    final stack = buildStandardChartLayerStack<DefaultChartRenderStyle>(cache);
 
     expect(
       stack.layers.map((layer) => layer.id),
@@ -31,7 +36,7 @@ void main() {
     final fixture = _fixture();
     final pixels = await _paint(
       fixture.snapshot,
-      [ChartGridLayer<DefaultChartRenderStyle>()],
+      [ChartGridLayer<DefaultChartRenderStyle>(cache)],
     );
 
     expect(
@@ -54,7 +59,7 @@ void main() {
     final fixture = _fixture();
     final pixels = await _paint(
       fixture.snapshot,
-      [ChartMainLayer<DefaultChartRenderStyle>()],
+      [ChartMainLayer<DefaultChartRenderStyle>(cache)],
     );
     final main = fixture.layout.mainPanel.bounds;
 
@@ -83,7 +88,7 @@ void main() {
     final fixture = _fixture();
     final pixels = await _paint(
       fixture.snapshot,
-      [ChartSecondaryLayer<DefaultChartRenderStyle>()],
+      [ChartSecondaryLayer<DefaultChartRenderStyle>(cache)],
     );
     final panel = fixture.layout.panel('volume').bounds;
     final indicatorColor = fixture.style.indicatorColor('oscillator', 'line');
@@ -112,7 +117,7 @@ void main() {
     final fixture = _fixture();
     final pixels = await _paint(
       fixture.snapshot,
-      [ChartAxisLayer<DefaultChartRenderStyle>()],
+      [ChartAxisLayer<DefaultChartRenderStyle>(cache)],
     );
 
     expect(
@@ -142,9 +147,9 @@ void main() {
       () async {
     final fixture = _fixture();
     final layers = <ChartRenderLayer<DefaultChartRenderStyle>>[
-      ChartMarkerLayer<DefaultChartRenderStyle>(),
+      ChartMarkerLayer<DefaultChartRenderStyle>(cache),
       ChartDrawingLayer<DefaultChartRenderStyle>(),
-      ChartCrosshairLayer<DefaultChartRenderStyle>(),
+      ChartCrosshairLayer<DefaultChartRenderStyle>(cache),
     ];
     final pixels = await _paint(fixture.snapshot, layers);
     final bounds = fixture.layout.drawingBounds;
@@ -170,7 +175,7 @@ void main() {
 
   test('hidden or out-of-bounds crosshair produces no Canvas output', () async {
     final fixture = _fixture();
-    final layer = ChartCrosshairLayer<DefaultChartRenderStyle>();
+    final layer = ChartCrosshairLayer<DefaultChartRenderStyle>(cache);
     final hidden = await _paint(fixture.snapshotWithSelection(), [layer]);
     final outside = await _paint(
       fixture.snapshotWithSelection(

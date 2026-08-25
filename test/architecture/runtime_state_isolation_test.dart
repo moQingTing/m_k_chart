@@ -6,7 +6,7 @@ void main() {
   final packageRoot = Directory.current.absolute;
 
   test('new runtime modules do not declare mutable static state', () {
-    const runtimeModules = {'controller', 'interaction', 'viewport'};
+    const runtimeModules = {'controller', 'interaction', 'render', 'viewport'};
     final violations = <String>[];
     final mutableStaticField = RegExp(
       r'^\s*static\s+(?!const\b)'

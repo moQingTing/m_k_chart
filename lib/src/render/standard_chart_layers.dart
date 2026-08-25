@@ -1,17 +1,18 @@
 import 'dart:math' as math;
+import 'dart:ui' show Picture, PictureRecorder;
 
 import 'package:flutter/painting.dart';
 
 import '../indicator/indicator.dart';
 import '../theme/theme.dart';
 import '../viewport/viewport.dart';
-import 'chart_layer_geometry.dart';
+import 'render_cache.dart';
 import 'render_layer.dart';
 import 'render_snapshot.dart';
 
 final class ChartGridLayer<TTheme extends ChartRenderStyle>
     extends ChartRenderLayer<TTheme> {
-  ChartGridLayer()
+  ChartGridLayer(this.cache)
       : super(
           id: 'grid',
           dependencies: const {
@@ -20,42 +21,27 @@ final class ChartGridLayer<TTheme extends ChartRenderStyle>
           },
         );
 
+  final ChartRenderCache cache;
+
   @override
   void paint(RenderLayerContext<TTheme> context) {
-    final canvas = context.canvas;
     final snapshot = context.snapshot;
-    final layout = snapshot.layout;
-    final theme = snapshot.theme;
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, layout.width, layout.height),
-      Paint()..color = theme.backgroundColor,
+    final picture = cache.picture(
+      (
+        'grid',
+        snapshot.versions.layout,
+        snapshot.versions.theme,
+        snapshot.layout,
+      ),
+      () => _recordGridPicture(snapshot),
     );
-    final paint = Paint()
-      ..color = theme.gridColor
-      ..strokeWidth = theme.gridStrokeWidth
-      ..style = PaintingStyle.stroke;
-    for (final x in layout.gridColumnXs) {
-      canvas.drawLine(
-        Offset(x, layout.drawingBounds.top),
-        Offset(x, layout.drawingBounds.bottom),
-        paint,
-      );
-    }
-    for (final panel in layout.panels) {
-      for (final y in layout.gridRowYsFor(panel.spec.id)) {
-        canvas.drawLine(
-          Offset(panel.bounds.left, y),
-          Offset(panel.bounds.right, y),
-          paint,
-        );
-      }
-    }
+    context.canvas.drawPicture(picture);
   }
 }
 
 final class ChartMainLayer<TTheme extends ChartRenderStyle>
     extends ChartRenderLayer<TTheme> {
-  ChartMainLayer()
+  ChartMainLayer(this.cache)
       : super(
           id: 'main',
           dependencies: const {
@@ -66,6 +52,8 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
           },
         );
 
+  final ChartRenderCache cache;
+
   @override
   void paint(RenderLayerContext<TTheme> context) {
     final snapshot = context.snapshot;
@@ -73,21 +61,20 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
       return;
     }
     final panel = snapshot.layout.mainPanel;
-    final priceTransform = ChartLayerGeometry.rangeFor(
-      snapshot,
-      panel.spec.id,
-    ).transform(panel.bounds);
-    final xTransform = ChartXTransform(
-      viewport: snapshot.viewport,
-      data: snapshot.data,
-    );
+    final priceTransform = cache
+        .panelRangeFor(
+          snapshot,
+          panel.spec.id,
+        )
+        .transform(panel.bounds);
+    final window = cache.windowFor(snapshot);
     final canvas = context.canvas;
     canvas.save();
     canvas.clipRect(_rect(panel.bounds));
     _drawCandles(
       canvas: canvas,
       snapshot: snapshot,
-      xTransform: xTransform,
+      window: window,
       priceTransform: priceTransform,
     );
     _drawIndicators(
@@ -95,8 +82,9 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
       snapshot: snapshot,
       panelId: panel.spec.id,
       bounds: panel.bounds,
-      xTransform: xTransform,
+      window: window,
       valueTransform: priceTransform,
+      cache: cache,
     );
     canvas.restore();
   }
@@ -104,7 +92,7 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
 
 final class ChartSecondaryLayer<TTheme extends ChartRenderStyle>
     extends ChartRenderLayer<TTheme> {
-  ChartSecondaryLayer()
+  ChartSecondaryLayer(this.cache)
       : super(
           id: 'secondary',
           dependencies: const {
@@ -115,21 +103,22 @@ final class ChartSecondaryLayer<TTheme extends ChartRenderStyle>
           },
         );
 
+  final ChartRenderCache cache;
+
   @override
   void paint(RenderLayerContext<TTheme> context) {
     final snapshot = context.snapshot;
     if (snapshot.data.data.isEmpty) {
       return;
     }
-    final xTransform = ChartXTransform(
-      viewport: snapshot.viewport,
-      data: snapshot.data,
-    );
+    final window = cache.windowFor(snapshot);
     for (final panel in snapshot.layout.secondaryPanels) {
-      final valueTransform = ChartLayerGeometry.rangeFor(
-        snapshot,
-        panel.spec.id,
-      ).transform(panel.bounds);
+      final valueTransform = cache
+          .panelRangeFor(
+            snapshot,
+            panel.spec.id,
+          )
+          .transform(panel.bounds);
       context.canvas.save();
       context.canvas.clipRect(_rect(panel.bounds));
       _drawIndicators(
@@ -137,8 +126,9 @@ final class ChartSecondaryLayer<TTheme extends ChartRenderStyle>
         snapshot: snapshot,
         panelId: panel.spec.id,
         bounds: panel.bounds,
-        xTransform: xTransform,
+        window: window,
         valueTransform: valueTransform,
+        cache: cache,
       );
       context.canvas.restore();
     }
@@ -147,7 +137,7 @@ final class ChartSecondaryLayer<TTheme extends ChartRenderStyle>
 
 final class ChartAxisLayer<TTheme extends ChartRenderStyle>
     extends ChartRenderLayer<TTheme> {
-  ChartAxisLayer()
+  ChartAxisLayer(this.cache)
       : super(
           id: 'axis',
           dependencies: const {
@@ -158,13 +148,15 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
           },
         );
 
+  final ChartRenderCache cache;
+
   @override
   void paint(RenderLayerContext<TTheme> context) {
     final snapshot = context.snapshot;
     final layout = snapshot.layout;
     final theme = snapshot.theme;
     for (final panel in layout.panels) {
-      final range = ChartLayerGeometry.rangeFor(snapshot, panel.spec.id);
+      final range = cache.panelRangeFor(snapshot, panel.spec.id);
       final rows = layout.gridRowYsFor(panel.spec.id);
       for (var index = 0; index < rows.length; index++) {
         final ratio = index / (rows.length - 1);
@@ -182,16 +174,14 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
               : index == rows.length - 1
                   ? 1
                   : 0.5,
+          cache: cache,
         );
       }
     }
     if (snapshot.data.data.isEmpty || layout.timeAxisBounds.height <= 0) {
       return;
     }
-    final xTransform = ChartXTransform(
-      viewport: snapshot.viewport,
-      data: snapshot.data,
-    );
+    final xTransform = cache.windowFor(snapshot).xTransform;
     for (final x in layout.gridColumnXs) {
       final time = xTransform.localXToTime(x);
       _drawText(
@@ -206,6 +196,7 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
             : x == layout.gridColumnXs.last
                 ? 1
                 : 0.5,
+        cache: cache,
       );
     }
   }
@@ -213,7 +204,7 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
 
 final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
     extends ChartRenderLayer<TTheme> {
-  ChartMarkerLayer()
+  ChartMarkerLayer(this.cache)
       : super(
           id: 'marker',
           dependencies: const {
@@ -224,39 +215,32 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
           },
         );
 
+  final ChartRenderCache cache;
+
   @override
   void paint(RenderLayerContext<TTheme> context) {
     final snapshot = context.snapshot;
-    final visible = snapshot.viewport.visibleRange;
+    final window = cache.windowFor(snapshot);
+    final visible = window.range;
     if (visible.isEmpty) {
       return;
     }
     final panel = snapshot.layout.mainPanel;
-    final transform = ChartLayerGeometry.rangeFor(
-      snapshot,
-      panel.spec.id,
-    ).transform(panel.bounds);
-    final xTransform = ChartXTransform(
-      viewport: snapshot.viewport,
-      data: snapshot.data,
-    );
-    var highIndex = visible.start;
-    var lowIndex = visible.start;
-    for (var index = visible.start + 1; index < visible.end; index++) {
-      if (snapshot.data.data[index].high > snapshot.data.data[highIndex].high) {
-        highIndex = index;
-      }
-      if (snapshot.data.data[index].low < snapshot.data.data[lowIndex].low) {
-        lowIndex = index;
-      }
-    }
+    final transform = cache
+        .panelRangeFor(
+          snapshot,
+          panel.spec.id,
+        )
+        .transform(panel.bounds);
+    final xTransform = window.xTransform;
+    final extrema = cache.extremaFor(snapshot)!;
     final paint = Paint()
       ..color = snapshot.theme.markerColor
       ..strokeWidth = snapshot.theme.overlayStrokeWidth
       ..style = PaintingStyle.stroke;
     for (final point in <(int, double)>[
-      (highIndex, snapshot.data.data[highIndex].high),
-      (lowIndex, snapshot.data.data[lowIndex].low),
+      (extrema.highIndex, extrema.high),
+      (extrema.lowIndex, extrema.low),
     ]) {
       context.canvas.drawCircle(
         Offset(
@@ -289,13 +273,14 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
       y: localY,
       horizontalAnchor: 1,
       verticalAnchor: 0.5,
+      cache: cache,
     );
   }
 }
 
 final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
     extends ChartRenderLayer<TTheme> {
-  ChartCrosshairLayer()
+  ChartCrosshairLayer(this.cache)
       : super(
           id: 'crosshair',
           dependencies: const {
@@ -304,6 +289,8 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
             RenderSnapshotSlice.theme,
           },
         );
+
+  final ChartRenderCache cache;
 
   @override
   void paint(RenderLayerContext<TTheme> context) {
@@ -339,6 +326,7 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
         y: selection.localY,
         horizontalAnchor: 1,
         verticalAnchor: 0.5,
+        cache: cache,
       );
     }
   }
@@ -378,29 +366,111 @@ final class ChartDrawingLayer<TTheme extends ChartRenderStyle>
 }
 
 RenderLayerStack<TTheme>
-    buildStandardChartLayerStack<TTheme extends ChartRenderStyle>() =>
+    buildStandardChartLayerStack<TTheme extends ChartRenderStyle>(
+  ChartRenderCache cache,
+) =>
         RenderLayerStack<TTheme>([
-          ChartGridLayer<TTheme>(),
-          ChartMainLayer<TTheme>(),
-          ChartSecondaryLayer<TTheme>(),
-          ChartAxisLayer<TTheme>(),
-          ChartMarkerLayer<TTheme>(),
+          ChartGridLayer<TTheme>(cache),
+          ChartMainLayer<TTheme>(cache),
+          ChartSecondaryLayer<TTheme>(cache),
+          ChartAxisLayer<TTheme>(cache),
+          ChartMarkerLayer<TTheme>(cache),
           ChartDrawingLayer<TTheme>(),
-          ChartCrosshairLayer<TTheme>(),
+          ChartCrosshairLayer<TTheme>(cache),
         ]);
+
+final class StandardChartRenderPipeline<TTheme extends ChartRenderStyle> {
+  /// Creates a complete standard pipeline and takes ownership of [cache].
+  ///
+  /// Supplying a cache is intended for capacity tuning and diagnostics. The
+  /// caller must not reuse it after this pipeline has been disposed.
+  StandardChartRenderPipeline({ChartRenderCache? cache})
+      : cache = cache ?? ChartRenderCache() {
+    layers = buildStandardChartLayerStack<TTheme>(this.cache);
+  }
+
+  final ChartRenderCache cache;
+  late final RenderLayerStack<TTheme> layers;
+
+  void paint(RenderLayerContext<TTheme> context) {
+    for (final layer in layers.layers) {
+      layer.paint(context);
+    }
+  }
+
+  void dispose() => cache.dispose();
+}
+
+Picture _recordGridPicture<TTheme extends ChartRenderStyle>(
+  RenderSnapshot<TTheme> snapshot,
+) {
+  final recorder = PictureRecorder();
+  final canvas = Canvas(recorder);
+  final layout = snapshot.layout;
+  final theme = snapshot.theme;
+  canvas.drawRect(
+    Rect.fromLTWH(0, 0, layout.width, layout.height),
+    Paint()..color = theme.backgroundColor,
+  );
+  final paint = Paint()
+    ..color = theme.gridColor
+    ..strokeWidth = theme.gridStrokeWidth
+    ..style = PaintingStyle.stroke;
+  for (final x in layout.gridColumnXs) {
+    canvas.drawLine(
+      Offset(x, layout.drawingBounds.top),
+      Offset(x, layout.drawingBounds.bottom),
+      paint,
+    );
+  }
+  for (final panel in layout.panels) {
+    for (final y in layout.gridRowYsFor(panel.spec.id)) {
+      canvas.drawLine(
+        Offset(panel.bounds.left, y),
+        Offset(panel.bounds.right, y),
+        paint,
+      );
+    }
+  }
+  return recorder.endRecording();
+}
+
+Path _buildLinePath({
+  required IndicatorSeries series,
+  required VisibleIndexRange visible,
+  required ChartXTransform xTransform,
+  required ChartPriceTransform valueTransform,
+}) {
+  final path = Path();
+  var active = false;
+  for (var index = visible.start; index < visible.end; index++) {
+    final value = series.values[index];
+    if (value == null) {
+      active = false;
+      continue;
+    }
+    final x = xTransform.indexToLocalX(index);
+    final y = valueTransform.priceToLocalY(value);
+    if (active) {
+      path.lineTo(x, y);
+    } else {
+      path.moveTo(x, y);
+      active = true;
+    }
+  }
+  return path;
+}
 
 void _drawCandles<TTheme extends ChartRenderStyle>({
   required Canvas canvas,
   required RenderSnapshot<TTheme> snapshot,
-  required ChartXTransform xTransform,
+  required ChartVisibleWindow window,
   required ChartPriceTransform priceTransform,
 }) {
   final bodyWidth = math.max(1.0, snapshot.viewport.itemExtent * 0.65);
-  for (var index = snapshot.viewport.visibleRange.start;
-      index < snapshot.viewport.visibleRange.end;
-      index++) {
+  for (var index = window.range.start; index < window.range.end; index++) {
     final candle = snapshot.data.data[index];
-    final x = xTransform.indexToLocalX(index);
+    final x = window.xTransform.indexToLocalX(index);
     final openY = priceTransform.priceToLocalY(candle.open);
     final closeY = priceTransform.priceToLocalY(candle.close);
     final highY = priceTransform.priceToLocalY(candle.high);
@@ -433,10 +503,11 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
   required RenderSnapshot<TTheme> snapshot,
   required String panelId,
   required ChartLayoutRect bounds,
-  required ChartXTransform xTransform,
+  required ChartVisibleWindow window,
   required ChartPriceTransform valueTransform,
+  required ChartRenderCache cache,
 }) {
-  final visible = snapshot.viewport.visibleRange;
+  final visible = window.range;
   for (final indicator in snapshot.indicators) {
     if (indicator.panelId != panelId) {
       continue;
@@ -452,23 +523,24 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
         ..style = PaintingStyle.stroke;
       switch (descriptor.drawingKind) {
         case IndicatorDrawingKind.line:
-          final path = Path();
-          var active = false;
-          for (var index = visible.start; index < visible.end; index++) {
-            final value = series.values[index];
-            if (value == null) {
-              active = false;
-              continue;
-            }
-            final x = xTransform.indexToLocalX(index);
-            final y = valueTransform.priceToLocalY(value);
-            if (active) {
-              path.lineTo(x, y);
-            } else {
-              path.moveTo(x, y);
-              active = true;
-            }
-          }
+          final path = cache.path(
+            (
+              indicator.instanceId,
+              descriptor.id,
+              snapshot.data.version,
+              snapshot.versions.data,
+              snapshot.versions.viewport,
+              snapshot.versions.layout,
+              panelId,
+              valueTransform,
+            ),
+            () => _buildLinePath(
+              series: series,
+              visible: visible,
+              xTransform: window.xTransform,
+              valueTransform: valueTransform,
+            ),
+          );
           canvas.drawPath(path, paint);
         case IndicatorDrawingKind.histogram:
           final baseline = valueTransform.priceToLocalY(0).clamp(
@@ -482,7 +554,7 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
             if (value == null) {
               continue;
             }
-            final x = xTransform.indexToLocalX(index);
+            final x = window.xTransform.indexToLocalX(index);
             final y = valueTransform.priceToLocalY(value);
             canvas.drawRect(
               Rect.fromLTRB(
@@ -503,7 +575,7 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
             }
             canvas.drawCircle(
               Offset(
-                xTransform.indexToLocalX(index),
+                window.xTransform.indexToLocalX(index),
                 valueTransform.priceToLocalY(value),
               ),
               math.max(1.5, snapshot.theme.indicatorStrokeWidth),
@@ -524,15 +596,13 @@ void _drawText({
   required double y,
   double horizontalAnchor = 0,
   double verticalAnchor = 0,
+  required ChartRenderCache cache,
 }) {
-  final painter = TextPainter(
-    text: TextSpan(
-      text: text,
-      style: TextStyle(color: color, fontSize: fontSize),
-    ),
-    textDirection: TextDirection.ltr,
-    maxLines: 1,
-  )..layout();
+  final painter = cache.textPainter(
+    text: text,
+    color: color,
+    fontSize: fontSize,
+  );
   painter.paint(
     canvas,
     Offset(

@@ -17,11 +17,26 @@ final class ChartPanelValueRange {
       );
 }
 
+final class ChartVisibleOhlcExtrema {
+  const ChartVisibleOhlcExtrema({
+    required this.highIndex,
+    required this.lowIndex,
+    required this.high,
+    required this.low,
+  });
+
+  final int highIndex;
+  final int lowIndex;
+  final double high;
+  final double low;
+}
+
 abstract final class ChartLayerGeometry {
   static ChartPanelValueRange rangeFor<TTheme extends Object>(
     RenderSnapshot<TTheme> snapshot,
-    String panelId,
-  ) {
+    String panelId, {
+    ChartVisibleOhlcExtrema? ohlcExtrema,
+  }) {
     final panel = snapshot.layout.panel(panelId);
     final range = snapshot.viewport.visibleRange;
     double? minimum;
@@ -33,10 +48,10 @@ abstract final class ChartLayerGeometry {
     }
 
     if (panel.spec.kind == ChartPanelKind.main) {
-      for (var index = range.start; index < range.end; index++) {
-        final candle = snapshot.data.data[index];
-        include(candle.low);
-        include(candle.high);
+      final extrema = ohlcExtrema ?? visibleOhlcExtrema(snapshot);
+      if (extrema != null) {
+        include(extrema.low);
+        include(extrema.high);
       }
     }
 
@@ -74,5 +89,30 @@ abstract final class ChartLayerGeometry {
     }
     final padding = (maximum! - minimum!) * 0.05;
     return ChartPanelValueRange(minimum! - padding, maximum! + padding);
+  }
+
+  static ChartVisibleOhlcExtrema? visibleOhlcExtrema<TTheme extends Object>(
+    RenderSnapshot<TTheme> snapshot,
+  ) {
+    final range = snapshot.viewport.visibleRange;
+    if (range.isEmpty) {
+      return null;
+    }
+    var highIndex = range.start;
+    var lowIndex = range.start;
+    for (var index = range.start + 1; index < range.end; index++) {
+      if (snapshot.data.data[index].high > snapshot.data.data[highIndex].high) {
+        highIndex = index;
+      }
+      if (snapshot.data.data[index].low < snapshot.data.data[lowIndex].low) {
+        lowIndex = index;
+      }
+    }
+    return ChartVisibleOhlcExtrema(
+      highIndex: highIndex,
+      lowIndex: lowIndex,
+      high: snapshot.data.data[highIndex].high,
+      low: snapshot.data.data[lowIndex].low,
+    );
   }
 }

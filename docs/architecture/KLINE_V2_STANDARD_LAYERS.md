@@ -44,7 +44,7 @@ P6-01 的完整 `KChartTheme` 将实现/扩展该接口，并补齐蜡烛变体�
 - 平值范围增加 1% 或 1 的有限 padding，空 panel 使用 0～1 fallback；
 - 所有 panel、drawing 和 crosshair 输出使用 chart-local Bounds/clip。
 
-当前多个 Layer 会各自解析同一 panel 值域。该重复计算是 P5-03 极值缓存的明确输入基线，不允许在 paint 中引入跨实例 static 缓存。
+P5-03 后所有标准 Layer 共享当前图表实例的 `ChartRenderCache`：同一数据/Viewport 版本只构造一次可见范围与 X Transform，主图 OHLC 极值只扫描一次，各 panel 值域按 panel ID 复用。缓存不使用跨实例 static 状态。
 
 ## 4. 指标绘制
 
@@ -68,10 +68,10 @@ Layer 不按指标 definitionId 使用 switch：
 
 - 标准 Layer 不发送事件、不修改状态、不保存 Canvas；
 - 使用 `save/clipRect/restore`，架构门禁禁止 `saveLayer`；
-- 本阶段不引入 Text/Path/Picture 缓存，避免在失效协议冻结前产生隐式状态；
+- 常用 `TextPainter`、指标 line `Path` 与网格 `Picture` 使用有界 LRU；版本或实际样式键变化时自然 miss，淘汰与 pipeline dispose 会释放原生资源；
 - production Painter 未接线，旧 Demo 行为不变。
 
-后续任务：P5-03 缓存与可见区优化、P5-04 精确失效、P5-05 完整视觉迁移、P5-07 Golden。
+后续任务：P5-04 精确失效、P5-05 完整视觉迁移、P5-07 Golden。
 
 ## 7. 自动门禁
 
@@ -83,4 +83,5 @@ Layer 不按指标 definitionId 使用 switch：
 - marker/drawing/crosshair 分色独立输出；
 - hidden/越界 crosshair 零输出；
 - drawing ID、坐标和集合不可变；
+- 缓存命中/失效、容量 LRU、clear/dispose、双实例隔离；
 - 模块依赖、Renderer 纯度和 `saveLayer` 扫描。

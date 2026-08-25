@@ -345,20 +345,20 @@ lib/
 
 #### 视口与极值
 
-- [ ] `PERF-10` 只遍历可见 K 线，不绘制屏幕外元素。
-- [ ] `PERF-11` 缓存坐标换算参数和可见起止索引。
+- [x] `PERF-10` 只遍历可见 K 线，不绘制屏幕外元素。
+- [x] `PERF-11` 缓存坐标换算参数和可见起止索引。
 - [ ] `PERF-12` 使用滑动窗口、分块 min/max 或 Segment Tree 缓存极值，避免每帧扫描全部副图数据。
 - [ ] `PERF-13` 缩放期间使用轻量预览，手势结束后再完成非关键文本布局。
 
 #### 绘制
 
-- [ ] `PERF-20` 拆分静态背景、数据、Overlay、十字线和绘图 Layer。
+- [x] `PERF-20` 拆分静态背景、数据、Overlay、十字线和绘图 Layer。
 - [ ] `PERF-21` 每个 Layer 独立 `RepaintBoundary`/Listenable，只重绘变化部分。
 - [ ] `PERF-22` 正确实现 `shouldRepaint()`，比较数据版本、视口版本和样式版本。
 - [ ] `PERF-23` 复用 Paint、Path 缓冲区和常用 TextPainter/Paragraph。
-- [ ] `PERF-24` 网格、固定标签等静态内容缓存为 Picture，尺寸或主题变化时失效。
+- [x] `PERF-24` 网格、固定标签等静态内容缓存为 Picture，尺寸或主题变化时失效。
 - [ ] `PERF-25` 依据屏幕密度和缩放级别做绘制抽稀，避免亚像素级无效细节。
-- [ ] `PERF-26` 禁止无必要 `saveLayer()`，控制渐变、阴影和 clip 的使用。
+- [x] `PERF-26` 禁止无必要 `saveLayer()`，控制渐变、阴影和 clip 的使用。
 
 #### 调度与交互
 
@@ -459,7 +459,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 - [x] `P5-01` 定义 RenderSnapshot 和 Layer 协议，Renderer 只读状态且无副作用。
 - [x] `P5-02` 实现网格、主图、副图、轴标签、标记、十字线和绘图独立 Layer。
-- [ ] `P5-03` 实现可见区裁剪、极值缓存、文本/Path/Picture 缓存。
+- [x] `P5-03` 实现可见区裁剪、极值缓存、文本/Path/Picture 缓存。
 - [ ] `P5-04` 用数据、视口、样式和 Layer 版本正确实现重绘判定。
 - [ ] `P5-05` 迁移蜡烛、分时、面积图及现有指标绘制。
 - [ ] `P5-06` 移除 paint 内 Stream 写入、全局 maxScrollX 和 Widget 全量 setState 链路。
@@ -883,6 +883,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：当前是内部 V2 参考绘制链路，未修改 production Painter；分时/面积和完整 legacy 视觉迁移属于 P5-05，Golden 属于 P5-07。
 - 证据：`docs/architecture/KLINE_V2_STANDARD_LAYERS.md`。
 - 后续：进入 `P5-03`，实现可见区与绘制缓存。
+
+### 2026-08-25 / P5-03
+
+- 状态：已完成，标准 Renderer 已接入每图表实例独立的有界缓存。
+- 几何：同一 data/viewport key 复用可见范围与 X Transform；主图 OHLC 极值只扫描一次，panel range 按 layout/panel 缓存，selection-only 变化不使其失效。
+- 绘制：指标 line 复用 Path，Axis/Marker/Crosshair 复用已布局 TextPainter，背景与网格录制为 Picture；所有缓存使用 LRU 上限。
+- 生命周期：TextPainter/Picture 在淘汰、clear 和 dispose 时释放；Pipeline 取得缓存所有权；幂等 dispose、dispose 后访问拒绝、双实例隔离均有自动测试。
+- 版本：data/viewport/layout/theme 的快照版本与结构值组成失效键；P5-04 继续用 Layer 依赖切片跳过整层 paint。
+- 性能：2,000 根 + 2 副图 Host Debug 缓存热路径 P50/P95/P99 为 192.85/533.35/741.05 μs，P95 低于 10,000 μs 主机回归阈值。
+- 边界：Host Canvas 录制不代表真机 UI/Raster；连续新窗口仍扫描可见值域，`PERF-12` 未关闭；Paint 复用尚未完成，因此 `PERF-23` 未关闭。
+- 证据：`docs/architecture/KLINE_V2_RENDER_CACHE_PROTOCOL.md`、`docs/PERFORMANCE_P5_RENDER_CACHE_BASELINE.md`。
+- 后续：进入 `P5-04`，实现按 Layer 依赖版本的精确重绘判定与计数。
 
 ## 13. 参考资料
 

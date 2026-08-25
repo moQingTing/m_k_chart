@@ -2,7 +2,7 @@
 
 > 任务：P5-01
 >
-> 状态：已实现，P5-02 已接入标准 Layer Stack
+> 状态：已实现，P5-03 已接入实例级有界缓存
 >
 > 日期：2026-08-25
 
@@ -10,7 +10,7 @@
 
 新 Renderer 只读取一个完整、稳定且经过校验的 `RenderSnapshot`。Layer 只能把该快照转换为 Canvas 可见输出，不能修改 Controller、Store、Interaction 或 Widget 状态。
 
-P5-01 冻结输入与扩展协议；P5-02 已在该协议上实现内部标准 Layer Stack，但仍不修改 production Painter。
+P5-01 冻结输入与扩展协议；P5-02 已实现内部标准 Layer Stack，P5-03 已接入实例级缓存，但仍不修改 production Painter。
 
 ## 2. RenderSnapshot
 
@@ -70,11 +70,12 @@ Context 只提供当前 Canvas 与只读 Snapshot。Layer 可以持有由输入�
 - 模块依赖：render 不得 import controller/data/interaction/widget 或 legacy；
 - 纯度扫描：禁止 Stream、dispatch、notifyListeners、setState 和指标 continuation state；
 - 正式公共入口不导出本阶段内部协议。
+- runtime 实例隔离扫描覆盖 render，禁止用 mutable static 共享缓存。
 
 ## 7. 后续边界
 
 - P5-02：已实现网格、主图、副图、轴、标记、绘图和十字线 Layer；
-- P5-03：实现可见区、极值、Text/Path/Picture 缓存；
+- P5-03：已实现可见区、极值、Text/Path/Picture 有界缓存；
 - P5-04：按 Layer 依赖切片实现精确失效与 repaint 计数；
 - P5-06：新链路完成后移除 legacy paint 写状态和 static 边界；
 - P6-01：将泛型主题收敛为完整不可变 KChartTheme。
