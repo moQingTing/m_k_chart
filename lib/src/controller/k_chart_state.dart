@@ -1,3 +1,4 @@
+import '../interaction/interaction.dart';
 import '../viewport/viewport.dart';
 
 /// Independently versioned portions of a chart state.
@@ -80,12 +81,14 @@ final class KChartState {
     this.versions = const StateSliceVersions(),
     this.viewport = const ChartViewport.initial(),
     this.layout,
+    this.crosshair = const ChartCrosshairState.hidden(),
   }) : assert(revision >= 0);
 
   final int revision;
   final StateSliceVersions versions;
   final ChartViewport viewport;
   final ChartLayoutModel? layout;
+  final ChartCrosshairState crosshair;
 
   int versionOf(StateSlice slice) => versions.versionOf(slice);
 
@@ -93,15 +96,20 @@ final class KChartState {
     Iterable<StateSlice> changedSlices, {
     ChartViewport? viewport,
     ChartLayoutModel? layout,
+    ChartCrosshairState? crosshair,
   }) {
     final slices = Set<StateSlice>.of(changedSlices);
     final nextViewport = viewport ?? this.viewport;
     final nextLayout = layout ?? this.layout;
+    final nextCrosshair = crosshair ?? this.crosshair;
     if (nextViewport != this.viewport) {
       slices.add(StateSlice.viewport);
     }
     if (nextLayout != this.layout) {
       slices.add(StateSlice.layout);
+    }
+    if (nextCrosshair != this.crosshair) {
+      slices.add(StateSlice.selection);
     }
     if (slices.isEmpty) {
       return this;
@@ -112,6 +120,7 @@ final class KChartState {
       versions: versions.bump(slices),
       viewport: nextViewport,
       layout: nextLayout,
+      crosshair: nextCrosshair,
     );
   }
 
@@ -130,8 +139,10 @@ final class KChartState {
           revision == other.revision &&
           versions == other.versions &&
           viewport == other.viewport &&
-          layout == other.layout;
+          layout == other.layout &&
+          crosshair == other.crosshair;
 
   @override
-  int get hashCode => Object.hash(revision, versions, viewport, layout);
+  int get hashCode =>
+      Object.hash(revision, versions, viewport, layout, crosshair);
 }

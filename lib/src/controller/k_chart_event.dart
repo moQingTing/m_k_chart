@@ -1,3 +1,4 @@
+import '../interaction/interaction.dart';
 import 'k_chart_state.dart';
 import '../viewport/viewport.dart';
 
@@ -26,7 +27,9 @@ final class ChartViewportChanged implements KChartEvent {
 }
 
 final class ChartSelectionChanged implements KChartEvent {
-  const ChartSelectionChanged();
+  const ChartSelectionChanged(this.crosshair);
+
+  final ChartCrosshairState crosshair;
 
   @override
   Set<StateSlice> get changedSlices => const {StateSlice.selection};

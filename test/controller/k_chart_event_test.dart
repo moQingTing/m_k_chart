@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/src/controller/controller.dart';
+import 'package:m_k_chart/src/interaction/interaction.dart';
 import 'package:m_k_chart/src/viewport/viewport.dart';
 
 void main() {
@@ -7,7 +8,8 @@ void main() {
     final expectations = <KChartEvent, StateSlice>{
       const ChartDataChanged(): StateSlice.data,
       const ChartViewportChanged(ChartViewport.initial()): StateSlice.viewport,
-      const ChartSelectionChanged(): StateSlice.selection,
+      const ChartSelectionChanged(ChartCrosshairState.hidden()):
+          StateSlice.selection,
       ChartLayoutChanged(_layout()): StateSlice.layout,
       const ChartThemeChanged(): StateSlice.theme,
     };
@@ -25,7 +27,9 @@ void main() {
     controller.dispatchBatch([
       const ChartDataChanged(),
       ChartViewportChanged(ChartViewport(width: 80)),
-      const ChartSelectionChanged(),
+      const ChartSelectionChanged(
+        ChartCrosshairState.visible(localX: 10, localY: 20),
+      ),
     ]);
 
     expect(controller.value.revision, 1);

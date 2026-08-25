@@ -448,7 +448,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P4-01` 实现每实例 ChartViewport、可见范围和缩放/滚动边界。
 - [x] `P4-02` 实现数据坐标、图表 local 坐标、价格和时间的双向转换。
 - [x] `P4-03` 实现确定性 LayoutModel，修复网格数量、初始化顺序、多副图尺寸和嵌套偏移问题。
-- [ ] `P4-04` 实现遵循 Gesture Arena 的单指平移、焦点缩放、长按十字线互斥状态机。
+- [x] `P4-04` 实现遵循 Gesture Arena 的单指平移、焦点缩放、长按十字线互斥状态机。
 - [ ] `P4-05` 实现惯性、磁吸、回到最新、指定时间定位和历史分页状态。
 - [ ] `P4-06` 实现双图表隔离、父滚动容器、横屏、鼠标和触控板策略。
 - [ ] `P4-07` 完成坐标往返、手势竞争和输入延迟自动化测试。
@@ -808,6 +808,19 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：极值/平盘价格 padding 属于后续 Renderer 输入；Gesture Arena、横屏和父滚动实测属于 P4-04/P4-06。
 - 证据：`docs/architecture/KLINE_V2_LAYOUT_PROTOCOL.md`。
 - 后续：进入 `P4-04`，实现合规的交互状态机。
+
+### 2026-08-25 / P4-04
+
+- 状态：已完成，单指平移、双指焦点缩放和长按十字线互斥协议已冻结。
+- 状态机：新增每实例 `ChartInteractionMachine`，仅包含 idle/panning/scaling/crosshair 四个互斥状态；冲突 begin 不抢占 winner，cancel/reject 只回到 idle。
+- Arena：新增内部 `ChartGestureRegion`，使用标准 Scale + LongPress recognizer；单指/双指由 pointerCount 区分，不覆写 rejectGesture，也不在拒绝后调用 acceptGesture。
+- 导航：pan 把 local X delta 转为数据槽滚动；scale 冻结焦点数据位置并同时处理 scale/focal 移动，继续复用 Viewport 的缩放和滚动边界。
+- 选择：长按全程使用 localPosition；`ChartCrosshairState` 进入 KChartState selection 切片，Controller 通过 sealed interaction intent 映射类型化事件，不依赖 Painter Stream。
+- 验证：纯状态机覆盖边界/锚定/互斥/取消/非法输入；Widget 测试覆盖单指只 pan、双指只 scale、静止长按只 crosshair；架构守卫禁止新链路 reject→accept 和 Interaction Flutter/Controller 依赖。
+- ARCH-07：图表内部三类手势竞争已关闭；父滚动、鼠标和触控板策略仍由 P4-06 验证后完整关闭。
+- 边界：惯性、磁吸、定位和历史分页属于 P4-05；production KChartWidget/Painter 未修改。
+- 证据：`docs/architecture/KLINE_V2_INTERACTION_PROTOCOL.md`。
+- 后续：进入 `P4-05`，实现导航与分页状态。
 
 ## 13. 参考资料
 

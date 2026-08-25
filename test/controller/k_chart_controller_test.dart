@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/src/controller/controller.dart';
+import 'package:m_k_chart/src/interaction/interaction.dart';
 import 'package:m_k_chart/src/viewport/viewport.dart';
 
 void main() {
@@ -113,6 +114,23 @@ void main() {
       expect(controller.value.versionOf(StateSlice.layout), 1);
       expect(controller.value.versionOf(StateSlice.viewport), 0);
       expect(controller.value.viewport.width, 200);
+    });
+
+    test('reduces interaction intents into typed state slices', () {
+      final controller = KChartController();
+      final viewport = ChartViewport(itemCount: 100, width: 80);
+
+      controller.dispatchInteraction(ChartViewportIntent(viewport));
+      controller.dispatchInteraction(
+        const ChartCrosshairIntent.show(localX: 12, localY: 34),
+      );
+
+      expect(controller.value.revision, 2);
+      expect(controller.value.viewport, viewport);
+      expect(controller.value.crosshair.isVisible, isTrue);
+      expect(controller.value.crosshair.localX, 12);
+      expect(controller.value.versionOf(StateSlice.viewport), 1);
+      expect(controller.value.versionOf(StateSlice.selection), 1);
     });
 
     test('supports a caller-provided initial snapshot', () {

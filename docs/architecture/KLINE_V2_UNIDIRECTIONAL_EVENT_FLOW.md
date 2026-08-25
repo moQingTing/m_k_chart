@@ -24,7 +24,8 @@ Renderer 不存在回指 Controller 的边；绘制结果也不作为修改业�
 - 当前提供 data、viewport、selection、layout、theme 五类语义事件，与状态切片一一对应。
 - 单事件通过 `dispatch`，同一用户输入引发的复合变化通过 `dispatchBatch`。
 - 批量事件先合并变化切片，再原子发布一次快照和一次通知。
-- 事件载荷由后续所属模块补充；不得用无类型 `Map` 或动态回调绕过协议。
+- Viewport、Layout 和 crosshair 载荷已由 P4-01/P4-03/P4-04 补充；后续载荷仍不得用无类型 `Map` 或动态回调绕过协议。
+- `dispatchInteraction` 只负责把 sealed interaction intent 映射到现有类型化事件，不允许 Interaction 直接修改 Controller。
 - Controller 销毁后拒绝所有事件。
 
 ## 3. Painter/Renderer 纯度

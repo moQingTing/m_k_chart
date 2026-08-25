@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/src/controller/controller.dart';
+import 'package:m_k_chart/src/interaction/interaction.dart';
 import 'package:m_k_chart/src/viewport/viewport.dart';
 
 void main() {
@@ -10,6 +11,7 @@ void main() {
       expect(state.revision, 0);
       expect(state.viewport, const ChartViewport.initial());
       expect(state.layout, isNull);
+      expect(state.crosshair, const ChartCrosshairState.hidden());
       for (final slice in StateSlice.values) {
         expect(state.versionOf(slice), 0);
       }
@@ -100,6 +102,17 @@ void main() {
       expect(after.revision, 1);
       expect(after.versionOf(StateSlice.layout), 1);
       expect(after.versionOf(StateSlice.viewport), 0);
+    });
+
+    test('crosshair payload automatically marks selection state', () {
+      const before = KChartState();
+      const crosshair = ChartCrosshairState.visible(localX: 12, localY: 34);
+
+      final after = before.bump(const [], crosshair: crosshair);
+
+      expect(after.crosshair, crosshair);
+      expect(after.revision, 1);
+      expect(after.versionOf(StateSlice.selection), 1);
     });
   });
 }

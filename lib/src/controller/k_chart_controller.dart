@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../interaction/interaction.dart';
 import 'k_chart_event.dart';
 import 'k_chart_state.dart';
 
@@ -25,6 +26,16 @@ final class KChartController extends ChangeNotifier
     dispatchBatch([event]);
   }
 
+  /// Converts one interaction-layer intent into the owning typed event.
+  void dispatchInteraction(ChartInteractionIntent intent) {
+    switch (intent) {
+      case ChartViewportIntent(:final viewport):
+        dispatch(ChartViewportChanged(viewport));
+      case ChartCrosshairIntent(:final state):
+        dispatch(ChartSelectionChanged(state));
+    }
+  }
+
   /// Atomically reduces multiple events and publishes at most one notification.
   ///
   /// The batch collects the union of affected state slices. An empty batch
@@ -34,6 +45,7 @@ final class KChartController extends ChangeNotifier
     final changedSlices = <StateSlice>{};
     var viewport = _value.viewport;
     var layout = _value.layout;
+    var crosshair = _value.crosshair;
     for (final event in events) {
       if (event case ChartViewportChanged(viewport: final next)) {
         viewport = next;
@@ -41,6 +53,10 @@ final class KChartController extends ChangeNotifier
       }
       if (event case ChartLayoutChanged(layout: final next)) {
         layout = next;
+        continue;
+      }
+      if (event case ChartSelectionChanged(crosshair: final next)) {
+        crosshair = next;
         continue;
       }
       changedSlices.addAll(event.changedSlices);
@@ -54,11 +70,15 @@ final class KChartController extends ChangeNotifier
     if (layout != _value.layout) {
       changedSlices.add(StateSlice.layout);
     }
+    if (crosshair != _value.crosshair) {
+      changedSlices.add(StateSlice.selection);
+    }
     _commit(
       _value.bump(
         changedSlices,
         viewport: viewport,
         layout: layout,
+        crosshair: crosshair,
       ),
     );
   }

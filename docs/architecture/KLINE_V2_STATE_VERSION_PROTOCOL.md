@@ -8,7 +8,7 @@
 
 `KChartState` 是 Controller 对外发布的不可变快照。状态使用总修订号和切片版本向量，避免十字线、主题等局部变化触发全部 Layer 重绘，也避免通过复制大数据列表判断状态是否变化。
 
-P4-01 已将不可变 `ChartViewport` 组合进快照，P4-03 已接入可空的 `ChartLayoutModel`；其他载荷仍由其所属任务实现后逐步接入。
+P4-01 已将不可变 `ChartViewport` 组合进快照，P4-03 已接入可空的 `ChartLayoutModel`，P4-04 已接入 `ChartCrosshairState`；其他载荷仍由其所属任务实现后逐步接入。
 
 ## 2. 状态切片
 
@@ -49,6 +49,7 @@ P4-01 已将不可变 `ChartViewport` 组合进快照，P4-03 已接入可空的
 - 数据列表由 Store 提供只读版本化视图；状态提交不得为了比较变化而复制整份列表。
 - `ChartViewportChanged` 携带完整不可变 Viewport；相同值不提交版本，不通知监听器。
 - `ChartLayoutChanged` 携带完整不可变 LayoutModel；绘制宽度变化时与 Viewport 在同一事务更新。
+- `ChartSelectionChanged` 携带不可变 crosshair 状态；相同 local 位置不提交重复 selection 版本。
 
 ## 6. 验证
 
