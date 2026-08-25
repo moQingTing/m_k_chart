@@ -186,4 +186,5 @@ IndicatorResult _rebind(
       dataVersion: dataVersion,
       length: previous.length,
       series: previous.series,
+      computationState: previous.computationState,
     );

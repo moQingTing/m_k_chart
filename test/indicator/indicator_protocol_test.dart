@@ -101,6 +101,40 @@ void main() {
         ),
         throwsArgumentError,
       );
+      expect(
+        () => IndicatorResult(
+          instanceId: 'one',
+          definitionId: 'close',
+          dataVersion: KlineDataVersion.zero,
+          length: 2,
+          series: [
+            IndicatorSeries(id: 'value', values: const [1, 2]),
+          ],
+          computationState: IndicatorComputationState(
+            length: 1,
+            series: [
+              IndicatorSeries(id: 'state', values: const [1]),
+            ],
+          ),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('keeps copy-on-write incremental values immutable and bounded', () {
+      var series = IndicatorSeries(
+        id: 'value',
+        values: List<double?>.generate(1000, (index) => index.toDouble()),
+      );
+      for (var iteration = 0; iteration < 520; iteration++) {
+        final buffer = IndicatorValueBuffer.from(series.values, 1000)
+          ..[999] = iteration.toDouble();
+        series = IndicatorSeries.takeOwnership(id: 'value', values: buffer);
+      }
+
+      expect(series.values.first, 0);
+      expect(series.values.last, 519);
+      expect(() => series.values[999] = 0, throwsUnsupportedError);
     });
   });
 

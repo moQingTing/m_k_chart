@@ -8,3 +8,4 @@ export 'indicator_definition.dart';
 export 'indicator_registry.dart';
 export 'indicator_renderer_descriptor.dart';
 export 'indicator_series.dart';
+export 'legacy_indicator_definitions.dart';

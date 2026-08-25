@@ -436,7 +436,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 - [x] `P3-01` 定义注册式 Indicator、IndicatorConfig、IndicatorSeries 和 RendererDescriptor 协议。
 - [x] `P3-02` 实现以数据版本、参数和数据源为键的缓存及增量更新协议。
-- [ ] `P3-03` 迁移现有指标并与 Phase 0 快照对照。
+- [x] `P3-03` 迁移现有指标并与 Phase 0 快照对照。
 - [ ] `P3-04` 增加 VWAP、ATR、CCI、DMI、ROC、Stoch RSI。
 - [ ] `P3-05` 支持同类多实例、数据不足状态、NaN/Infinity 隔离。
 - [ ] `P3-06` 删除新链路对实体 `late` 指标字段及核心 enum/switch 的依赖。
@@ -726,6 +726,17 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 内存：缓存默认最多 32 项并按 LRU 淘汰；6 个单序列指标 Host Debug RSS 粗测增量 4 KiB，仅作本机观测，Phase 3/5 仍需用真实多序列指标复测综合内存。
 - 边界：未迁移 legacy 公式、未修改生产 Painter、未从正式包入口导出新协议。
 - 后续：进入 `P3-03`，迁移现有 10 类指标并与 Phase 0 快照对照。
+
+### 2026-08-25 / P3-03
+
+- 状态：已完成，10 类 legacy 指标已迁移到独立引擎。
+- 变更：新增 MA、EMA、BOLL、SAR、VOL、MACD、KDJ、RSI、WR、OBV 注册定义及统一注册入口；递归指标状态保存在 Renderer 不可见的不可变 `IndicatorComputationState` 中。
+- 兼容：Phase 0 索引 29/59/99 的 24 条序列全部在 `1e-9` 容差内一致；保留 WR 实际 15 根窗口等历史口径；数据不足由旧占位零改为协议规定的 `null`。
+- 增量：十类定义均支持 append 和无稳定后缀的 update；写时复制序列共享未变前缀，小变更稀疏保存并在 512 项后自动展平，避免每 tick 复制 10,000 点。
+- 性能：10,000 根 Host Debug，十指标全量 P95 10,413 μs；Store + 十指标末项增量合计 P95 1,942 μs，各单指标 P95 465～2,720 μs，均低于 8 ms 门禁。
+- 验证：注册数量、历史公式对照、不足状态、append/update 等价、参数拒绝、状态长度、写时复制不可变性和 520 次展平路径均通过。
+- 边界：未修改 legacy `DataUtil` 和生产 Painter；新定义仍仅从内部 indicator 模块导出。
+- 后续：进入 `P3-04`，新增 VWAP、ATR、CCI、DMI、ROC 和 Stoch RSI。
 
 ## 13. 参考资料
 

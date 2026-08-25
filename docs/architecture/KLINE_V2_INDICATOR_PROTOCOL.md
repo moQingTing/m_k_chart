@@ -1,6 +1,6 @@
 # Kline V2 指标协议（P3-01）
 
-状态：基础协议及 P3-02 缓存/增量扩展已冻结；legacy 公式迁移由 P3-03 完成。
+状态：基础协议、缓存/增量扩展及 P3-03 legacy 公式迁移已冻结。
 
 ## 1. 目标与边界
 
@@ -17,6 +17,7 @@
 | `IndicatorConfig` | 一个指标实例的不可变配置 | 实例 ID 与定义 ID 分离；参数必须有限；样式只存语义 key |
 | `IndicatorSeries` | 单条输出序列 | `null` 表示数据不足；禁止 NaN/Infinity；长度与输入严格一致 |
 | `IndicatorResult` | 一次完整计算结果 | 绑定实例、定义、数据版本、长度与多条 Series |
+| `IndicatorComputationState` | 递归公式的不可变延续状态 | Renderer 不可见；长度与结果一致；只允许有限值或 null |
 | `IndicatorRendererDescriptor` | Renderer 中立的绘制描述 | 只包含主图/副图、line/histogram/points、量程语义；不含 Color/Canvas |
 | `IndicatorRegistry` | 实例级定义注册和契约校验 | 无全局可变注册表；拒绝重复 ID、未知定义和不符合描述符的结果 |
 
@@ -55,11 +56,12 @@ KlineStore.snapshot (VersionedKlineData)
 5. 增量结果与全量结果使用同一 Registry 契约校验。身份、版本、长度或 Series 不匹配立即失败，不使用可能错误的旧结果静默恢复。
 6. 相同内容但新版本的快照可复用不可变 Series 并重新绑定数据版本；精确相同快照直接返回同一个 Result。
 
-性能和复现记录见 `PERFORMANCE_P3_INDICATOR_CACHE_BASELINE.md`。
+P3-03 为递归指标补充 `IndicatorComputationState`。MACD 的 EMA12/26、RSI 的平滑分子/分母、SAR 的趋势/AF/EP 和 KDJ 的内部 K/D 保存在该状态中，不污染可绘制 Series。增量输出使用写时复制值列表：未变化前缀共享，稀疏覆盖超过 512 项时自动物化，限制查找层级和长期持有成本。
+
+缓存协议性能见 `PERFORMANCE_P3_INDICATOR_CACHE_BASELINE.md`，十类迁移指标性能见 `PERFORMANCE_P3_LEGACY_INDICATORS_BASELINE.md`。
 
 ## 6. 后续冻结点
 
-- P3-03：将 MA/EMA/BOLL/SAR/VOL/MACD/KDJ/RSI/WR/OBV 迁移为定义，使用 Phase 0 快照对照。
 - P3-05：在 Registry/Cache 边界细化单指标失败隔离与多实例压力测试。
 - P5：RendererDescriptor 才接入 RenderSnapshot/Layer；此前生产 Painter 保持不变。
 
