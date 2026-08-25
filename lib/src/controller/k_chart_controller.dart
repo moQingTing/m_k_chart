@@ -32,10 +32,18 @@ final class KChartController extends ChangeNotifier
   void dispatchBatch(Iterable<KChartEvent> events) {
     _ensureActive();
     final changedSlices = <StateSlice>{};
+    var viewport = _value.viewport;
     for (final event in events) {
+      if (event case ChartViewportChanged(viewport: final next)) {
+        viewport = next;
+        continue;
+      }
       changedSlices.addAll(event.changedSlices);
     }
-    _commit(_value.bump(changedSlices));
+    if (viewport != _value.viewport) {
+      changedSlices.add(StateSlice.viewport);
+    }
+    _commit(_value.bump(changedSlices, viewport: viewport));
   }
 
   void _commit(KChartState next) {

@@ -1,9 +1,10 @@
 import 'k_chart_state.dart';
+import '../viewport/viewport.dart';
 
 /// A typed input accepted by [KChartController].
 ///
-/// Events describe what changed. Their concrete payloads will be expanded by
-/// the owning data, viewport, interaction, layout, and theme tasks.
+/// Events describe what changed. Concrete payloads are added by their owning
+/// data, viewport, interaction, layout, and theme tasks.
 abstract interface class KChartEvent {
   Set<StateSlice> get changedSlices;
 }
@@ -16,7 +17,9 @@ final class ChartDataChanged implements KChartEvent {
 }
 
 final class ChartViewportChanged implements KChartEvent {
-  const ChartViewportChanged();
+  const ChartViewportChanged(this.viewport);
+
+  final ChartViewport viewport;
 
   @override
   Set<StateSlice> get changedSlices => const {StateSlice.viewport};

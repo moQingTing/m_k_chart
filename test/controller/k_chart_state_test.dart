@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/src/controller/controller.dart';
+import 'package:m_k_chart/src/viewport/viewport.dart';
 
 void main() {
   group('KChartState version protocol', () {
@@ -7,6 +8,7 @@ void main() {
       const state = KChartState();
 
       expect(state.revision, 0);
+      expect(state.viewport, const ChartViewport.initial());
       for (final slice in StateSlice.values) {
         expect(state.versionOf(slice), 0);
       }
@@ -71,6 +73,20 @@ void main() {
 
       expect(left, right);
       expect(left.hashCode, right.hashCode);
+    });
+
+    test('viewport payload is replaced in the same version transaction', () {
+      const before = KChartState();
+      final viewport = ChartViewport(itemCount: 100, width: 80);
+
+      final after = before.bump(
+        const [StateSlice.viewport],
+        viewport: viewport,
+      );
+
+      expect(after.viewport, viewport);
+      expect(after.revision, 1);
+      expect(after.versionOf(StateSlice.viewport), 1);
     });
   });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/src/controller/controller.dart';
+import 'package:m_k_chart/src/viewport/viewport.dart';
 
 void main() {
   group('KChartController', () {
@@ -8,10 +9,10 @@ void main() {
       var notifications = 0;
       controller.addListener(() => notifications++);
 
-      controller.dispatchBatch(const [
-        ChartDataChanged(),
-        ChartViewportChanged(),
-        ChartDataChanged(),
+      controller.dispatchBatch([
+        const ChartDataChanged(),
+        ChartViewportChanged(ChartViewport(width: 80)),
+        const ChartDataChanged(),
       ]);
 
       expect(controller.value.revision, 1);
@@ -36,12 +37,36 @@ void main() {
       final first = KChartController();
       final second = KChartController();
 
-      first.dispatch(const ChartSelectionChanged());
+      first.dispatch(
+        ChartViewportChanged(
+          ChartViewport(itemCount: 100, width: 80).scrollByItems(10),
+        ),
+      );
 
       expect(first.value.revision, 1);
-      expect(first.value.versionOf(StateSlice.selection), 1);
+      expect(first.value.viewport.scrollOffsetItems, 10);
       expect(second.value.revision, 0);
-      expect(second.value.versionOf(StateSlice.selection), 0);
+      expect(second.value.viewport, const ChartViewport.initial());
+    });
+
+    test('skips equal viewport payloads and commits the last batch value', () {
+      final initial = ChartViewport(itemCount: 100, width: 80);
+      final controller = KChartController(
+        initialState: KChartState(viewport: initial),
+      );
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+
+      controller.dispatch(ChartViewportChanged(initial));
+      controller.dispatchBatch([
+        ChartViewportChanged(initial.scrollByItems(2)),
+        ChartViewportChanged(initial.scrollByItems(4)),
+      ]);
+
+      expect(controller.value.revision, 1);
+      expect(controller.value.versionOf(StateSlice.viewport), 1);
+      expect(controller.value.viewport.scrollOffsetItems, 4);
+      expect(notifications, 1);
     });
 
     test('supports a caller-provided initial snapshot', () {

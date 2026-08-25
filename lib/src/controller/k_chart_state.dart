@@ -1,3 +1,5 @@
+import '../viewport/viewport.dart';
+
 /// Independently versioned portions of a chart state.
 ///
 /// Render layers and listeners use these identities to subscribe to the
@@ -76,15 +78,24 @@ final class KChartState {
   const KChartState({
     this.revision = 0,
     this.versions = const StateSliceVersions(),
+    this.viewport = const ChartViewport.initial(),
   }) : assert(revision >= 0);
 
   final int revision;
   final StateSliceVersions versions;
+  final ChartViewport viewport;
 
   int versionOf(StateSlice slice) => versions.versionOf(slice);
 
-  KChartState bump(Iterable<StateSlice> changedSlices) {
+  KChartState bump(
+    Iterable<StateSlice> changedSlices, {
+    ChartViewport? viewport,
+  }) {
     final slices = Set<StateSlice>.of(changedSlices);
+    final nextViewport = viewport ?? this.viewport;
+    if (nextViewport != this.viewport) {
+      slices.add(StateSlice.viewport);
+    }
     if (slices.isEmpty) {
       return this;
     }
@@ -92,6 +103,7 @@ final class KChartState {
     return KChartState(
       revision: revision + 1,
       versions: versions.bump(slices),
+      viewport: nextViewport,
     );
   }
 
@@ -108,8 +120,9 @@ final class KChartState {
       identical(this, other) ||
       other is KChartState &&
           revision == other.revision &&
-          versions == other.versions;
+          versions == other.versions &&
+          viewport == other.viewport;
 
   @override
-  int get hashCode => Object.hash(revision, versions);
+  int get hashCode => Object.hash(revision, versions, viewport);
 }

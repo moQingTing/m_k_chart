@@ -1,14 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/src/controller/controller.dart';
+import 'package:m_k_chart/src/viewport/viewport.dart';
 
 void main() {
   test('typed events declare only their owning state slice', () {
-    const expectations = <KChartEvent, StateSlice>{
-      ChartDataChanged(): StateSlice.data,
-      ChartViewportChanged(): StateSlice.viewport,
-      ChartSelectionChanged(): StateSlice.selection,
-      ChartLayoutChanged(): StateSlice.layout,
-      ChartThemeChanged(): StateSlice.theme,
+    final expectations = <KChartEvent, StateSlice>{
+      const ChartDataChanged(): StateSlice.data,
+      const ChartViewportChanged(ChartViewport.initial()): StateSlice.viewport,
+      const ChartSelectionChanged(): StateSlice.selection,
+      const ChartLayoutChanged(): StateSlice.layout,
+      const ChartThemeChanged(): StateSlice.theme,
     };
 
     for (final entry in expectations.entries) {
@@ -21,10 +22,10 @@ void main() {
     var notifications = 0;
     controller.addListener(() => notifications++);
 
-    controller.dispatchBatch(const [
-      ChartDataChanged(),
-      ChartViewportChanged(),
-      ChartSelectionChanged(),
+    controller.dispatchBatch([
+      const ChartDataChanged(),
+      ChartViewportChanged(ChartViewport(width: 80)),
+      const ChartSelectionChanged(),
     ]);
 
     expect(controller.value.revision, 1);

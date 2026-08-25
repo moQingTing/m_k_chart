@@ -445,7 +445,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 ### Phase 4：视口、布局与手势状态机，6～8 人日
 
-- [ ] `P4-01` 实现每实例 ChartViewport、可见范围和缩放/滚动边界。
+- [x] `P4-01` 实现每实例 ChartViewport、可见范围和缩放/滚动边界。
 - [ ] `P4-02` 实现数据坐标、图表 local 坐标、价格和时间的双向转换。
 - [ ] `P4-03` 实现确定性 LayoutModel，修复网格数量、初始化顺序、多副图尺寸和嵌套偏移问题。
 - [ ] `P4-04` 实现遵循 Gesture Arena 的单指平移、焦点缩放、长按十字线互斥状态机。
@@ -772,6 +772,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：生产 Painter、legacy DataUtil、正式包入口和 Demo 均未改动；新指标仍需 Phase 5 Renderer 与 Phase 6 配置 UI 才能目测。
 - 证据：`docs/architecture/PHASE_3_EXIT_REVIEW.md`。
 - 后续：进入 `P4-01`，实现每实例 ChartViewport 和边界。
+
+### 2026-08-25 / P4-01
+
+- 状态：已完成，每实例 Viewport 和边界协议已冻结。
+- 变更：新增不可变 `ChartViewport` 与半开区间 `VisibleIndexRange`；Viewport 以数据槽保存距最新端的滚动量，并按数据量、逻辑宽度和单项宽度统一计算可见范围与最大滚动边界。
+- 边界：缩放自动约束到 min/max item extent；滚动自动约束到最新/最旧端；宽度、数据量和缩放变化都会重新归一化，不足一屏不制造可滚动空白。
+- 状态：`KChartState` 开始持有 Viewport 载荷；`ChartViewportChanged` 支持批次最后值原子提交，相同载荷不增加 revision、不通知监听器。
+- ARCH-04：新 Viewport 无 static 运行状态，双 Controller 分别持有独立快照；legacy `ChartPainter.maxScrollX` 暂保留到 P5-06，不进入新链路。
+- 验证：覆盖最新/最旧/分数槽可见范围、缩放上下限、尺寸/数据量重算、非法输入、结构相等、Controller 空事务/批次提交、双实例隔离和模块依赖。
+- 边界：本任务不实现 data/local/时间/价格转换、焦点缩放或历史分页锚定，不修改生产 Painter 和 Demo。
+- 证据：`docs/architecture/KLINE_V2_VIEWPORT_PROTOCOL.md`。
+- 后续：进入 `P4-02`，实现坐标双向转换和往返测试。
 
 ## 13. 参考资料
 
