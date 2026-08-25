@@ -33,17 +33,34 @@ final class KChartController extends ChangeNotifier
     _ensureActive();
     final changedSlices = <StateSlice>{};
     var viewport = _value.viewport;
+    var layout = _value.layout;
     for (final event in events) {
       if (event case ChartViewportChanged(viewport: final next)) {
         viewport = next;
         continue;
       }
+      if (event case ChartLayoutChanged(layout: final next)) {
+        layout = next;
+        continue;
+      }
       changedSlices.addAll(event.changedSlices);
+    }
+    if (layout != null) {
+      viewport = layout.applyTo(viewport);
     }
     if (viewport != _value.viewport) {
       changedSlices.add(StateSlice.viewport);
     }
-    _commit(_value.bump(changedSlices, viewport: viewport));
+    if (layout != _value.layout) {
+      changedSlices.add(StateSlice.layout);
+    }
+    _commit(
+      _value.bump(
+        changedSlices,
+        viewport: viewport,
+        layout: layout,
+      ),
+    );
   }
 
   void _commit(KChartState next) {

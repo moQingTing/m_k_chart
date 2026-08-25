@@ -58,7 +58,7 @@ price = maxPrice - (localY - top) / height * (maxPrice - minPrice)
 - price/local 往返误差：`≤ 1e-9`（测试样本）；
 - 所有 double 输入必须有限；
 - 转换对象不可变，不保存 mutable static 或 Widget 状态；
-- P4-03 负责提供确定性的 panel `top/bottom` 和绘制宽度；
+- P4-03 已通过 `ChartLayoutModel` 提供确定性的 panel `top/bottom` 和绘制宽度，见 `KLINE_V2_LAYOUT_PROTOCOL.md`；
 - P4-04/P4-05 使用本协议实现焦点缩放、选中和时间定位；
 - P5 Renderer 只消费这些 local 结果，不再执行独立的坐标公式。
 

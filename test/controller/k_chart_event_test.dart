@@ -8,7 +8,7 @@ void main() {
       const ChartDataChanged(): StateSlice.data,
       const ChartViewportChanged(ChartViewport.initial()): StateSlice.viewport,
       const ChartSelectionChanged(): StateSlice.selection,
-      const ChartLayoutChanged(): StateSlice.layout,
+      ChartLayoutChanged(_layout()): StateSlice.layout,
       const ChartThemeChanged(): StateSlice.theme,
     };
 
@@ -36,3 +36,5 @@ void main() {
     expect(notifications, 1);
   });
 }
+
+ChartLayoutModel _layout() => ChartLayoutModel(width: 200, height: 160);

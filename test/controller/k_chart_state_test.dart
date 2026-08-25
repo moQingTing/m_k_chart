@@ -9,6 +9,7 @@ void main() {
 
       expect(state.revision, 0);
       expect(state.viewport, const ChartViewport.initial());
+      expect(state.layout, isNull);
       for (final slice in StateSlice.values) {
         expect(state.versionOf(slice), 0);
       }
@@ -87,6 +88,18 @@ void main() {
       expect(after.viewport, viewport);
       expect(after.revision, 1);
       expect(after.versionOf(StateSlice.viewport), 1);
+    });
+
+    test('layout payload automatically marks its owning state slice', () {
+      const before = KChartState();
+      final layout = ChartLayoutModel(width: 200, height: 160);
+
+      final after = before.bump(const [], layout: layout);
+
+      expect(after.layout, layout);
+      expect(after.revision, 1);
+      expect(after.versionOf(StateSlice.layout), 1);
+      expect(after.versionOf(StateSlice.viewport), 0);
     });
   });
 }

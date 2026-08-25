@@ -69,6 +69,52 @@ void main() {
       expect(notifications, 1);
     });
 
+    test('keeps layout payload atomic and skips structurally equal values', () {
+      final initial = ChartLayoutModel(width: 200, height: 160);
+      final controller = KChartController(
+        initialState: KChartState(
+          layout: initial,
+          viewport: ChartViewport(width: 200),
+        ),
+      );
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+
+      controller.dispatch(
+        ChartLayoutChanged(ChartLayoutModel(width: 200, height: 160)),
+      );
+      controller.dispatchBatch([
+        ChartLayoutChanged(ChartLayoutModel(width: 240, height: 160)),
+        ChartLayoutChanged(ChartLayoutModel(width: 280, height: 160)),
+      ]);
+
+      expect(controller.value.revision, 1);
+      expect(controller.value.versionOf(StateSlice.layout), 1);
+      expect(controller.value.versionOf(StateSlice.viewport), 1);
+      expect(controller.value.layout?.width, 280);
+      expect(controller.value.viewport.width, 280);
+      expect(notifications, 1);
+    });
+
+    test('height-only layout changes do not invalidate viewport', () {
+      final initial = ChartLayoutModel(width: 200, height: 160);
+      final controller = KChartController(
+        initialState: KChartState(
+          layout: initial,
+          viewport: ChartViewport(width: 200),
+        ),
+      );
+
+      controller.dispatch(
+        ChartLayoutChanged(ChartLayoutModel(width: 200, height: 180)),
+      );
+
+      expect(controller.value.revision, 1);
+      expect(controller.value.versionOf(StateSlice.layout), 1);
+      expect(controller.value.versionOf(StateSlice.viewport), 0);
+      expect(controller.value.viewport.width, 200);
+    });
+
     test('supports a caller-provided initial snapshot', () {
       const initial = KChartState(
         revision: 4,

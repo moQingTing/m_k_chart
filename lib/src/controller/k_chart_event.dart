@@ -33,7 +33,9 @@ final class ChartSelectionChanged implements KChartEvent {
 }
 
 final class ChartLayoutChanged implements KChartEvent {
-  const ChartLayoutChanged();
+  const ChartLayoutChanged(this.layout);
+
+  final ChartLayoutModel layout;
 
   @override
   Set<StateSlice> get changedSlices => const {StateSlice.layout};

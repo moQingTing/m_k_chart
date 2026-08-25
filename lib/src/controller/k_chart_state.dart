@@ -79,22 +79,29 @@ final class KChartState {
     this.revision = 0,
     this.versions = const StateSliceVersions(),
     this.viewport = const ChartViewport.initial(),
+    this.layout,
   }) : assert(revision >= 0);
 
   final int revision;
   final StateSliceVersions versions;
   final ChartViewport viewport;
+  final ChartLayoutModel? layout;
 
   int versionOf(StateSlice slice) => versions.versionOf(slice);
 
   KChartState bump(
     Iterable<StateSlice> changedSlices, {
     ChartViewport? viewport,
+    ChartLayoutModel? layout,
   }) {
     final slices = Set<StateSlice>.of(changedSlices);
     final nextViewport = viewport ?? this.viewport;
+    final nextLayout = layout ?? this.layout;
     if (nextViewport != this.viewport) {
       slices.add(StateSlice.viewport);
+    }
+    if (nextLayout != this.layout) {
+      slices.add(StateSlice.layout);
     }
     if (slices.isEmpty) {
       return this;
@@ -104,6 +111,7 @@ final class KChartState {
       revision: revision + 1,
       versions: versions.bump(slices),
       viewport: nextViewport,
+      layout: nextLayout,
     );
   }
 
@@ -121,8 +129,9 @@ final class KChartState {
       other is KChartState &&
           revision == other.revision &&
           versions == other.versions &&
-          viewport == other.viewport;
+          viewport == other.viewport &&
+          layout == other.layout;
 
   @override
-  int get hashCode => Object.hash(revision, versions, viewport);
+  int get hashCode => Object.hash(revision, versions, viewport, layout);
 }

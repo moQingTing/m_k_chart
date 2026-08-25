@@ -447,7 +447,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 - [x] `P4-01` 实现每实例 ChartViewport、可见范围和缩放/滚动边界。
 - [x] `P4-02` 实现数据坐标、图表 local 坐标、价格和时间的双向转换。
-- [ ] `P4-03` 实现确定性 LayoutModel，修复网格数量、初始化顺序、多副图尺寸和嵌套偏移问题。
+- [x] `P4-03` 实现确定性 LayoutModel，修复网格数量、初始化顺序、多副图尺寸和嵌套偏移问题。
 - [ ] `P4-04` 实现遵循 Gesture Arena 的单指平移、焦点缩放、长按十字线互斥状态机。
 - [ ] `P4-05` 实现惯性、磁吸、回到最新、指定时间定位和历史分页状态。
 - [ ] `P4-06` 实现双图表隔离、父滚动容器、横屏、鼠标和触控板策略。
@@ -796,6 +796,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：平盘价格 padding、panel top/bottom、网格与多副图布局属于 P4-03；焦点缩放和时间定位属于 P4-04/P4-05；生产 Painter 和 Demo 未修改。
 - 证据：`docs/architecture/KLINE_V2_COORDINATE_PROTOCOL.md`。
 - 后续：进入 `P4-03`，实现确定性 LayoutModel、网格和多副图尺寸。
+
+### 2026-08-25 / P4-03
+
+- 状态：已完成，确定性 LayoutModel、网格和多副图尺寸协议已冻结。
+- 布局：新增不可变 `ChartLayoutModel`、`ChartPanelSpec/Layout` 和 chart-local `ChartLayoutRect`；显式计算 drawing/time-axis/main/secondary 边界，不读取 Widget、屏幕坐标或 Painter 状态。
+- 多副图：主图和副图按“正最小高度 + 剩余空间权重”分配，保持输入顺序和稳定 ID；尺寸不足直接拒绝，最后一个 panel 钉住绘制底边消除累计误差。
+- 网格：columns/rows 统一表示区间数，分别精确输出 N+1 个 X/Y 坐标且集合不可写，关闭 legacy 按 `columnSpace` 像素值循环导致的数量错误。
+- 状态：`KChartState` 开始持有可空 LayoutModel；Controller 在同一事务把 drawing width 应用到 Viewport，尺寸变化精确增加 layout/viewport 切片，相同结构不通知。
+- ARCH-06：多尺寸 inset、嵌套 chart-local 边界、单/双副图、网格端点与最小高度均有确定性测试；生产 Painter 和 Demo 未修改。
+- 边界：极值/平盘价格 padding 属于后续 Renderer 输入；Gesture Arena、横屏和父滚动实测属于 P4-04/P4-06。
+- 证据：`docs/architecture/KLINE_V2_LAYOUT_PROTOCOL.md`。
+- 后续：进入 `P4-04`，实现合规的交互状态机。
 
 ## 13. 参考资料
 
