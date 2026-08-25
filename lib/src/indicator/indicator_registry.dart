@@ -1,5 +1,6 @@
 import '../model/model.dart';
 import 'indicator_config.dart';
+import 'indicator_change.dart';
 import 'indicator_definition.dart';
 import 'indicator_series.dart';
 
@@ -31,6 +32,47 @@ final class IndicatorRegistry {
       throw StateError('Indicator ${config.definitionId} is not registered.');
     }
     final result = definition.calculate(input, config);
+    _validateResult(definition, input, config, result);
+    return result;
+  }
+
+  bool supportsIncremental(
+    IndicatorConfig config,
+    IndicatorDataChange change,
+  ) {
+    final definition = _definitions[config.definitionId];
+    if (definition == null) {
+      throw StateError('Indicator ${config.definitionId} is not registered.');
+    }
+    return definition is IncrementalIndicatorDefinition &&
+        definition.supportsIncremental(change);
+  }
+
+  IndicatorResult calculateIncrementally(
+    VersionedKlineData input,
+    IndicatorConfig config,
+    IndicatorResult previous,
+    IndicatorDataChange change,
+  ) {
+    final definition = _definitions[config.definitionId];
+    if (definition is! IncrementalIndicatorDefinition ||
+        !definition.supportsIncremental(change)) {
+      throw StateError(
+        'Indicator ${config.definitionId} does not support this change.',
+      );
+    }
+    if (previous.instanceId != config.instanceId ||
+        previous.definitionId != config.definitionId ||
+        previous.dataVersion != change.previousVersion ||
+        change.currentVersion != input.version) {
+      throw StateError('Incremental inputs do not match the described change.');
+    }
+    final result = definition.calculateIncrementally(
+      input,
+      config,
+      previous,
+      change,
+    );
     _validateResult(definition, input, config, result);
     return result;
   }

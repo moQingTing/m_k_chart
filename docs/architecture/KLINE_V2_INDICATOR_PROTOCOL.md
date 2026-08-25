@@ -1,6 +1,6 @@
 # Kline V2 指标协议（P3-01）
 
-状态：已冻结基础协议；缓存、增量计算和 legacy 公式迁移分别由 P3-02、P3-03 完成。
+状态：基础协议及 P3-02 缓存/增量扩展已冻结；legacy 公式迁移由 P3-03 完成。
 
 ## 1. 目标与边界
 
@@ -46,14 +46,24 @@ KlineStore.snapshot (VersionedKlineData)
 4. Renderer 只能读取描述符和 Series；颜色、线宽等由后续主题层解析语义 style key。
 5. Registry 在算法返回后校验身份、版本、长度和 Series ID，阻止错误结果进入渲染链路。
 
-## 5. 后续冻结点
+## 5. P3-02 缓存与增量扩展
 
-- P3-02：增加缓存键、变更范围和增量更新协议；缓存键至少包含定义、配置、价格源和 `KlineDataVersion`。
+1. `IndicatorCacheKey` 包含完整 `IndicatorConfig`（定义、实例、参数和样式语义）、`KlineDataVersion`、`KlinePriceSource` 以及列表身份。列表身份用于隔离拥有相同版本计数的独立 Store。
+2. `IndicatorCache` 由单个 Chart/Controller 实例持有，默认最多保留 32 项；精确命中更新 LRU 次序，超限淘汰最旧项，可显式清空。
+3. `IndicatorDataChange` 通过不可变快照的公共前缀/后缀识别 `unchanged/append/prepend/update/replace`，并提供新旧半开变更区间。算法按自身 lookback 扩展重算起点。
+4. 支持增量的算法实现 `IncrementalIndicatorDefinition`，逐类声明可处理的变更；未声明的变更由 Cache 回退 `calculate` 全量路径。
+5. 增量结果与全量结果使用同一 Registry 契约校验。身份、版本、长度或 Series 不匹配立即失败，不使用可能错误的旧结果静默恢复。
+6. 相同内容但新版本的快照可复用不可变 Series 并重新绑定数据版本；精确相同快照直接返回同一个 Result。
+
+性能和复现记录见 `PERFORMANCE_P3_INDICATOR_CACHE_BASELINE.md`。
+
+## 6. 后续冻结点
+
 - P3-03：将 MA/EMA/BOLL/SAR/VOL/MACD/KDJ/RSI/WR/OBV 迁移为定义，使用 Phase 0 快照对照。
 - P3-05：在 Registry/Cache 边界细化单指标失败隔离与多实例压力测试。
 - P5：RendererDescriptor 才接入 RenderSnapshot/Layer；此前生产 Painter 保持不变。
 
-## 6. 验证
+## 7. 验证
 
 - 自定义测试指标无需修改核心 enum/switch 即可注册和计算。
 - 覆盖配置不可变/值相等、同定义多实例、注册表隔离、未知/重复定义、输出长度/版本/Series 契约和非有限值拒绝。

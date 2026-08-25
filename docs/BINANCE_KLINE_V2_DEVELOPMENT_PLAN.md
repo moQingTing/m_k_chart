@@ -435,7 +435,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 ### Phase 3：独立指标引擎，6～8 人日
 
 - [x] `P3-01` 定义注册式 Indicator、IndicatorConfig、IndicatorSeries 和 RendererDescriptor 协议。
-- [ ] `P3-02` 实现以数据版本、参数和数据源为键的缓存及增量更新协议。
+- [x] `P3-02` 实现以数据版本、参数和数据源为键的缓存及增量更新协议。
 - [ ] `P3-03` 迁移现有指标并与 Phase 0 快照对照。
 - [ ] `P3-04` 增加 VWAP、ATR、CCI、DMI、ROC、Stoch RSI。
 - [ ] `P3-05` 支持同类多实例、数据不足状态、NaN/Infinity 隔离。
@@ -715,6 +715,17 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 性能：行情输入复用不可变 snapshot，不复制 10,000 根 Kline；缓存和最后一根增量计算由 P3-02 落地并单独建立 P95 基线。
 - 边界：未修改 legacy 公式和生产 Painter；缓存、增量失败恢复、legacy 迁移不在本任务范围。
 - 后续：进入 `P3-02`，实现以数据版本、配置和价格源为键的缓存与增量更新协议。
+
+### 2026-08-25 / P3-02
+
+- 状态：已完成，指标缓存与增量协议冻结。
+- 变更：新增实例级有界 LRU `IndicatorCache`、显式缓存键、结构化 `IndicatorDataChange` 和可选 `IncrementalIndicatorDefinition`；注册表统一校验全量与增量结果。
+- 验证：缓存测试覆盖精确命中、append、末项 update、prepend 全量回退、配置/价格源/Store 隔离、LRU 淘汰和清空；原 P3-01 协议测试继续通过。
+- 性能：10,000 根 Host Debug：全量 P95 582 μs，最后一根 Store+指标增量 P95 1,202 μs，精确缓存命中 P95 5 μs；低于 8 ms 门禁。
+- 决策：缓存键包含完整配置、数据版本、价格源和快照身份；变更范围通过稳定前后缀推导；定义必须显式声明支持的变更类型，否则全量回退；错误增量结果不静默吞掉。
+- 内存：缓存默认最多 32 项并按 LRU 淘汰；6 个单序列指标 Host Debug RSS 粗测增量 4 KiB，仅作本机观测，Phase 3/5 仍需用真实多序列指标复测综合内存。
+- 边界：未迁移 legacy 公式、未修改生产 Painter、未从正式包入口导出新协议。
+- 后续：进入 `P3-03`，迁移现有 10 类指标并与 Phase 0 快照对照。
 
 ## 13. 参考资料
 

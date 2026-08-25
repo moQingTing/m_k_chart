@@ -1,4 +1,5 @@
 import '../model/model.dart';
+import 'indicator_change.dart';
 import 'indicator_config.dart';
 import 'indicator_renderer_descriptor.dart';
 import 'indicator_series.dart';
@@ -12,5 +13,18 @@ abstract interface class IndicatorDefinition {
   IndicatorResult calculate(
     VersionedKlineData input,
     IndicatorConfig config,
+  );
+}
+
+/// Optional extension for definitions that can reuse a validated prior result.
+abstract interface class IncrementalIndicatorDefinition
+    implements IndicatorDefinition {
+  bool supportsIncremental(IndicatorDataChange change);
+
+  IndicatorResult calculateIncrementally(
+    VersionedKlineData input,
+    IndicatorConfig config,
+    IndicatorResult previous,
+    IndicatorDataChange change,
   );
 }
