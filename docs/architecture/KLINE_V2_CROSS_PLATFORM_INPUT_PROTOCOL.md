@@ -69,7 +69,7 @@ recognizer 不覆写 Arena 的接受/拒绝回调，不在失败后重新加入�
 
 ## 7. 风险结论与后续
 
-- `ARCH-07`：V2 的内部竞争与父滚动让行路径已有自动证据；P4-07 再补完整竞争矩阵和输入延迟门禁后完成 Phase 4 退出审查。
+- `ARCH-07`：V2 的内部竞争、父滚动让行、取消恢复和完整竞争矩阵均有自动证据；P4-07 输入状态延迟门禁与 Phase 4 退出审查已通过。
 - `ARCH-04`：V2 Controller、Viewport、Interaction、Ticker 和策略均为每实例状态，双图表验证通过；legacy `ChartPainter.maxScrollX` 仍由 P5-06 移除。
 - `ARCH-06`：local 坐标、多尺寸、嵌套布局和跨平台指针输入已验证；Renderer 视觉输出仍由 Phase 5 Golden 继续覆盖。
 

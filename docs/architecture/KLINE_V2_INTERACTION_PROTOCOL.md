@@ -95,5 +95,5 @@ Controller 的 `dispatchInteraction` 将 Viewport 与 crosshair 意图分别提�
 
 - P4-05：已使用 pan end 速度实现惯性，并补充磁吸、回到最新、时间定位与分页锚定，见 `KLINE_V2_NAVIGATION_PROTOCOL.md`；
 - P4-06：已验证父滚动、横屏、鼠标、触控板与双实例 Widget 场景；
-- P4-07：输入延迟和完整竞争矩阵；
+- P4-07：已完成输入状态延迟基准和完整竞争矩阵，Phase 4 退出审查通过；
 - P5/P6：新 Renderer/Widget 正式消费该适配器；当前 production `KChartWidget` 仍保留 legacy 行为作为迁移基线。

@@ -443,7 +443,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 阶段门禁：关闭 `ARCH-01` 的指标侧风险和 `ARCH-08` 的指标扩展风险；最后一根更新 P95 ≤ 8 ms；注册一个测试指标无需修改核心代码。
 
-### Phase 4：视口、布局与手势状态机，6～8 人日
+### Phase 4：视口、布局与手势状态机，6～8 人日（已完成）
 
 - [x] `P4-01` 实现每实例 ChartViewport、可见范围和缩放/滚动边界。
 - [x] `P4-02` 实现数据坐标、图表 local 坐标、价格和时间的双向转换。
@@ -451,7 +451,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P4-04` 实现遵循 Gesture Arena 的单指平移、焦点缩放、长按十字线互斥状态机。
 - [x] `P4-05` 实现惯性、磁吸、回到最新、指定时间定位和历史分页状态。
 - [x] `P4-06` 实现双图表隔离、父滚动容器、横屏、鼠标和触控板策略。
-- [ ] `P4-07` 完成坐标往返、手势竞争和输入延迟自动化测试。
+- [x] `P4-07` 完成坐标往返、手势竞争和输入延迟自动化测试。
 
 阶段门禁：关闭 `ARCH-06`、`ARCH-07`，并验证 `ARCH-04`；不得强制接受已被 Gesture Arena 拒绝的手势。
 
@@ -847,6 +847,17 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：功能矩阵等待 V2 Widget/Renderer 正式消费后勾选；production KChartWidget/Painter 未修改。
 - 证据：`docs/architecture/KLINE_V2_CROSS_PLATFORM_INPUT_PROTOCOL.md`。
 - 后续：进入 `P4-07`，完成 Phase 4 自动化门禁与退出审查。
+
+### 2026-08-25 / P4-07
+
+- 状态：已完成，Phase 4 自动化门禁与退出审查通过。
+- 坐标：新增确定性性质矩阵，覆盖 448 组 data/local 往返、54 组不规则 time/local 往返和 54 组多面板 price/local 往返；误差分别受控于 1e-10、1 ms 和按价格跨度 1e-10。
+- 竞争：新增单指触摸阈值、横向 chart winner、纵向 parent winner、静止长按、移动抢先、双指缩放和 pointer cancel 矩阵；每个序列只存在一个 winner，结束后均回到 idle。
+- 延迟：新增默认跳过、显式启用的 Host Debug state-to-controller benchmark；pan/scale/crosshair P95 分别为 16.42/3.46/3.89 μs，均低于 1,000 μs 主机状态管线门槛。
+- 口径：Host benchmark 不代表真机 input-to-frame、UI 或 Raster 时间；16.7 ms 帧预算和 32 ms 十字线输入到帧预算仍由 Phase 5 固定 Profile 设备验证。
+- 风险：V2 路径关闭 ARCH-06/07 并验证 ARCH-04；legacy `ChartPainter.maxScrollX` 与 production Painter 迁移仍由 P5-06 处理，不回流 V2 实例状态。
+- 证据：`docs/PERFORMANCE_P4_INTERACTION_BASELINE.md`、`docs/architecture/PHASE_4_EXIT_REVIEW.md`。
+- 后续：进入 `P5-01`，冻结 RenderSnapshot 和 Layer 协议。
 
 ## 13. 参考资料
 

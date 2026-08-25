@@ -74,4 +74,4 @@ distance = sign(v) × (|v| × dt - 0.5 × deceleration × dt²)
 - Widget：释放速度在手势结束后继续产生有界 Viewport intent；
 - Controller：history 版本与 data/viewport/selection 相互隔离。
 
-P4-06 已覆盖双实例、父滚动、横屏、鼠标和触控板策略，见 `KLINE_V2_CROSS_PLATFORM_INPUT_PROTOCOL.md`；P4-07 负责完整输入延迟与竞争矩阵。production `KChartWidget`/Painter 仍保持 legacy 基线，待 P5/P6 新渲染和体验层消费本协议。
+P4-06 已覆盖双实例、父滚动、横屏、鼠标和触控板策略，见 `KLINE_V2_CROSS_PLATFORM_INPUT_PROTOCOL.md`；P4-07 已完成输入状态延迟与竞争矩阵，Phase 4 退出审查通过。production `KChartWidget`/Painter 仍保持 legacy 基线，待 P5/P6 新渲染和体验层消费本协议。
