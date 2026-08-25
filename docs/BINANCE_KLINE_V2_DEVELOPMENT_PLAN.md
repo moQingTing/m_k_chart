@@ -432,14 +432,14 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 阶段门禁：`ARCH-01` 的行情侧整改完成；事件幂等；旧 Demo 可经 adapter 运行；历史合并满足 50 ms 预算。
 
-### Phase 3：独立指标引擎，6～8 人日
+### Phase 3：独立指标引擎，6～8 人日（已完成）
 
 - [x] `P3-01` 定义注册式 Indicator、IndicatorConfig、IndicatorSeries 和 RendererDescriptor 协议。
 - [x] `P3-02` 实现以数据版本、参数和数据源为键的缓存及增量更新协议。
 - [x] `P3-03` 迁移现有指标并与 Phase 0 快照对照。
 - [x] `P3-04` 增加 VWAP、ATR、CCI、DMI、ROC、Stoch RSI。
 - [x] `P3-05` 支持同类多实例、数据不足状态、NaN/Infinity 隔离。
-- [ ] `P3-06` 删除新链路对实体 `late` 指标字段及核心 enum/switch 的依赖。
+- [x] `P3-06` 删除新链路对实体 `late` 指标字段及核心 enum/switch 的依赖。
 
 阶段门禁：关闭 `ARCH-01` 的指标侧风险和 `ARCH-08` 的指标扩展风险；最后一根更新 P95 ≤ 8 ms；注册一个测试指标无需修改核心代码。
 
@@ -761,6 +761,17 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：多实例缓存、失败重试、短数据/平盘有限值、重复 ID 原子性、双 Engine 隔离及 opt-in 性能/RSS benchmark 通过。
 - 边界：RSS 为进程级粗测，不代表精确 retained size；Phase 5 仍需在 Profile 场景复测完整 Kline + 6 指标 + Renderer 内存。
 - 后续：进入 `P3-06`，增加新链路实体字段/enum/switch 守卫并执行 Phase 3 退出审查。
+
+### 2026-08-25 / P3-06
+
+- 状态：已完成，Phase 3 退出审查通过。
+- 变更：新增指标独立性架构守卫，扫描整个 v2 indicator 模块及 Kline 模型，阻止 legacy 实体/计算器、Flutter、旧指标枚举、switch 分发、实体指标字段和输入回写重新进入新链路。
+- ARCH-01：行情侧由 Phase 2 关闭；指标侧确认所有结果和递归状态独立于 Kline，公式只读输入，完整关闭该架构风险的新链路部分。
+- ARCH-08：指标扩展侧确认 16 个内置定义和自定义测试定义均通过注册接入，无需修改核心 enum/switch；公共 API、Layer 和迁移指南部分仍按 Phase 6/9 推进。
+- 门禁：Phase 3 六项任务全部完成；历史 24 序列兼容、16 指标有限值、故障隔离、多实例、增量等价、10,000 根性能与 6 实例 RSS 均通过。
+- 边界：生产 Painter、legacy DataUtil、正式包入口和 Demo 均未改动；新指标仍需 Phase 5 Renderer 与 Phase 6 配置 UI 才能目测。
+- 证据：`docs/architecture/PHASE_3_EXIT_REVIEW.md`。
+- 后续：进入 `P4-01`，实现每实例 ChartViewport 和边界。
 
 ## 13. 参考资料
 
