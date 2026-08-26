@@ -1,12 +1,9 @@
 import 'dart:collection';
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:m_k_chart/m_k_chart.dart';
-import 'package:m_k_chart/src/model/model.dart';
-import 'package:m_k_chart/src/render/render.dart';
-import 'package:m_k_chart/src/viewport/viewport.dart';
+import 'package:m_k_chart/v2_example_support.dart';
 
 /// Runnable V2 renderer example with deterministic data and no network setup.
 class V2TradingChartDemo extends StatefulWidget {
