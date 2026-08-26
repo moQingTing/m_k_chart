@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:m_k_chart/m_k_chart.dart';
 import 'chart_datas_fetcher.dart';
+import 'v2_chart_demo.dart';
 
 typedef ChartDataLoader = Future<void> Function(
   String symbol,
@@ -25,7 +26,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const ExamplePage(),
+      home: const V2TradingChartDemo(),
     );
   }
 }
@@ -43,7 +44,7 @@ class ExamplePage extends StatefulWidget {
 class _ExamplePageState extends State<ExamplePage> {
   // K 线数据
   List<KLineEntity> _klineData = [];
-  
+
   // 加载状态
   bool _isLoading = false;
   String? _errorMessage;
@@ -174,8 +175,8 @@ class _ExamplePageState extends State<ExamplePage> {
     // timeType: 使用当前选择的时间周期
     // size: 100 (获取100条数据)
     final symbol = '$_currentSymbol-USDT';
-    final loadChartData = widget.chartDataLoader ??
-        ChartDatasFetcher.shared.getRemoteChartData;
+    final loadChartData =
+        widget.chartDataLoader ?? ChartDatasFetcher.shared.getRemoteChartData;
     await loadChartData(
       symbol,
       _currentTimeType,
@@ -250,7 +251,8 @@ class _ExamplePageState extends State<ExamplePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
             ),
             const SizedBox(height: 20),
             Text(
@@ -294,7 +296,8 @@ class _ExamplePageState extends State<ExamplePage> {
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('重试'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
               ),
             ],
@@ -331,7 +334,8 @@ class _ExamplePageState extends State<ExamplePage> {
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('重新加载'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
               ),
             ],
@@ -377,11 +381,18 @@ class _ExamplePageState extends State<ExamplePage> {
     }
 
     // 确保数据有效
-    final validData = _klineData.where((e) => 
-      e.open > 0 && e.close > 0 && e.high > 0 && e.low > 0 &&
-      e.high >= e.low &&
-      !e.open.isNaN && !e.close.isNaN && !e.high.isNaN && !e.low.isNaN
-    ).toList();
+    final validData = _klineData
+        .where((e) =>
+            e.open > 0 &&
+            e.close > 0 &&
+            e.high > 0 &&
+            e.low > 0 &&
+            e.high >= e.low &&
+            !e.open.isNaN &&
+            !e.close.isNaN &&
+            !e.high.isNaN &&
+            !e.low.isNaN)
+        .toList();
 
     if (validData.isEmpty) {
       return Center(
@@ -467,7 +478,8 @@ class _ExamplePageState extends State<ExamplePage> {
           date = date * 1000;
         }
         // 转为 yyyy-MM-dd HH:mm
-        return _formatDate(DateTime.fromMillisecondsSinceEpoch(date), format: 'yyyy-MM-dd HH:mm');
+        return _formatDate(DateTime.fromMillisecondsSinceEpoch(date),
+            format: 'yyyy-MM-dd HH:mm');
       },
     )..obvPeriod = 30; // 设置 OBV 移动平均线周期为 30
 
@@ -506,8 +518,9 @@ class _ExamplePageState extends State<ExamplePage> {
 
     // 使用有效数据渲染图表
     // 根据数据量决定是否使用指标（至少需要 5 条数据计算 MA5）
-    final mainState = validData.length >= 5 ? _currentMainState : MainState.none;
-    final secondaryStates = validData.length >= 12 
+    final mainState =
+        validData.length >= 5 ? _currentMainState : MainState.none;
+    final secondaryStates = validData.length >= 12
         ? _selectedSecondaryStates.toList()
         : <SecondaryState>[]; // MACD 等指标通常需要更多数据
 
@@ -559,7 +572,9 @@ class _ExamplePageState extends State<ExamplePage> {
             message: _timer?.isActive == true ? '暂停自动刷新' : '开始自动刷新',
             child: IconButton(
               icon: Icon(
-                _timer?.isActive == true ? Icons.pause_circle_outline : Icons.play_circle_outline,
+                _timer?.isActive == true
+                    ? Icons.pause_circle_outline
+                    : Icons.play_circle_outline,
                 size: 24,
               ),
               onPressed: () {
@@ -577,7 +592,8 @@ class _ExamplePageState extends State<ExamplePage> {
             message: '手动刷新数据',
             child: IconButton(
               icon: const Icon(Icons.refresh, size: 24),
-              onPressed: _isLoading ? null : () => _fetchChartData(showLoading: false),
+              onPressed:
+                  _isLoading ? null : () => _fetchChartData(showLoading: false),
             ),
           ),
           const SizedBox(width: 8),
@@ -597,7 +613,8 @@ class _ExamplePageState extends State<ExamplePage> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.currency_exchange, size: 20, color: Theme.of(context).primaryColor),
+                        Icon(Icons.currency_exchange,
+                            size: 20, color: Theme.of(context).primaryColor),
                         const SizedBox(width: 8),
                         const Text(
                           '交易市场',
@@ -621,7 +638,9 @@ class _ExamplePageState extends State<ExamplePage> {
                                 symbol,
                                 style: TextStyle(
                                   fontSize: 13,
-                                  fontWeight: _currentSymbol == symbol ? FontWeight.w600 : FontWeight.normal,
+                                  fontWeight: _currentSymbol == symbol
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
                                 ),
                               ),
                               if (_currentSymbol == symbol) ...[
@@ -658,7 +677,8 @@ class _ExamplePageState extends State<ExamplePage> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 20, color: Theme.of(context).primaryColor),
+                        Icon(Icons.access_time,
+                            size: 20, color: Theme.of(context).primaryColor),
                         const SizedBox(width: 8),
                         const Text(
                           '时间周期',
@@ -707,7 +727,9 @@ class _ExamplePageState extends State<ExamplePage> {
                         Expanded(
                           child: Row(
                             children: [
-                              Icon(Icons.show_chart, size: 20, color: Theme.of(context).primaryColor),
+                              Icon(Icons.show_chart,
+                                  size: 20,
+                                  color: Theme.of(context).primaryColor),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Column(
@@ -733,9 +755,12 @@ class _ExamplePageState extends State<ExamplePage> {
                               ),
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                  color: Theme.of(context)
+                                      .primaryColor
+                                      .withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -783,7 +808,8 @@ class _ExamplePageState extends State<ExamplePage> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.trending_up, size: 20, color: Theme.of(context).primaryColor),
+                        Icon(Icons.trending_up,
+                            size: 20, color: Theme.of(context).primaryColor),
                         const SizedBox(width: 8),
                         const Text(
                           '主图指标',
@@ -828,7 +854,8 @@ class _ExamplePageState extends State<ExamplePage> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.bar_chart, size: 20, color: Theme.of(context).primaryColor),
+                        Icon(Icons.bar_chart,
+                            size: 20, color: Theme.of(context).primaryColor),
                         const SizedBox(width: 8),
                         const Text(
                           '幅图指标',
@@ -839,7 +866,8 @@ class _ExamplePageState extends State<ExamplePage> {
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Colors.orange.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(10),
@@ -860,13 +888,16 @@ class _ExamplePageState extends State<ExamplePage> {
                       spacing: 8,
                       runSpacing: 8,
                       children: _secondaryStates.map((secondaryState) {
-                        final isSelected = _selectedSecondaryStates.contains(secondaryState);
+                        final isSelected =
+                            _selectedSecondaryStates.contains(secondaryState);
                         return FilterChip(
                           label: Text(
                             _secondaryStateNames[secondaryState] ?? '未知',
                             style: TextStyle(
                               fontSize: 13,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                             ),
                           ),
                           selected: isSelected,
@@ -886,9 +917,7 @@ class _ExamplePageState extends State<ExamplePage> {
     );
   }
 
-
-
-   /// format date by DateTime.
+  /// format date by DateTime.
   /// format 转换格式(已提供常用格式 DateFormats，可以自定义格式：'yyyy/MM/dd HH:mm:ss')
   /// 格式要求
   /// year -> yyyy/yy   month -> MM/M    day -> dd/d
@@ -917,8 +946,7 @@ class _ExamplePageState extends State<ExamplePage> {
   }
 
   /// com format.
-  String _comFormat(
-      int value, String format, String single, String full) {
+  String _comFormat(int value, String format, String single, String full) {
     if (format.contains(single)) {
       if (format.contains(full)) {
         format =
@@ -947,21 +975,30 @@ class _ExamplePageState extends State<ExamplePage> {
 
     // 格式化价格
     final openStr = chartStyle.priceFormatter != null
-        ? chartStyle.priceFormatter!(kLineEntity.open, const TextStyle()).text ?? ''
+        ? chartStyle
+                .priceFormatter!(kLineEntity.open, const TextStyle()).text ??
+            ''
         : kLineEntity.open.toStringAsFixed(2);
     final highStr = chartStyle.priceFormatter != null
-        ? chartStyle.priceFormatter!(kLineEntity.high, const TextStyle()).text ?? ''
+        ? chartStyle
+                .priceFormatter!(kLineEntity.high, const TextStyle()).text ??
+            ''
         : kLineEntity.high.toStringAsFixed(2);
     final lowStr = chartStyle.priceFormatter != null
-        ? chartStyle.priceFormatter!(kLineEntity.low, const TextStyle()).text ?? ''
+        ? chartStyle.priceFormatter!(kLineEntity.low, const TextStyle()).text ??
+            ''
         : kLineEntity.low.toStringAsFixed(2);
     final closeStr = chartStyle.priceFormatter != null
-        ? chartStyle.priceFormatter!(kLineEntity.close, const TextStyle()).text ?? ''
+        ? chartStyle
+                .priceFormatter!(kLineEntity.close, const TextStyle()).text ??
+            ''
         : kLineEntity.close.toStringAsFixed(2);
 
     // 格式化成交量
     final volStr = chartStyle.volumeFormatter != null
-        ? chartStyle.volumeFormatter!(kLineEntity.vol, const TextStyle()).text ?? ''
+        ? chartStyle
+                .volumeFormatter!(kLineEntity.vol, const TextStyle()).text ??
+            ''
         : kLineEntity.vol.toStringAsFixed(0);
 
     return Align(
@@ -1038,7 +1075,9 @@ class _ExamplePageState extends State<ExamplePage> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: isUp ? chartColors.upColor : chartColors.downColor,
+                          color: isUp
+                              ? chartColors.upColor
+                              : chartColors.downColor,
                         ),
                       ),
                     ],
@@ -1062,21 +1101,29 @@ class _ExamplePageState extends State<ExamplePage> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: isUp ? chartColors.upColor : chartColors.downColor,
+                              color: isUp
+                                  ? chartColors.upColor
+                                  : chartColors.downColor,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: (isUp ? chartColors.upColor : chartColors.downColor).withOpacity(0.1),
+                              color: (isUp
+                                      ? chartColors.upColor
+                                      : chartColors.downColor)
+                                  .withOpacity(0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               '${isUp ? '+' : ''}${upDown.toStringAsFixed(2)}',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: isUp ? chartColors.upColor : chartColors.downColor,
+                                color: isUp
+                                    ? chartColors.upColor
+                                    : chartColors.downColor,
                               ),
                             ),
                           ),
@@ -1156,5 +1203,3 @@ class _ExamplePageState extends State<ExamplePage> {
     );
   }
 }
-
-

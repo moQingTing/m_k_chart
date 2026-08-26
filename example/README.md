@@ -21,6 +21,10 @@ This is an example Flutter application demonstrating how to use the `m_k_chart` 
 
 ## Features Demonstrated
 
+- **V2 Trading Chart toolbar** (default): offline deterministic V2 Layer demo
+  with period buttons (`1m` through `1d`) and Candlestick, Hollow, OHLC,
+  Heikin-Ashi, Line, and Area modes. Run `flutter run` from `example/`.
+
 - **K-line Chart**: Shows how to use `KChartWidget` with:
   - MA (Moving Average) indicators
   - MACD secondary indicator
@@ -34,7 +38,8 @@ This is an example Flutter application demonstrating how to use the `m_k_chart` 
 
 ## Code Structure
 
-- `main.dart`: Main entry point with example implementations
+- `main.dart`: Main entry point for the V2 toolbar demo
+- `v2_chart_demo.dart`: V2 Layer pipeline, period selector, and chart-type toolbar
 - `pubspec.yaml`: Dependencies configuration
 
 ## Customization
@@ -44,4 +49,3 @@ You can customize the charts by:
 - Modifying `ChartStyle` to adjust text sizes and formatting
 - Providing custom `priceFormatter` and `volumeFormatter` callbacks
 - Adjusting `MainState` and `SecondaryState` for different indicators
-
