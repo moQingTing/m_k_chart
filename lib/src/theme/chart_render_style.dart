@@ -1,8 +1,9 @@
 import 'dart:ui';
 
-/// Minimal immutable visual contract consumed by Phase 5 Layers.
+/// Internal rendering contract implemented by the public immutable KChartTheme.
 ///
-/// P6 will provide the complete public KChartTheme on top of this interface.
+/// It remains internal so standard renderer capabilities are not part of the
+/// package API surface.
 abstract interface class ChartRenderStyle {
   Color get backgroundColor;
   Color get gridColor;
@@ -27,7 +28,7 @@ abstract interface class ChartRenderStyle {
   Color indicatorColor(String instanceId, String seriesId);
 }
 
-/// Deterministic internal style used until P6 freezes KChartTheme.
+/// Deterministic internal fixture style retained for V2 renderer tests.
 final class DefaultChartRenderStyle implements ChartRenderStyle {
   factory DefaultChartRenderStyle({
     Color backgroundColor = const Color(0xff0b0e11),

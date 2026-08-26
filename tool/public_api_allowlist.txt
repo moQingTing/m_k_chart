@@ -6,10 +6,12 @@ export:entity/depth_entity.dart
 export:entity/info_window_entity.dart
 export:entity/k_line_entity.dart
 export:k_chart_widget.dart
+export:k_chart_theme.dart
 export:utils/data_util.dart
 export:utils/date_format_util.dart
 export:utils/number_util.dart
 symbol:ChartColors
+symbol:ChartColorsThemeAdapter
 symbol:ChartStyle
 symbol:CustomHorizontalDragGestureRecognizer
 symbol:CustomLongGestureRecognizer
@@ -22,6 +24,7 @@ symbol:EMAConfig
 symbol:InfoWindowEntity
 symbol:KChartWidget
 symbol:KChartWidgetState
+symbol:KChartTheme
 symbol:KLineEntity
 symbol:MainState
 symbol:MainStateEx

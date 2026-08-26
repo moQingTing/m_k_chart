@@ -19,7 +19,7 @@ P5-01 冻结输入与扩展协议；P5-02 已实现内部标准 Layer Stack，P5
 - 稳定的 `VersionedKlineData`，直接持有只读视图，不复制完整 Kline 列表；
 - 与数据长度一致的 `ChartViewport`；
 - drawing width 与 Viewport 一致的 `ChartLayoutModel`；
-- 调用方保证不可变的泛型主题值；P6-01 将其收敛为正式 `KChartTheme`；
+- 调用方使用不可变的正式 `KChartTheme`；内部层仍以泛型 `ChartRenderStyle` 约束绘制能力；
 - data/viewport/selection/history/layout/theme 六类 Renderer 版本；
 - 只包含可绘制结果的指标投影；
 - chart-local 选择状态和最小历史加载显示状态。
@@ -80,4 +80,4 @@ Context 只提供当前 Canvas 与只读 Snapshot。Layer 可以持有由输入�
 - P5-05：已实现 `candlestick`/`line`/`area` 主图模式及 Descriptor 驱动的 Volume、MACD、SAR 视觉语义；
 - P5-06：已移除 legacy paint Stream 写入、static scroll 边界和全 Widget setState 链路；
 - P5-07：已冻结多尺寸/主题/副图 Golden，并在 Widget 绘制帧验证 retained Layer repaint 计数；
-- P6-01：将泛型主题收敛为完整不可变 KChartTheme。
+- P6-01：已冻结公开 `KChartTheme`、结构化相等与 `ChartColors` 兼容适配；协议见 `KLINE_V2_THEME_PROTOCOL.md`。

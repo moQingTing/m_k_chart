@@ -12,7 +12,7 @@
 
 ## 2. 当前兼容面
 
-`tool/public_api_allowlist.txt` 冻结 1.x 正式入口当前暴露的文件和符号。自动测试拒绝：
+`tool/public_api_allowlist.txt` 冻结正式入口当前暴露的文件和符号。P6-01 已经审核并加入首个 V2 样式值对象 `KChartTheme` 及其 `ChartColorsThemeAdapter`；其余 1.x 兼容面保持不变。自动测试拒绝：
 
 - 正式入口意外新增或删除导出；
 - `lib/src` 或 Renderer 被正式入口提前导出；
@@ -44,3 +44,5 @@ allowlist 的变化属于 API 变更，必须关联任务、迁移说明和版�
 5. API diff 门禁确认只包含预期变化。
 
 因此当前 `lib/src/controller` 仍为内部契约。待数据模型、Controller 用户操作和 Widget facade 完整后，再一次性审核其稳定公共子集。
+
+`KChartTheme` 是上述规则已批准的例外：它只暴露不可变颜色、尺寸和指标调色板值，不泄露其内部绘制接口或任意 Renderer 类型。具体迁移约束见 `KLINE_V2_THEME_PROTOCOL.md`。

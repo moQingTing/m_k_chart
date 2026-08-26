@@ -6,6 +6,7 @@ library m_k_chart;
 
 export 'k_chart_widget.dart'; // K线图表组件
 export 'chart_style.dart'; // 样式配置
+export 'k_chart_theme.dart'; // V2 不可变主题
 export 'utils/data_util.dart'; // 数据加工工具
 export 'utils/date_format_util.dart'; // 日期格式化工具
 export 'utils/number_util.dart'; // 数字格式化工具
