@@ -79,4 +79,5 @@ Context 只提供当前 Canvas 与只读 Snapshot。Layer 可以持有由输入�
 - P5-04：已按 Layer 依赖切片实现精确失效、保留式 Picture 合成与 repaint 计数；
 - P5-05：已实现 `candlestick`/`line`/`area` 主图模式及 Descriptor 驱动的 Volume、MACD、SAR 视觉语义；
 - P5-06：已移除 legacy paint Stream 写入、static scroll 边界和全 Widget setState 链路；
+- P5-07：已冻结多尺寸/主题/副图 Golden，并在 Widget 绘制帧验证 retained Layer repaint 计数；
 - P6-01：将泛型主题收敛为完整不可变 KChartTheme。

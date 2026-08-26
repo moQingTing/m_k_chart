@@ -463,7 +463,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P5-04` 用数据、视口、样式和 Layer 版本正确实现重绘判定。
 - [x] `P5-05` 迁移蜡烛、分时、面积图及现有指标绘制。
 - [x] `P5-06` 移除 paint 内 Stream 写入、全局 maxScrollX 和 Widget 全量 setState 链路。
-- [ ] `P5-07` 建立多尺寸、多主题、多副图 Golden 和 repaint 计数测试。
+- [x] `P5-07` 建立多尺寸、多主题、多副图 Golden 和 repaint 计数测试。
 - [ ] `P5-08` 完成 2,000 根 + 2 副图的 Profile 帧性能、内存与 GC 门禁。
 
 阶段门禁：关闭 `ARCH-03`、`ARCH-05`；十字线只重绘 Overlay；Golden 通过；新 Renderer 达到第 6 节性能预算。旧组件可选择 legacy 或 v2 Renderer。
@@ -931,6 +931,16 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：纯几何、Painter/Widget 架构扫描和 legacy Demo adapter 回归通过。
 - 证据：`docs/architecture/KLINE_V2_LEGACY_REPAINT_BOUNDARY.md`。
 - 后续：进入 `P5-07`，补齐多尺寸、多主题、多副图 Golden 与 Widget repaint 计数。
+
+### 2026-08-26 / P5-07
+
+- 状态：已完成，内部 V2 Pipeline 已具备多尺寸/主题/副图 Golden 与 Widget 帧 repaint 门禁。
+- Golden：冻结宽屏深色蜡烛（2 副图）、紧凑浅色面积（1 副图）、长屏深色分时（3 副图）三组实际 CustomPaint 像素基线；场景同时覆盖网格、轴、marker、crosshair 与声明式指标。
+- 重绘：测试宿主直接调用真实 StandardChartRenderPipeline；selection 版本变化只报告 crosshair 重录，相同 Snapshot 不触发 Painter 再绘制，viewport 变化只重录 main/secondary/axis/marker。
+- 稳定性：Golden 固定 test surface 为目标逻辑尺寸并截取 CustomPaint RenderBox，避免测试根节点留白；更新基线需要显式 `--update-goldens` 和人工审阅。
+- 边界：production V2 Widget 尚未接线；Golden 不替代 P5-08 真机 UI/Raster、内存或 GC 证据。
+- 证据：`docs/architecture/KLINE_V2_GOLDEN_REPAINT_GATE.md`、`test/render/goldens/`。
+- 后续：进入 `P5-08`，执行 2,000 根 + 2 副图的 Profile、内存和 GC 门禁。
 
 ## 13. 参考资料
 

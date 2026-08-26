@@ -58,6 +58,7 @@
 - 录制失败事务回滚与成功重试；
 - 版本倒退拒绝、报告/统计不可修改；
 - clear、幂等 dispose、双实例隔离；
-- 2,000 根 + 2 副图无变化和 selection-only Host Debug 基准。
+- 2,000 根 + 2 副图无变化和 selection-only Host Debug 基准；
+- P5-07 Widget 宿主：selection-only 只重录 crosshair、相同 Snapshot 无 CustomPainter 重绘、viewport 只重录 main/secondary/axis/marker。
 
-V2 Pipeline 尚未接入 production Widget；P5-06 已在 legacy Widget 建立 `RepaintBoundary` 和局部 `ListenableBuilder`，但 V2 Widget repaint 计数与 Golden 仍由 P5-07 建立。真机 UI/Raster、内存和 GC 仍由 P5-08 判定。
+V2 Pipeline 尚未接入 production Widget；P5-06 已在 legacy Widget 建立 `RepaintBoundary` 和局部 `ListenableBuilder`，P5-07 已通过测试宿主建立 V2 Widget repaint 计数与 Golden。真机 UI/Raster、内存和 GC 仍由 P5-08 判定。

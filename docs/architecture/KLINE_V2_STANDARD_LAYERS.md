@@ -73,7 +73,7 @@ Layer 不按指标 definitionId 使用 switch：
 - 每个 Layer 保留一张最新 Picture；版本未变化时直接复合，变化时事务式重录，任一 Layer 失败则不提交该帧的新 Picture/版本/计数；
 - production Painter 未接线，旧 Demo 行为不变。
 
-P5-05 已完成内部 V2 的实心蜡烛、平滑分时线、面积渐变和 legacy 指标视觉语义迁移；完整模式协议见 `KLINE_V2_CHART_MODE_PROTOCOL.md`。后续任务：P5-06 legacy 状态链路清理、P5-07 Golden 与 Widget repaint 计数。
+P5-05 已完成内部 V2 的实心蜡烛、平滑分时线、面积渐变和 legacy 指标视觉语义迁移；P5-06 已清理 legacy 状态链路；P5-07 已冻结多尺寸、主题和副图 Golden，并在 Widget 帧断言 Layer repaint 计数。完整证据见 `KLINE_V2_CHART_MODE_PROTOCOL.md` 与 `KLINE_V2_GOLDEN_REPAINT_GATE.md`。
 
 ## 7. 自动门禁
 
@@ -87,3 +87,4 @@ P5-05 已完成内部 V2 的实心蜡烛、平滑分时线、面积渐变和 leg
 - drawing ID、坐标和集合不可变；
 - 缓存命中/失效、容量 LRU、clear/dispose、双实例隔离；
 - 模块依赖、Renderer 纯度和 `saveLayer` 扫描。
+- 三组尺寸/主题/副图 Golden，及 Widget 帧的 selection/viewport Layer repaint 计数。
