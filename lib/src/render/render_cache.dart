@@ -48,7 +48,7 @@ final class ChartRenderCache {
     int pathCapacity = 64,
     int pictureCapacity = 8,
   })  : _windows = _LruCache<Object, ChartVisibleWindow>(geometryCapacity),
-        _extrema = _LruCache<Object, ChartVisibleOhlcExtrema?>(
+        _extrema = _LruCache<Object, ChartVisibleMainExtrema?>(
           geometryCapacity,
         ),
         _ranges = _LruCache<Object, ChartPanelValueRange>(geometryCapacity),
@@ -63,7 +63,7 @@ final class ChartRenderCache {
         );
 
   final _LruCache<Object, ChartVisibleWindow> _windows;
-  final _LruCache<Object, ChartVisibleOhlcExtrema?> _extrema;
+  final _LruCache<Object, ChartVisibleMainExtrema?> _extrema;
   final _LruCache<Object, ChartPanelValueRange> _ranges;
   final _LruCache<Object, TextPainter> _texts;
   final _LruCache<Object, Path> _paths;
@@ -78,7 +78,7 @@ final class ChartRenderCache {
   ChartVisibleWindow windowFor<TTheme extends Object>(
     RenderSnapshot<TTheme> snapshot,
   ) {
-    final key = _geometryKey(snapshot);
+    final key = _viewportKey(snapshot);
     return _resolve(
       kind: RenderCacheKind.window,
       cache: _windows,
@@ -93,15 +93,15 @@ final class ChartRenderCache {
     );
   }
 
-  ChartVisibleOhlcExtrema? extremaFor<TTheme extends Object>(
+  ChartVisibleMainExtrema? extremaFor<TTheme extends Object>(
     RenderSnapshot<TTheme> snapshot,
   ) {
-    final key = _geometryKey(snapshot);
+    final key = _mainGeometryKey(snapshot);
     return _resolve(
       kind: RenderCacheKind.extrema,
       cache: _extrema,
       key: key,
-      create: () => ChartLayerGeometry.visibleOhlcExtrema(snapshot),
+      create: () => ChartLayerGeometry.visibleMainExtrema(snapshot),
     );
   }
 
@@ -109,7 +109,13 @@ final class ChartRenderCache {
     RenderSnapshot<TTheme> snapshot,
     String panelId,
   ) {
-    final key = (_geometryKey(snapshot), snapshot.versions.layout, panelId);
+    final panel = snapshot.layout.panel(panelId);
+    final key = (
+      _viewportKey(snapshot),
+      snapshot.versions.layout,
+      panelId,
+      panel.spec.kind == ChartPanelKind.main ? snapshot.mainMode : null,
+    );
     return _resolve(
       kind: RenderCacheKind.panelRange,
       cache: _ranges,
@@ -117,7 +123,7 @@ final class ChartRenderCache {
       create: () => ChartLayerGeometry.rangeFor(
         snapshot,
         panelId,
-        ohlcExtrema: extremaFor(snapshot),
+        mainExtrema: extremaFor(snapshot),
       ),
     );
   }
@@ -193,7 +199,7 @@ final class ChartRenderCache {
     return value;
   }
 
-  Object _geometryKey<TTheme extends Object>(
+  Object _viewportKey<TTheme extends Object>(
     RenderSnapshot<TTheme> snapshot,
   ) =>
       (
@@ -202,6 +208,11 @@ final class ChartRenderCache {
         snapshot.versions.viewport,
         snapshot.viewport,
       );
+
+  Object _mainGeometryKey<TTheme extends Object>(
+    RenderSnapshot<TTheme> snapshot,
+  ) =>
+      (_viewportKey(snapshot), snapshot.mainMode);
 
   void _clearStorage() {
     _windows.clear();

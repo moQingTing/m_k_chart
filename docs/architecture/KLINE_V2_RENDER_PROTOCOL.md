@@ -2,7 +2,7 @@
 
 > 任务：P5-01
 >
-> 状态：已实现，P5-04 已接入精确 Layer 重绘
+> 状态：已实现，P5-05 已迁移内部 V2 主图模式与 legacy 指标视觉语义
 >
 > 日期：2026-08-25
 
@@ -10,7 +10,7 @@
 
 新 Renderer 只读取一个完整、稳定且经过校验的 `RenderSnapshot`。Layer 只能把该快照转换为 Canvas 可见输出，不能修改 Controller、Store、Interaction 或 Widget 状态。
 
-P5-01 冻结输入与扩展协议；P5-02 已实现内部标准 Layer Stack，P5-03 已接入实例级缓存，P5-04 已按依赖版本保留并重录独立 Layer Picture，但仍不修改 production Painter。
+P5-01 冻结输入与扩展协议；P5-02 已实现内部标准 Layer Stack，P5-03 已接入实例级缓存，P5-04 已按依赖版本保留并重录独立 Layer Picture，P5-05 已补齐蜡烛、分时、面积和 legacy 指标视觉语义，但仍不修改 production Painter。
 
 ## 2. RenderSnapshot
 
@@ -77,5 +77,6 @@ Context 只提供当前 Canvas 与只读 Snapshot。Layer 可以持有由输入�
 - P5-02：已实现网格、主图、副图、轴、标记、绘图和十字线 Layer；
 - P5-03：已实现可见区、极值、Text/Path/Picture 有界缓存；
 - P5-04：已按 Layer 依赖切片实现精确失效、保留式 Picture 合成与 repaint 计数；
+- P5-05：已实现 `candlestick`/`line`/`area` 主图模式及 Descriptor 驱动的 Volume、MACD、SAR 视觉语义；
 - P5-06：新链路完成后移除 legacy paint 写状态和 static 边界；
 - P6-01：将泛型主题收敛为完整不可变 KChartTheme。

@@ -86,6 +86,24 @@ void main() {
         throwsArgumentError,
       );
       expect(
+        () => IndicatorSeriesDescriptor(
+          id: 'line',
+          label: 'Line',
+          drawingKind: IndicatorDrawingKind.line,
+          colorStrategy: IndicatorColorStrategy.valueSign,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => IndicatorSeriesDescriptor(
+          id: 'point',
+          label: 'Point',
+          drawingKind: IndicatorDrawingKind.points,
+          histogramStyle: IndicatorHistogramStyle.valueTrend,
+        ),
+        throwsArgumentError,
+      );
+      expect(
         () => IndicatorSeries(id: 'value', values: const [double.infinity]),
         throwsArgumentError,
       );

@@ -55,6 +55,27 @@ void main() {
     cache.dispose();
   });
 
+  test('main mode invalidates extrema and range but preserves X window', () {
+    final cache = ChartRenderCache();
+    final fixture = _fixture();
+    final candle = fixture.snapshot();
+    final line = fixture.snapshot(
+      versions: const RenderSnapshotVersions(theme: 1),
+      mainMode: ChartMainMode.line,
+    );
+
+    final candleWindow = cache.windowFor(candle);
+    final candleExtrema = cache.extremaFor(candle);
+    final candleRange = cache.panelRangeFor(candle, 'main');
+    expect(cache.windowFor(line), same(candleWindow));
+    expect(cache.extremaFor(line), isNot(same(candleExtrema)));
+    expect(cache.panelRangeFor(line, 'main'), isNot(same(candleRange)));
+
+    expect(cache.stats.hitCount(RenderCacheKind.window), 1);
+    expect(cache.stats.missCount(RenderCacheKind.extrema), 2);
+    cache.dispose();
+  });
+
   test('text, Path and Picture caches are bounded LRU stores', () {
     final cache = ChartRenderCache(
       textCapacity: 1,
@@ -311,6 +332,7 @@ final class _Fixture {
     RenderSnapshotVersions versions = const RenderSnapshotVersions(),
     ChartViewport? viewport,
     RenderSelectionSnapshot selection = const RenderSelectionSnapshot.hidden(),
+    ChartMainMode mainMode = ChartMainMode.candlestick,
   }) =>
       RenderSnapshot<DefaultChartRenderStyle>(
         data: data,
@@ -320,6 +342,7 @@ final class _Fixture {
         versions: versions,
         indicators: [indicator],
         selection: selection,
+        mainMode: mainMode,
       );
 }
 

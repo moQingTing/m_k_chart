@@ -65,12 +65,16 @@ P3-05 增加实例级 `IndicatorEngine.resolveAll`。一个批次要求 instance
 
 缓存协议性能见 `PERFORMANCE_P3_INDICATOR_CACHE_BASELINE.md`，十类迁移指标性能见 `PERFORMANCE_P3_LEGACY_INDICATORS_BASELINE.md`，六类新增指标性能见 `PERFORMANCE_P3_ADDITIONAL_INDICATORS_BASELINE.md`，多实例与内存见 `PERFORMANCE_P3_INDICATOR_ENGINE_BASELINE.md`。
 
-## 6. 后续冻结点
+## 6. P5-05 绘制语义
+
+P5-05 将 legacy 指标视觉所需的颜色和柱形规则写入中立 Descriptor，而不是把 definition ID 判断带回 Renderer：Volume 使用 candle direction，MACD 使用 value sign 与 value trend 空心规则，SAR 使用相对 close 的 price position；普通 Series 保持稳定 palette 色。该实现只影响内部 V2 Layer，生产 Painter 与正式入口仍未接线。
+
+## 7. 后续冻结点
 
 - P3-06：指标独立性守卫已冻结，禁止 legacy 实体、旧枚举/switch 分发和输入回写。
-- P5-02：RendererDescriptor 已由主图/副图 Layer 统一消费 line/histogram/points；生产 Painter 仍保持不变，完整视觉迁移属于 P5-05。
+- P5-02/P5-05：RendererDescriptor 已由主图/副图 Layer 统一消费 line/histogram/points 及中立颜色/柱形语义；生产 Painter 仍保持不变。
 
-## 7. 验证
+## 8. 验证
 
 - 自定义测试指标无需修改核心 enum/switch 即可注册和计算。
 - 覆盖配置不可变/值相等、同定义多实例、注册表隔离、未知/重复定义、输出长度/版本/Series 契约和非有限值拒绝。

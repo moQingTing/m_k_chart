@@ -55,6 +55,38 @@ void main() {
     expect(range.max, closeTo(4.3, 1e-12));
   });
 
+  test('line and area range use visible closes without main indicators', () {
+    for (final mode in [ChartMainMode.line, ChartMainMode.area]) {
+      final snapshot = _snapshot(
+        data: [
+          _kline(low: 50, high: 150, close: 100),
+          _kline(low: 40, high: 160, close: 110),
+        ],
+        mainMode: mode,
+        indicators: [
+          _indicator(
+            instanceId: 'main',
+            panelId: 'main',
+            placement: IndicatorPlacement.mainChart,
+            values: const {
+              'included': [1000, 1100],
+            },
+          ),
+        ],
+      );
+
+      final range = ChartLayerGeometry.rangeFor(snapshot, 'main');
+      final extrema = ChartLayerGeometry.visibleMainExtrema(snapshot)!;
+
+      expect(range.min, closeTo(99.5, 1e-12));
+      expect(range.max, closeTo(110.5, 1e-12));
+      expect(extrema.min, 100);
+      expect(extrema.max, 110);
+      expect(extrema.minIndex, 0);
+      expect(extrema.maxIndex, 1);
+    }
+  });
+
   test('flat and empty panels produce finite deterministic fallback ranges',
       () {
     final flat = _snapshot(data: [_kline(low: 100, high: 100)]);
@@ -73,6 +105,7 @@ void main() {
 RenderSnapshot<_Theme> _snapshot({
   required List<Kline> data,
   List<RenderIndicatorSnapshot> indicators = const [],
+  ChartMainMode mainMode = ChartMainMode.candlestick,
 }) {
   final stable = _StableData(UnmodifiableListView(data));
   final layout = ChartLayoutModel(
@@ -96,6 +129,7 @@ RenderSnapshot<_Theme> _snapshot({
     theme: const _Theme(),
     versions: const RenderSnapshotVersions(),
     indicators: indicators,
+    mainMode: mainMode,
   );
 }
 
@@ -134,7 +168,12 @@ RenderIndicatorSnapshot _indicator({
       panelId: panelId,
     );
 
-Kline _kline({required double low, required double high}) => Kline(
+Kline _kline({
+  required double low,
+  required double high,
+  double? close,
+}) =>
+    Kline(
       symbol: 'BTCUSDT',
       interval: KlineInterval.oneMinute,
       openTime: 1704067200000,
@@ -142,7 +181,7 @@ Kline _kline({required double low, required double high}) => Kline(
       open: low,
       high: high,
       low: low,
-      close: high,
+      close: close ?? high,
       baseVolume: 10,
       quoteVolume: 1000,
       tradeCount: 20,

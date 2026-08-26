@@ -32,6 +32,7 @@
 - 第一帧报告该 Layer 的全部依赖切片；后续只报告实际变化的依赖切片。
 - 同一 Compositor 接受的六类版本必须单调不减；任一版本倒退都抛出 `StateError`。
 - 相同版本必须代表相同切片载荷。Compositor 不做大对象深比较，也不以总 revision 代替切片版本。
+- `RenderSnapshot.mainMode` 属于 theme 可见配置；切换蜡烛、分时或面积时调用方必须推进 theme 版本，因此依赖 theme 的标准 Layer 会一致重录。
 - `clear()` 只释放保留 Picture，不重置累计诊断或已接受的单调版本基线。
 
 ## 4. 事务与生命周期

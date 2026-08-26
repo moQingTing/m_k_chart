@@ -17,8 +17,8 @@
 | 类型 | 内容 | 默认容量 | 失效键 |
 | --- | --- | ---: | --- |
 | window | `VisibleIndexRange`、`ChartXTransform` | 32 | data version、render data/viewport version、Viewport 值 |
-| extrema | 可见 OHLC high/low 及索引 | 32 | 同 window |
-| panel range | 合并 OHLC/指标后的 panel 值域 | 32 | window key、layout version、panel ID |
+| extrema | 可见主图值及索引（蜡烛为 high/low，分时/面积为 close） | 32 | window key、主图模式 |
+| panel range | 合并主图/指标后的 panel 值域 | 32 | window key、layout version、panel ID、主图模式（仅主图） |
 | text | 已 layout 的 `TextPainter` | 128 | 文本、ARGB、字号 |
 | path | 指标 line `Path` | 64 | 指标实例/Series、数据/视口/layout 版本、panel、价格变换 |
 | picture | 背景与网格 `Picture` | 8 | layout/theme version、Layout 值 |
@@ -33,7 +33,7 @@
 - Axis、Marker 与 Crosshair 复用已布局文本。
 - Grid 录制为 Picture，尺寸、布局或主题版本变化时重新生成。
 
-选择版本不属于 geometry key，因此仅移动十字线不会冲掉可见窗口、极值或值域。数据、Viewport、Layout 或 Theme 的调用方版本必须单调反映对应输入变化；P5-04 已使用相同切片版本决定 Layer 是否需要重录。
+选择版本不属于 geometry key，因此仅移动十字线不会冲掉可见窗口、极值或值域。主图模式不会使 visible window/X transform miss，但会使主图 extrema、range 与 price Path miss。数据、Viewport、Layout 或 Theme 的调用方版本必须单调反映对应输入变化；模式属于 theme 可见配置，调用方切换时也必须推进 theme 版本；P5-04 已使用相同切片版本决定 Layer 是否需要重录。
 
 ## 4. 已知边界
 

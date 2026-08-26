@@ -32,6 +32,31 @@ void main() {
         }),
       );
       expect(registry.definitions, hasLength(10));
+      expect(
+        registry
+            .find(VolumeIndicatorDefinition.definitionId)!
+            .rendererDescriptor
+            .series
+            .first
+            .colorStrategy,
+        IndicatorColorStrategy.candleDirection,
+      );
+      final macd = registry
+          .find(MacdIndicatorDefinition.definitionId)!
+          .rendererDescriptor
+          .series
+          .first;
+      expect(macd.colorStrategy, IndicatorColorStrategy.valueSign);
+      expect(macd.histogramStyle, IndicatorHistogramStyle.valueTrend);
+      expect(
+        registry
+            .find(ParabolicSarIndicatorDefinition.definitionId)!
+            .rendererDescriptor
+            .series
+            .single
+            .colorStrategy,
+        IndicatorColorStrategy.pricePosition,
+      );
     });
 
     test('matches every frozen legacy series at representative indexes', () {

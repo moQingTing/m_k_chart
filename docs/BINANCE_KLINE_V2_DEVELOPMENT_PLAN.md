@@ -461,7 +461,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P5-02` 实现网格、主图、副图、轴标签、标记、十字线和绘图独立 Layer。
 - [x] `P5-03` 实现可见区裁剪、极值缓存、文本/Path/Picture 缓存。
 - [x] `P5-04` 用数据、视口、样式和 Layer 版本正确实现重绘判定。
-- [ ] `P5-05` 迁移蜡烛、分时、面积图及现有指标绘制。
+- [x] `P5-05` 迁移蜡烛、分时、面积图及现有指标绘制。
 - [ ] `P5-06` 移除 paint 内 Stream 写入、全局 maxScrollX 和 Widget 全量 setState 链路。
 - [ ] `P5-07` 建立多尺寸、多主题、多副图 Golden 和 repaint 计数测试。
 - [ ] `P5-08` 完成 2,000 根 + 2 副图的 Profile 帧性能、内存与 GC 门禁。
@@ -908,6 +908,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：Host Picture 录制/复合不代表真机 Raster；production Painter/Widget 尚未接线，`PERF-21` 与 P5-08 真机门禁仍未关闭。
 - 证据：`docs/architecture/KLINE_V2_LAYER_REPAINT_PROTOCOL.md`、`docs/PERFORMANCE_P5_LAYER_REPAINT_BASELINE.md`。
 - 后续：进入 `P5-05`，迁移分时、面积及完整 legacy 绘制能力。
+
+### 2026-08-26 / P5-05
+
+- 状态：已完成，内部 V2 Layer 已覆盖实心蜡烛、分时线、面积图和全部 legacy 指标的声明式视觉语义。
+- 主图：`RenderSnapshot` 增加 `candlestick`、`line`、`area` 三种模式；蜡烛以 high/low 定量程并绘制主图指标，分时/面积以 close 定量程且不叠加主图指标，保持 legacy 分时语义。
+- 样式：最小只读 `ChartRenderStyle` 补充主图线、面积渐变、蜡烛/柱形比例和指标点半径，并冻结校验与防御性复制。
+- 指标：Descriptor 增加中立颜色与柱形语义；Volume 由 candle direction 着色，MACD 使用正负色和 legacy 空心趋势柱，SAR 按价格位置着色；其余现有指标继续通过 line/points 统一路径消费，不引入 definitionId switch。
+- 缓存：主图模式进入 extrema/range/Path key；可见窗口和 X 变换保持复用。模式切换按 theme 可见配置推进版本后触发正确 Layer 重录。
+- 验证：离屏像素测试覆盖三主图模式和指标柱颜色；几何/缓存测试覆盖 close 值域、主图指标隐藏与 mode 精确失效；Descriptor/样式不变量测试通过。
+- 边界：production Painter、正式入口与 Demo 未接线；P5-07 仍负责 Golden 与 Widget repaint 计数，P5-08 负责真机 Profile、内存和 GC 门禁。
+- 证据：`docs/architecture/KLINE_V2_CHART_MODE_PROTOCOL.md`。
+- 后续：进入 `P5-06`，移除 legacy paint 写状态、static 边界和 Widget 全量 setState 链路。
 
 ## 13. 参考资料
 

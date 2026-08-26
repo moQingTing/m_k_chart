@@ -4,6 +4,7 @@ import 'dart:ui';
 import '../indicator/indicator.dart';
 import '../model/model.dart';
 import '../viewport/viewport.dart';
+import 'chart_main_mode.dart';
 
 /// Renderer-facing state slices, mirrored without depending on Controller.
 enum RenderSnapshotSlice {
@@ -225,6 +226,7 @@ final class RenderSnapshot<TTheme extends Object> {
     RenderSelectionSnapshot selection = const RenderSelectionSnapshot.hidden(),
     RenderHistorySnapshot history = const RenderHistorySnapshot(),
     Iterable<RenderLineDrawing> drawings = const [],
+    ChartMainMode mainMode = ChartMainMode.candlestick,
   }) {
     if (viewport.itemCount != data.data.length) {
       throw ArgumentError(
@@ -309,6 +311,7 @@ final class RenderSnapshot<TTheme extends Object> {
       history: history,
       drawings: immutableDrawings,
       drawingById: UnmodifiableMapView(drawingById),
+      mainMode: mainMode,
     );
   }
 
@@ -324,6 +327,7 @@ final class RenderSnapshot<TTheme extends Object> {
     required this.history,
     required this.drawings,
     required this.drawingById,
+    required this.mainMode,
   });
 
   final VersionedKlineData data;
@@ -337,6 +341,7 @@ final class RenderSnapshot<TTheme extends Object> {
   final RenderHistorySnapshot history;
   final List<RenderLineDrawing> drawings;
   final Map<String, RenderLineDrawing> drawingById;
+  final ChartMainMode mainMode;
 
   RenderIndicatorSnapshot indicator(String instanceId) {
     final result = indicatorById[instanceId];

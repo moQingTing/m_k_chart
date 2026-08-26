@@ -2,6 +2,18 @@ enum IndicatorPlacement { mainChart, separatePanel }
 
 enum IndicatorDrawingKind { line, histogram, points }
 
+enum IndicatorColorStrategy {
+  series,
+  candleDirection,
+  valueSign,
+  pricePosition,
+}
+
+enum IndicatorHistogramStyle {
+  solid,
+  valueTrend,
+}
+
 /// Renderer-neutral description of one calculated series.
 final class IndicatorSeriesDescriptor {
   IndicatorSeriesDescriptor({
@@ -9,15 +21,29 @@ final class IndicatorSeriesDescriptor {
     required this.label,
     required this.drawingKind,
     this.includeInRange = true,
+    this.colorStrategy = IndicatorColorStrategy.series,
+    this.histogramStyle = IndicatorHistogramStyle.solid,
   }) {
     _requireDescriptorText(id, 'id');
     _requireDescriptorText(label, 'label');
+    if (drawingKind == IndicatorDrawingKind.line &&
+        colorStrategy != IndicatorColorStrategy.series) {
+      throw ArgumentError('Line Series must use the series color strategy.');
+    }
+    if (drawingKind != IndicatorDrawingKind.histogram &&
+        histogramStyle != IndicatorHistogramStyle.solid) {
+      throw ArgumentError(
+        'Only histogram Series can use a non-solid histogram style.',
+      );
+    }
   }
 
   final String id;
   final String label;
   final IndicatorDrawingKind drawingKind;
   final bool includeInRange;
+  final IndicatorColorStrategy colorStrategy;
+  final IndicatorHistogramStyle histogramStyle;
 }
 
 /// Declarative drawing contract. It deliberately contains no Canvas or Color.

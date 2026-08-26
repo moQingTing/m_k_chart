@@ -83,6 +83,48 @@ void main() {
     );
   });
 
+  test('main Layer renders distinct candlestick, line and area modes',
+      () async {
+    final fixture = _fixture();
+    final layer = ChartMainLayer<DefaultChartRenderStyle>(cache);
+    final line = await _paint(
+      fixture.snapshotWithMode(ChartMainMode.line),
+      [layer],
+    );
+    final area = await _paint(
+      fixture.snapshotWithMode(ChartMainMode.area),
+      [layer],
+    );
+    final main = fixture.layout.mainPanel.bounds;
+    final region = Rect.fromLTRB(
+      main.left,
+      main.top,
+      main.right,
+      main.bottom,
+    );
+
+    expect(
+      _hasColor(line, fixture.width, region, fixture.style.mainLineColor),
+      isTrue,
+    );
+    expect(
+      _hasColor(line, fixture.width, region, fixture.style.upColor),
+      isFalse,
+    );
+    expect(
+      _hasColor(line, fixture.width, region, fixture.style.downColor),
+      isFalse,
+    );
+    expect(
+      _hasColor(area, fixture.width, region, fixture.style.mainLineColor),
+      isTrue,
+    );
+    expect(
+      _nonTransparentCount(area, fixture.width, region),
+      greaterThan(_nonTransparentCount(line, fixture.width, region) * 4),
+    );
+  });
+
   test('secondary Layer renders line histogram and point descriptors',
       () async {
     final fixture = _fixture();
@@ -91,13 +133,19 @@ void main() {
       [ChartSecondaryLayer<DefaultChartRenderStyle>(cache)],
     );
     final panel = fixture.layout.panel('volume').bounds;
+    final panelRect = Rect.fromLTRB(
+      panel.left,
+      panel.top,
+      panel.right,
+      panel.bottom,
+    );
     final indicatorColor = fixture.style.indicatorColor('oscillator', 'line');
 
     expect(
       _hasColor(
         pixels,
         fixture.width,
-        Rect.fromLTRB(panel.left, panel.top, panel.right, panel.bottom),
+        panelRect,
         indicatorColor,
       ),
       isTrue,
@@ -106,9 +154,17 @@ void main() {
       _nonTransparentCount(
         pixels,
         fixture.width,
-        Rect.fromLTRB(panel.left, panel.top, panel.right, panel.bottom),
+        panelRect,
       ),
       greaterThan(40),
+    );
+    expect(
+      _hasColor(pixels, fixture.width, panelRect, fixture.style.upColor),
+      isTrue,
+    );
+    expect(
+      _hasColor(pixels, fixture.width, panelRect, fixture.style.downColor),
+      isTrue,
     );
   });
 
@@ -388,6 +444,8 @@ _Fixture _fixture() {
           id: 'bars',
           label: 'Bars',
           drawingKind: IndicatorDrawingKind.histogram,
+          colorStrategy: IndicatorColorStrategy.valueSign,
+          histogramStyle: IndicatorHistogramStyle.valueTrend,
         ),
         IndicatorSeriesDescriptor(
           id: 'dots',
@@ -478,9 +536,15 @@ final class _Fixture {
   ) =>
       _snapshot(drawings: drawings);
 
+  RenderSnapshot<DefaultChartRenderStyle> snapshotWithMode(
+    ChartMainMode mainMode,
+  ) =>
+      _snapshot(mainMode: mainMode);
+
   RenderSnapshot<DefaultChartRenderStyle> _snapshot({
     RenderSelectionSnapshot selection = const RenderSelectionSnapshot.hidden(),
     Iterable<RenderLineDrawing> drawings = const [],
+    ChartMainMode mainMode = ChartMainMode.candlestick,
   }) =>
       RenderSnapshot<DefaultChartRenderStyle>(
         data: data,
@@ -491,6 +555,7 @@ final class _Fixture {
         indicators: indicators,
         selection: selection,
         drawings: drawings,
+        mainMode: mainMode,
       );
 }
 

@@ -1,10 +1,10 @@
 # K 线 2.0 标准 Layer 协议
 
-> 任务：P5-02
+> 任务：P5-02、P5-05
 >
 > 状态：已实现
 >
-> 日期：2026-08-25
+> 日期：2026-08-26
 
 ## 1. 标准绘制顺序
 
@@ -13,7 +13,7 @@
 | 顺序 | Layer ID | 输出 | 依赖切片 |
 | ---: | --- | --- | --- |
 | 1 | `grid` | 背景、全宽列网格、逐 panel 行网格 | layout、theme |
-| 2 | `main` | 涨跌蜡烛、主图指标 | data、viewport、layout、theme |
+| 2 | `main` | 蜡烛/分时/面积主图 | data、viewport、layout、theme |
 | 3 | `secondary` | 副图 line/histogram/points 指标 | data、viewport、layout、theme |
 | 4 | `axis` | panel 数值标签、实际 openTime 标签 | data、viewport、layout、theme |
 | 5 | `marker` | 可见高低点、最新价线和标签 | data、viewport、layout、theme |
@@ -39,7 +39,7 @@ P6-01 的完整 `KChartTheme` 将实现/扩展该接口，并补齐蜡烛变体�
 
 - 每个 Layer 只遍历 `ChartViewport.visibleRange`；
 - X 使用 `ChartXTransform.indexToLocalX`，时间轴使用实际 openTime 往返，不假设固定周期；
-- 主图值域合并 Kline high/low 与 main 指标中 `includeInRange=true` 的 Series；
+- `candlestick` 主图值域合并 Kline high/low 与 main 指标中 `includeInRange=true` 的 Series；`line`/`area` 只使用 close 值域；
 - 副图按 panel 汇总 Series，并遵守 Descriptor 的 `includeZeroInRange`；
 - 平值范围增加 1% 或 1 的有限 padding，空 panel 使用 0～1 fallback；
 - 所有 panel、drawing 和 crosshair 输出使用 chart-local Bounds/clip。
@@ -53,7 +53,8 @@ Layer 不按指标 definitionId 使用 switch：
 - `line`：null 断开 Path；
 - `histogram`：以零值 Y 为基线并约束到 panel；
 - `points`：按有效值绘制点；
-- 颜色只按 instanceId/seriesId 从主题解析。
+- 普通 Series 颜色按 instanceId/seriesId 从主题解析；Descriptor 可声明 candle-direction、value-sign 或 price-position 语义色；
+- histogram 可声明 `valueTrend`，以统一规则表达 MACD 的空心趋势柱。
 
 因此内置、自定义以及同定义多实例使用同一绘制路径。递归 computation state 仍不可见。
 
@@ -72,7 +73,7 @@ Layer 不按指标 definitionId 使用 switch：
 - 每个 Layer 保留一张最新 Picture；版本未变化时直接复合，变化时事务式重录，任一 Layer 失败则不提交该帧的新 Picture/版本/计数；
 - production Painter 未接线，旧 Demo 行为不变。
 
-后续任务：P5-05 完整视觉迁移、P5-07 Golden 与 Widget repaint 计数。
+P5-05 已完成内部 V2 的实心蜡烛、平滑分时线、面积渐变和 legacy 指标视觉语义迁移；完整模式协议见 `KLINE_V2_CHART_MODE_PROTOCOL.md`。后续任务：P5-06 legacy 状态链路清理、P5-07 Golden 与 Widget repaint 计数。
 
 ## 7. 自动门禁
 

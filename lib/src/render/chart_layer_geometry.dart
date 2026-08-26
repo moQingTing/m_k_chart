@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../viewport/viewport.dart';
+import 'chart_main_mode.dart';
 import 'render_snapshot.dart';
 
 final class ChartPanelValueRange {
@@ -17,25 +18,25 @@ final class ChartPanelValueRange {
       );
 }
 
-final class ChartVisibleOhlcExtrema {
-  const ChartVisibleOhlcExtrema({
-    required this.highIndex,
-    required this.lowIndex,
-    required this.high,
-    required this.low,
+final class ChartVisibleMainExtrema {
+  const ChartVisibleMainExtrema({
+    required this.maxIndex,
+    required this.minIndex,
+    required this.max,
+    required this.min,
   });
 
-  final int highIndex;
-  final int lowIndex;
-  final double high;
-  final double low;
+  final int maxIndex;
+  final int minIndex;
+  final double max;
+  final double min;
 }
 
 abstract final class ChartLayerGeometry {
   static ChartPanelValueRange rangeFor<TTheme extends Object>(
     RenderSnapshot<TTheme> snapshot,
     String panelId, {
-    ChartVisibleOhlcExtrema? ohlcExtrema,
+    ChartVisibleMainExtrema? mainExtrema,
   }) {
     final panel = snapshot.layout.panel(panelId);
     final range = snapshot.viewport.visibleRange;
@@ -48,15 +49,19 @@ abstract final class ChartLayerGeometry {
     }
 
     if (panel.spec.kind == ChartPanelKind.main) {
-      final extrema = ohlcExtrema ?? visibleOhlcExtrema(snapshot);
+      final extrema = mainExtrema ?? visibleMainExtrema(snapshot);
       if (extrema != null) {
-        include(extrema.low);
-        include(extrema.high);
+        include(extrema.min);
+        include(extrema.max);
       }
     }
 
     for (final indicator in snapshot.indicators) {
       if (indicator.panelId != panelId) {
+        continue;
+      }
+      if (panel.spec.kind == ChartPanelKind.main &&
+          snapshot.mainMode != ChartMainMode.candlestick) {
         continue;
       }
       if (indicator.descriptor.includeZeroInRange) {
@@ -91,28 +96,36 @@ abstract final class ChartLayerGeometry {
     return ChartPanelValueRange(minimum! - padding, maximum! + padding);
   }
 
-  static ChartVisibleOhlcExtrema? visibleOhlcExtrema<TTheme extends Object>(
+  static ChartVisibleMainExtrema? visibleMainExtrema<TTheme extends Object>(
     RenderSnapshot<TTheme> snapshot,
   ) {
     final range = snapshot.viewport.visibleRange;
     if (range.isEmpty) {
       return null;
     }
-    var highIndex = range.start;
-    var lowIndex = range.start;
+    var maxIndex = range.start;
+    var minIndex = range.start;
+    double maximumAt(int index) =>
+        snapshot.mainMode == ChartMainMode.candlestick
+            ? snapshot.data.data[index].high
+            : snapshot.data.data[index].close;
+    double minimumAt(int index) =>
+        snapshot.mainMode == ChartMainMode.candlestick
+            ? snapshot.data.data[index].low
+            : snapshot.data.data[index].close;
     for (var index = range.start + 1; index < range.end; index++) {
-      if (snapshot.data.data[index].high > snapshot.data.data[highIndex].high) {
-        highIndex = index;
+      if (maximumAt(index) > maximumAt(maxIndex)) {
+        maxIndex = index;
       }
-      if (snapshot.data.data[index].low < snapshot.data.data[lowIndex].low) {
-        lowIndex = index;
+      if (minimumAt(index) < minimumAt(minIndex)) {
+        minIndex = index;
       }
     }
-    return ChartVisibleOhlcExtrema(
-      highIndex: highIndex,
-      lowIndex: lowIndex,
-      high: snapshot.data.data[highIndex].high,
-      low: snapshot.data.data[lowIndex].low,
+    return ChartVisibleMainExtrema(
+      maxIndex: maxIndex,
+      minIndex: minIndex,
+      max: maximumAt(maxIndex),
+      min: minimumAt(minIndex),
     );
   }
 }

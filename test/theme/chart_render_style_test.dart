@@ -8,8 +8,16 @@ void main() {
       'default render style is immutable and resolves colors deterministically',
       () {
     final source = <Color>[const Color(0xff112233)];
-    final style = DefaultChartRenderStyle(indicatorPalette: source);
+    final fill = <Color>[
+      const Color(0x99112233),
+      const Color(0x11112233),
+    ];
+    final style = DefaultChartRenderStyle(
+      indicatorPalette: source,
+      areaFillColors: fill,
+    );
     source.add(const Color(0xff445566));
+    fill.clear();
 
     expect(style.indicatorPalette, [const Color(0xff112233)]);
     expect(
@@ -17,6 +25,8 @@ void main() {
       style.indicatorColor('ma.fast', 'value'),
     );
     expect(() => style.indicatorPalette.clear(), throwsUnsupportedError);
+    expect(style.areaFillColors, hasLength(2));
+    expect(() => style.areaFillColors.clear(), throwsUnsupportedError);
   });
 
   test('render style rejects empty palettes and invalid dimensions', () {
@@ -30,6 +40,14 @@ void main() {
     );
     expect(
       () => DefaultChartRenderStyle(axisFontSize: double.nan),
+      throwsArgumentError,
+    );
+    expect(
+      () => DefaultChartRenderStyle(areaFillColors: const [Color(0xff000000)]),
+      throwsArgumentError,
+    );
+    expect(
+      () => DefaultChartRenderStyle(candleWidthRatio: 1.1),
       throwsArgumentError,
     );
   });

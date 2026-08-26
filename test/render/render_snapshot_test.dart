@@ -35,6 +35,7 @@ void main() {
       history: const RenderHistorySnapshot(
         phase: RenderHistoryPhase.loading,
       ),
+      mainMode: ChartMainMode.area,
     );
     indicators.clear();
 
@@ -43,6 +44,7 @@ void main() {
     expect(snapshot.indicator('ma.fast'), same(fixture.mainIndicator));
     expect(snapshot.selection.isSnapped, isTrue);
     expect(snapshot.history.phase, RenderHistoryPhase.loading);
+    expect(snapshot.mainMode, ChartMainMode.area);
     expect(
       () => snapshot.indicators.add(fixture.mainIndicator),
       throwsUnsupportedError,
@@ -204,6 +206,10 @@ void main() {
       ],
       [1, 2, 3, 4, 5, 6],
     );
+  });
+
+  test('snapshot defaults to candlestick main mode', () {
+    expect(_fixture().snapshot().mainMode, ChartMainMode.candlestick);
   });
 }
 

@@ -265,6 +265,7 @@ final class ParabolicSarIndicatorDefinition
             id: 'sar',
             label: 'SAR',
             drawingKind: IndicatorDrawingKind.points,
+            colorStrategy: IndicatorColorStrategy.pricePosition,
           ),
         ],
       );
@@ -489,6 +490,7 @@ final class VolumeIndicatorDefinition
             id: 'volume',
             label: 'VOL',
             drawingKind: IndicatorDrawingKind.histogram,
+            colorStrategy: IndicatorColorStrategy.candleDirection,
           ),
           IndicatorSeriesDescriptor(
             id: 'ma5',
@@ -565,6 +567,8 @@ final class MacdIndicatorDefinition implements IncrementalIndicatorDefinition {
             id: 'macd',
             label: 'MACD',
             drawingKind: IndicatorDrawingKind.histogram,
+            colorStrategy: IndicatorColorStrategy.valueSign,
+            histogramStyle: IndicatorHistogramStyle.valueTrend,
           ),
           IndicatorSeriesDescriptor(
             id: 'dif',

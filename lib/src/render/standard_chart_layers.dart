@@ -6,6 +6,7 @@ import 'package:flutter/painting.dart';
 import '../indicator/indicator.dart';
 import '../theme/theme.dart';
 import '../viewport/viewport.dart';
+import 'chart_main_mode.dart';
 import 'render_cache.dart';
 import 'render_layer.dart';
 import 'render_repaint.dart';
@@ -72,21 +73,44 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
     final canvas = context.canvas;
     canvas.save();
     canvas.clipRect(_rect(panel.bounds));
-    _drawCandles(
-      canvas: canvas,
-      snapshot: snapshot,
-      window: window,
-      priceTransform: priceTransform,
-    );
-    _drawIndicators(
-      canvas: canvas,
-      snapshot: snapshot,
-      panelId: panel.spec.id,
-      bounds: panel.bounds,
-      window: window,
-      valueTransform: priceTransform,
-      cache: cache,
-    );
+    switch (snapshot.mainMode) {
+      case ChartMainMode.candlestick:
+        _drawCandles(
+          canvas: canvas,
+          snapshot: snapshot,
+          window: window,
+          priceTransform: priceTransform,
+        );
+        _drawIndicators(
+          canvas: canvas,
+          snapshot: snapshot,
+          panelId: panel.spec.id,
+          bounds: panel.bounds,
+          window: window,
+          valueTransform: priceTransform,
+          cache: cache,
+        );
+      case ChartMainMode.line:
+        _drawMainPriceSeries(
+          canvas: canvas,
+          snapshot: snapshot,
+          panel: panel.bounds,
+          window: window,
+          priceTransform: priceTransform,
+          cache: cache,
+          fillArea: false,
+        );
+      case ChartMainMode.area:
+        _drawMainPriceSeries(
+          canvas: canvas,
+          snapshot: snapshot,
+          panel: panel.bounds,
+          window: window,
+          priceTransform: priceTransform,
+          cache: cache,
+          fillArea: true,
+        );
+    }
     canvas.restore();
   }
 }
@@ -240,8 +264,8 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
       ..strokeWidth = snapshot.theme.overlayStrokeWidth
       ..style = PaintingStyle.stroke;
     for (final point in <(int, double)>[
-      (extrema.highIndex, extrema.high),
-      (extrema.lowIndex, extrema.low),
+      (extrema.maxIndex, extrema.max),
+      (extrema.minIndex, extrema.min),
     ]) {
       context.canvas.drawCircle(
         Offset(
@@ -468,13 +492,125 @@ Path _buildLinePath({
   return path;
 }
 
+Path _buildMainPricePath<TTheme extends Object>({
+  required RenderSnapshot<TTheme> snapshot,
+  required ChartVisibleWindow window,
+  required ChartPriceTransform priceTransform,
+  required bool closeArea,
+  required double areaBottom,
+}) {
+  final path = Path();
+  final visible = window.range;
+  if (visible.isEmpty) {
+    return path;
+  }
+  final firstIndex = visible.start;
+  final firstX = window.xTransform.indexToLocalX(firstIndex);
+  final firstY = priceTransform.priceToLocalY(
+    snapshot.data.data[firstIndex].close,
+  );
+  path.moveTo(firstX, firstY);
+  var previousX = firstX;
+  var previousY = firstY;
+  for (var index = firstIndex + 1; index < visible.end; index++) {
+    final x = window.xTransform.indexToLocalX(index);
+    final y = priceTransform.priceToLocalY(snapshot.data.data[index].close);
+    final middleX = (previousX + x) / 2;
+    path.cubicTo(middleX, previousY, middleX, y, x, y);
+    previousX = x;
+    previousY = y;
+  }
+  if (closeArea) {
+    path
+      ..lineTo(previousX, areaBottom)
+      ..lineTo(firstX, areaBottom)
+      ..close();
+  }
+  return path;
+}
+
+void _drawMainPriceSeries<TTheme extends ChartRenderStyle>({
+  required Canvas canvas,
+  required RenderSnapshot<TTheme> snapshot,
+  required ChartLayoutRect panel,
+  required ChartVisibleWindow window,
+  required ChartPriceTransform priceTransform,
+  required ChartRenderCache cache,
+  required bool fillArea,
+}) {
+  final commonKey = (
+    'main-price',
+    snapshot.data.version,
+    snapshot.versions.data,
+    snapshot.versions.viewport,
+    snapshot.versions.layout,
+    snapshot.mainMode,
+    priceTransform,
+  );
+  if (fillArea) {
+    final areaPath = cache.path(
+      (commonKey, 'area'),
+      () => _buildMainPricePath(
+        snapshot: snapshot,
+        window: window,
+        priceTransform: priceTransform,
+        closeArea: true,
+        areaBottom: panel.bottom,
+      ),
+    );
+    canvas.drawPath(
+      areaPath,
+      Paint()
+        ..style = PaintingStyle.fill
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: snapshot.theme.areaFillColors,
+        ).createShader(_rect(panel)),
+    );
+  }
+  final linePath = cache.path(
+    (commonKey, 'line'),
+    () => _buildMainPricePath(
+      snapshot: snapshot,
+      window: window,
+      priceTransform: priceTransform,
+      closeArea: false,
+      areaBottom: panel.bottom,
+    ),
+  );
+  canvas.drawPath(
+    linePath,
+    Paint()
+      ..color = snapshot.theme.mainLineColor
+      ..strokeWidth = snapshot.theme.mainLineStrokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round,
+  );
+  if (window.range.length == 1) {
+    final index = window.range.start;
+    canvas.drawCircle(
+      Offset(
+        window.xTransform.indexToLocalX(index),
+        priceTransform.priceToLocalY(snapshot.data.data[index].close),
+      ),
+      snapshot.theme.mainLineStrokeWidth,
+      Paint()..color = snapshot.theme.mainLineColor,
+    );
+  }
+}
+
 void _drawCandles<TTheme extends ChartRenderStyle>({
   required Canvas canvas,
   required RenderSnapshot<TTheme> snapshot,
   required ChartVisibleWindow window,
   required ChartPriceTransform priceTransform,
 }) {
-  final bodyWidth = math.max(1.0, snapshot.viewport.itemExtent * 0.65);
+  final bodyWidth = math.max(
+    1.0,
+    snapshot.viewport.itemExtent * snapshot.theme.candleWidthRatio,
+  );
   for (var index = window.range.start; index < window.range.end; index++) {
     final candle = snapshot.data.data[index];
     final x = window.xTransform.indexToLocalX(index);
@@ -554,13 +690,32 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
                 bounds.top,
                 bounds.bottom,
               );
-          final width = math.max(1.0, snapshot.viewport.itemExtent * 0.55);
-          paint.style = PaintingStyle.fill;
+          final width = math.max(
+            1.0,
+            snapshot.viewport.itemExtent * snapshot.theme.histogramWidthRatio,
+          );
           for (var index = visible.start; index < visible.end; index++) {
             final value = series.values[index];
             if (value == null) {
               continue;
             }
+            paint
+              ..color = _resolveIndicatorColor(
+                snapshot: snapshot,
+                descriptor: descriptor,
+                index: index,
+                value: value,
+                seriesColor: snapshot.theme.indicatorColor(
+                  indicator.instanceId,
+                  descriptor.id,
+                ),
+              )
+              ..style = _histogramPaintingStyle(
+                descriptor: descriptor,
+                series: series,
+                index: index,
+                value: value,
+              );
             final x = window.xTransform.indexToLocalX(index);
             final y = valueTransform.priceToLocalY(value);
             canvas.drawRect(
@@ -580,18 +735,66 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
             if (value == null) {
               continue;
             }
+            paint.color = _resolveIndicatorColor(
+              snapshot: snapshot,
+              descriptor: descriptor,
+              index: index,
+              value: value,
+              seriesColor: snapshot.theme.indicatorColor(
+                indicator.instanceId,
+                descriptor.id,
+              ),
+            );
             canvas.drawCircle(
               Offset(
                 window.xTransform.indexToLocalX(index),
                 valueTransform.priceToLocalY(value),
               ),
-              math.max(1.5, snapshot.theme.indicatorStrokeWidth),
+              snapshot.theme.indicatorPointRadius,
               paint,
             );
           }
       }
     }
   }
+}
+
+Color _resolveIndicatorColor<TTheme extends ChartRenderStyle>({
+  required RenderSnapshot<TTheme> snapshot,
+  required IndicatorSeriesDescriptor descriptor,
+  required int index,
+  required double value,
+  required Color seriesColor,
+}) =>
+    switch (descriptor.colorStrategy) {
+      IndicatorColorStrategy.series => seriesColor,
+      IndicatorColorStrategy.candleDirection =>
+        snapshot.data.data[index].close >= snapshot.data.data[index].open
+            ? snapshot.theme.upColor
+            : snapshot.theme.downColor,
+      IndicatorColorStrategy.valueSign =>
+        value >= 0 ? snapshot.theme.upColor : snapshot.theme.downColor,
+      IndicatorColorStrategy.pricePosition =>
+        value <= snapshot.data.data[index].close
+            ? snapshot.theme.upColor
+            : snapshot.theme.downColor,
+    };
+
+PaintingStyle _histogramPaintingStyle({
+  required IndicatorSeriesDescriptor descriptor,
+  required IndicatorSeries series,
+  required int index,
+  required double value,
+}) {
+  if (descriptor.histogramStyle == IndicatorHistogramStyle.solid ||
+      index == 0 ||
+      series.values[index - 1] == null) {
+    return PaintingStyle.fill;
+  }
+  final previous = series.values[index - 1]!;
+  final increasing = value > previous;
+  final hollow = value >= 0 ? !increasing : increasing;
+  return hollow ? PaintingStyle.stroke : PaintingStyle.fill;
 }
 
 void _drawText({
