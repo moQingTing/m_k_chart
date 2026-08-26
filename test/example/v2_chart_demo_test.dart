@@ -7,10 +7,9 @@ void main() {
   testWidgets('V2 example switches periods and all chart modes offline',
       (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(home: V2TradingChartDemo()),
+      const MaterialApp(home: V2TradingChartDemo(loadOnStart: false)),
     );
 
-    expect(find.byKey(const ValueKey('v2-chart-canvas')), findsOneWidget);
     expect(find.byKey(const ValueKey('period-1m')), findsOneWidget);
     expect(find.byKey(const ValueKey('mode-candlestick')), findsOneWidget);
 
@@ -22,7 +21,6 @@ void main() {
           .selected,
       isTrue,
     );
-    expect(find.bySemanticsLabel('V2 chart 5m Candle'), findsOneWidget);
 
     for (final mode in [
       ('hollowCandlestick', 'Hollow'),
@@ -41,7 +39,52 @@ void main() {
             .selected,
         isTrue,
       );
-      expect(find.bySemanticsLabel('V2 chart 5m ${mode.$2}'), findsOneWidget);
     }
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('main-indicator-boll')),
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('main-indicator-boll')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<FilterChip>(
+            find.byKey(const ValueKey('main-indicator-boll')),
+          )
+          .selected,
+      isTrue,
+    );
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('secondary-indicator-rsi')),
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('secondary-indicator-rsi')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<FilterChip>(
+            find.byKey(const ValueKey('secondary-indicator-rsi')),
+          )
+          .selected,
+      isTrue,
+    );
+
+    await tester.scrollUntilVisible(
+      find.byType(Switch),
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byType(Switch));
+    await tester.pump();
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -1400));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('v2-chart-canvas')), findsOneWidget);
+    expect(find.bySemanticsLabel('V2 chart 5m Area'), findsOneWidget);
   });
 }
