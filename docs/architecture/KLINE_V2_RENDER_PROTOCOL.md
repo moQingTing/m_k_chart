@@ -81,3 +81,4 @@ Context 只提供当前 Canvas 与只读 Snapshot。Layer 可以持有由输入�
 - P5-06：已移除 legacy paint Stream 写入、static scroll 边界和全 Widget setState 链路；
 - P5-07：已冻结多尺寸/主题/副图 Golden，并在 Widget 绘制帧验证 retained Layer repaint 计数；
 - P6-01：已冻结公开 `KChartTheme`、结构化相等与 `ChartColors` 兼容适配；协议见 `KLINE_V2_THEME_PROTOCOL.md`。
+- P6-02：已增加实体/空心/OHLC/Heikin-Ashi 主图，统一最新价和高低点标记；协议见 `KLINE_V2_CANDLE_MODE_PROTOCOL.md`。

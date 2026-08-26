@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../viewport/viewport.dart';
+import 'chart_candle_projection.dart';
 import 'chart_main_mode.dart';
 import 'render_snapshot.dart';
 
@@ -61,7 +62,7 @@ abstract final class ChartLayerGeometry {
         continue;
       }
       if (panel.spec.kind == ChartPanelKind.main &&
-          snapshot.mainMode != ChartMainMode.candlestick) {
+          !snapshot.mainMode.showsMainIndicators) {
         continue;
       }
       if (indicator.descriptor.includeZeroInRange) {
@@ -97,22 +98,26 @@ abstract final class ChartLayerGeometry {
   }
 
   static ChartVisibleMainExtrema? visibleMainExtrema<TTheme extends Object>(
-    RenderSnapshot<TTheme> snapshot,
-  ) {
+    RenderSnapshot<TTheme> snapshot, {
+    ChartCandleProjection? candles,
+  }) {
     final range = snapshot.viewport.visibleRange;
     if (range.isEmpty) {
       return null;
     }
     var maxIndex = range.start;
     var minIndex = range.start;
-    double maximumAt(int index) =>
-        snapshot.mainMode == ChartMainMode.candlestick
-            ? snapshot.data.data[index].high
-            : snapshot.data.data[index].close;
-    double minimumAt(int index) =>
-        snapshot.mainMode == ChartMainMode.candlestick
-            ? snapshot.data.data[index].low
-            : snapshot.data.data[index].close;
+    final values = candles ??
+        ChartCandleProjection.fromKlines(
+          source: snapshot.data.data,
+          mode: snapshot.mainMode,
+        );
+    double maximumAt(int index) => snapshot.mainMode.isCandleMode
+        ? values.candles[index].high
+        : values.candles[index].close;
+    double minimumAt(int index) => snapshot.mainMode.isCandleMode
+        ? values.candles[index].low
+        : values.candles[index].close;
     for (var index = range.start + 1; index < range.end; index++) {
       if (maximumAt(index) > maximumAt(maxIndex)) {
         maxIndex = index;

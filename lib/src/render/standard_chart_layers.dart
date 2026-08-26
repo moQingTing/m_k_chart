@@ -6,6 +6,7 @@ import 'package:flutter/painting.dart';
 import '../indicator/indicator.dart';
 import '../theme/theme.dart';
 import '../viewport/viewport.dart';
+import 'chart_candle_projection.dart';
 import 'chart_main_mode.dart';
 import 'render_cache.dart';
 import 'render_layer.dart';
@@ -75,11 +76,15 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
     canvas.clipRect(_rect(panel.bounds));
     switch (snapshot.mainMode) {
       case ChartMainMode.candlestick:
+      case ChartMainMode.hollowCandlestick:
+      case ChartMainMode.ohlc:
+      case ChartMainMode.heikinAshi:
         _drawCandles(
           canvas: canvas,
           snapshot: snapshot,
           window: window,
           priceTransform: priceTransform,
+          candles: cache.candlesFor(snapshot),
         );
         _drawIndicators(
           canvas: canvas,
@@ -259,21 +264,32 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
         .transform(panel.bounds);
     final xTransform = window.xTransform;
     final extrema = cache.extremaFor(snapshot)!;
+    final midpoint = (panel.bounds.left + panel.bounds.right) / 2;
     final paint = Paint()
       ..color = snapshot.theme.markerColor
       ..strokeWidth = snapshot.theme.overlayStrokeWidth
       ..style = PaintingStyle.stroke;
-    for (final point in <(int, double)>[
-      (extrema.maxIndex, extrema.max),
-      (extrema.minIndex, extrema.min),
+    for (final point in <(int, double, String)>[
+      (extrema.maxIndex, extrema.max, 'H'),
+      (extrema.minIndex, extrema.min, 'L'),
     ]) {
+      final x = xTransform.indexToLocalX(point.$1);
+      final y = transform.priceToLocalY(point.$2);
       context.canvas.drawCircle(
-        Offset(
-          xTransform.indexToLocalX(point.$1),
-          transform.priceToLocalY(point.$2),
-        ),
+        Offset(x, y),
         3,
         paint,
+      );
+      _drawText(
+        canvas: context.canvas,
+        text: '${point.$3} ${_formatNumber(point.$2)}',
+        color: snapshot.theme.markerColor,
+        fontSize: snapshot.theme.axisFontSize,
+        x: x < midpoint ? x + 5 : x - 5,
+        y: y,
+        horizontalAnchor: x < midpoint ? 0 : 1,
+        verticalAnchor: 0.5,
+        cache: cache,
       );
     }
 
@@ -281,9 +297,13 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
     if (!visible.contains(latestIndex)) {
       return;
     }
-    final latest = snapshot.data.data[latestIndex];
+    final latest = cache.candlesFor(snapshot).candles[latestIndex];
     final localX = xTransform.indexToLocalX(latestIndex);
     final localY = transform.priceToLocalY(latest.close);
+    final latestColor = latest.close >= latest.open
+        ? snapshot.theme.upColor
+        : snapshot.theme.downColor;
+    paint.color = latestColor;
     context.canvas.drawLine(
       Offset(localX, localY),
       Offset(panel.bounds.right, localY),
@@ -292,7 +312,7 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
     _drawText(
       canvas: context.canvas,
       text: _formatNumber(latest.close),
-      color: snapshot.theme.markerColor,
+      color: latestColor,
       fontSize: snapshot.theme.axisFontSize,
       x: panel.bounds.right - 3,
       y: localY,
@@ -606,13 +626,14 @@ void _drawCandles<TTheme extends ChartRenderStyle>({
   required RenderSnapshot<TTheme> snapshot,
   required ChartVisibleWindow window,
   required ChartPriceTransform priceTransform,
+  required ChartCandleProjection candles,
 }) {
   final bodyWidth = math.max(
     1.0,
     snapshot.viewport.itemExtent * snapshot.theme.candleWidthRatio,
   );
   for (var index = window.range.start; index < window.range.end; index++) {
-    final candle = snapshot.data.data[index];
+    final candle = candles.candles[index];
     final x = window.xTransform.indexToLocalX(index);
     final openY = priceTransform.priceToLocalY(candle.open);
     final closeY = priceTransform.priceToLocalY(candle.close);
@@ -626,10 +647,21 @@ void _drawCandles<TTheme extends ChartRenderStyle>({
     canvas.drawLine(Offset(x, highY), Offset(x, lowY), paint);
     final top = math.min(openY, closeY);
     final bottom = math.max(openY, closeY);
-    if (bottom - top < 1) {
+    if (snapshot.mainMode == ChartMainMode.ohlc) {
+      final halfWidth = bodyWidth / 2;
+      canvas
+        ..drawLine(Offset(x - halfWidth, openY), Offset(x, openY), paint)
+        ..drawLine(Offset(x, closeY), Offset(x + halfWidth, closeY), paint);
+    } else if (bottom - top < 1) {
       canvas.drawLine(
         Offset(x - bodyWidth / 2, top),
         Offset(x + bodyWidth / 2, top),
+        paint,
+      );
+    } else if (snapshot.mainMode == ChartMainMode.hollowCandlestick) {
+      paint.style = PaintingStyle.stroke;
+      canvas.drawRect(
+        Rect.fromLTRB(x - bodyWidth / 2, top, x + bodyWidth / 2, bottom),
         paint,
       );
     } else {

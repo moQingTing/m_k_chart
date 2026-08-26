@@ -83,8 +83,7 @@ void main() {
     );
   });
 
-  test('main Layer renders distinct candlestick, line and area modes',
-      () async {
+  test('main Layer renders distinct candle, line and area modes', () async {
     final fixture = _fixture();
     final layer = ChartMainLayer<DefaultChartRenderStyle>(cache);
     final line = await _paint(
@@ -93,6 +92,22 @@ void main() {
     );
     final area = await _paint(
       fixture.snapshotWithMode(ChartMainMode.area),
+      [layer],
+    );
+    final solid = await _paint(
+      fixture.snapshotWithMode(ChartMainMode.candlestick),
+      [layer],
+    );
+    final hollow = await _paint(
+      fixture.snapshotWithMode(ChartMainMode.hollowCandlestick),
+      [layer],
+    );
+    final ohlc = await _paint(
+      fixture.snapshotWithMode(ChartMainMode.ohlc),
+      [layer],
+    );
+    final heikinAshi = await _paint(
+      fixture.snapshotWithMode(ChartMainMode.heikinAshi),
       [layer],
     );
     final main = fixture.layout.mainPanel.bounds;
@@ -122,6 +137,12 @@ void main() {
     expect(
       _nonTransparentCount(area, fixture.width, region),
       greaterThan(_nonTransparentCount(line, fixture.width, region) * 4),
+    );
+    expect(_pixelDifferenceCount(hollow, solid), greaterThan(0));
+    expect(_pixelDifferenceCount(ohlc, solid), greaterThan(0));
+    expect(
+      _pixelDifferenceCount(heikinAshi, solid),
+      greaterThan(0),
     );
   });
 
@@ -301,6 +322,17 @@ Future<ByteData> _paint(
   image.dispose();
   picture.dispose();
   return bytes!;
+}
+
+int _pixelDifferenceCount(ByteData first, ByteData second) {
+  expect(first.lengthInBytes, second.lengthInBytes);
+  var count = 0;
+  for (var index = 0; index < first.lengthInBytes; index++) {
+    if (first.getUint8(index) != second.getUint8(index)) {
+      count++;
+    }
+  }
+  return count;
 }
 
 Color _pixel(ByteData pixels, int width, int x, int y) {

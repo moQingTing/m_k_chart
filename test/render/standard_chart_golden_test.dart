@@ -41,6 +41,30 @@ void main() {
         mainMode: ChartMainMode.line,
         theme: DefaultChartRenderStyle(),
       ),
+      _GoldenScenario(
+        name: 'wide_dark_hollow_candlestick',
+        width: 360,
+        height: 320,
+        secondaryPanelIds: const ['volume', 'momentum'],
+        mainMode: ChartMainMode.hollowCandlestick,
+        theme: DefaultChartRenderStyle(),
+      ),
+      _GoldenScenario(
+        name: 'compact_light_ohlc',
+        width: 240,
+        height: 260,
+        secondaryPanelIds: const ['volume'],
+        mainMode: ChartMainMode.ohlc,
+        theme: _lightTheme(),
+      ),
+      _GoldenScenario(
+        name: 'tall_dark_heikin_ashi',
+        width: 300,
+        height: 520,
+        secondaryPanelIds: const ['volume', 'momentum', 'flow'],
+        mainMode: ChartMainMode.heikinAshi,
+        theme: DefaultChartRenderStyle(),
+      ),
     ];
 
     for (final scenario in scenarios) {

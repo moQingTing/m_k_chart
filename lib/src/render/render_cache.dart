@@ -4,11 +4,13 @@ import 'dart:ui';
 import 'package:flutter/painting.dart';
 
 import '../viewport/viewport.dart';
+import 'chart_candle_projection.dart';
 import 'chart_layer_geometry.dart';
 import 'render_snapshot.dart';
 
 enum RenderCacheKind {
   window,
+  candleProjection,
   extrema,
   panelRange,
   text,
@@ -44,10 +46,13 @@ final class ChartVisibleWindow {
 final class ChartRenderCache {
   ChartRenderCache({
     int geometryCapacity = 32,
+    int candleProjectionCapacity = 4,
     int textCapacity = 128,
     int pathCapacity = 64,
     int pictureCapacity = 8,
   })  : _windows = _LruCache<Object, ChartVisibleWindow>(geometryCapacity),
+        _candleProjections =
+            _LruCache<Object, ChartCandleProjection>(candleProjectionCapacity),
         _extrema = _LruCache<Object, ChartVisibleMainExtrema?>(
           geometryCapacity,
         ),
@@ -63,6 +68,7 @@ final class ChartRenderCache {
         );
 
   final _LruCache<Object, ChartVisibleWindow> _windows;
+  final _LruCache<Object, ChartCandleProjection> _candleProjections;
   final _LruCache<Object, ChartVisibleMainExtrema?> _extrema;
   final _LruCache<Object, ChartPanelValueRange> _ranges;
   final _LruCache<Object, TextPainter> _texts;
@@ -101,9 +107,25 @@ final class ChartRenderCache {
       kind: RenderCacheKind.extrema,
       cache: _extrema,
       key: key,
-      create: () => ChartLayerGeometry.visibleMainExtrema(snapshot),
+      create: () => ChartLayerGeometry.visibleMainExtrema(
+        snapshot,
+        candles: candlesFor(snapshot),
+      ),
     );
   }
+
+  ChartCandleProjection candlesFor<TTheme extends Object>(
+    RenderSnapshot<TTheme> snapshot,
+  ) =>
+      _resolve(
+        kind: RenderCacheKind.candleProjection,
+        cache: _candleProjections,
+        key: (snapshot.data.version, snapshot.versions.data, snapshot.mainMode),
+        create: () => ChartCandleProjection.fromKlines(
+          source: snapshot.data.data,
+          mode: snapshot.mainMode,
+        ),
+      );
 
   ChartPanelValueRange panelRangeFor<TTheme extends Object>(
     RenderSnapshot<TTheme> snapshot,
@@ -216,6 +238,7 @@ final class ChartRenderCache {
 
   void _clearStorage() {
     _windows.clear();
+    _candleProjections.clear();
     _extrema.clear();
     _ranges.clear();
     _texts.clear();

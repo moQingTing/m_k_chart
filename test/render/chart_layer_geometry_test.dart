@@ -87,6 +87,36 @@ void main() {
     }
   });
 
+  test('Heikin-Ashi range and extrema use the projected candle values', () {
+    final source = [
+      _kline(open: 100, high: 120, low: 90, close: 110),
+      _kline(open: 110, high: 130, low: 100, close: 120),
+    ];
+    final snapshot = _snapshot(
+      data: source,
+      mainMode: ChartMainMode.heikinAshi,
+    );
+    final projection = ChartCandleProjection.fromKlines(
+      source: source,
+      mode: ChartMainMode.heikinAshi,
+    );
+
+    final extrema = ChartLayerGeometry.visibleMainExtrema(
+      snapshot,
+      candles: projection,
+    )!;
+    final range = ChartLayerGeometry.rangeFor(
+      snapshot,
+      'main',
+      mainExtrema: extrema,
+    );
+
+    expect(extrema.min, projection.candles.first.low);
+    expect(extrema.max, projection.candles.last.high);
+    expect(range.min, closeTo(88, 1e-12));
+    expect(range.max, closeTo(132, 1e-12));
+  });
+
   test('flat and empty panels produce finite deterministic fallback ranges',
       () {
     final flat = _snapshot(data: [_kline(low: 100, high: 100)]);
@@ -171,6 +201,7 @@ RenderIndicatorSnapshot _indicator({
 Kline _kline({
   required double low,
   required double high,
+  double? open,
   double? close,
 }) =>
     Kline(
@@ -178,7 +209,7 @@ Kline _kline({
       interval: KlineInterval.oneMinute,
       openTime: 1704067200000,
       closeTime: 1704067259999,
-      open: low,
+      open: open ?? low,
       high: high,
       low: low,
       close: close ?? high,

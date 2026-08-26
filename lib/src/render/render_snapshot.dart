@@ -213,8 +213,8 @@ final class RenderIndicatorSnapshot {
 
 /// Complete, read-only input for one deterministic render pass.
 ///
-/// [TTheme] is generic until P6 freezes the public immutable KChartTheme.
-/// Callers must provide an immutable theme value.
+/// [TTheme] remains generic inside Renderer; production assembly supplies the
+/// public immutable KChartTheme. Callers must provide an immutable theme value.
 final class RenderSnapshot<TTheme extends Object> {
   factory RenderSnapshot({
     required VersionedKlineData data,

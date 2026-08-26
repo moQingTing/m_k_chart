@@ -1,6 +1,7 @@
 library;
 
 export 'chart_main_mode.dart';
+export 'chart_candle_projection.dart';
 export 'render_layer.dart';
 export 'render_cache.dart';
 export 'render_repaint.dart';
