@@ -464,7 +464,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P5-05` 迁移蜡烛、分时、面积图及现有指标绘制。
 - [x] `P5-06` 移除 paint 内 Stream 写入、全局 maxScrollX 和 Widget 全量 setState 链路。
 - [x] `P5-07` 建立多尺寸、多主题、多副图 Golden 和 repaint 计数测试。
-- [ ] `P5-08` 完成 2,000 根 + 2 副图的 Profile 帧性能、内存与 GC 门禁。
+- [x] `P5-08` 完成 2,000 根 + 2 副图的 Profile 帧性能、内存与 GC 门禁。
 
 阶段门禁：关闭 `ARCH-03`、`ARCH-05`；十字线只重绘 Overlay；Golden 通过；新 Renderer 达到第 6 节性能预算。旧组件可选择 legacy 或 v2 Renderer。
 
@@ -941,6 +941,16 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：production V2 Widget 尚未接线；Golden 不替代 P5-08 真机 UI/Raster、内存或 GC 证据。
 - 证据：`docs/architecture/KLINE_V2_GOLDEN_REPAINT_GATE.md`、`test/render/goldens/`。
 - 后续：进入 `P5-08`，执行 2,000 根 + 2 副图的 Profile、内存和 GC 门禁。
+
+### 2026-08-26 / P5-08
+
+- 状态：已完成，Android 真机上的内部 V2 Profile 宿主已记录 2,000 根 + 2 副图的 UI/Raster、进程内存与 GC 证据。
+- 帧：SM-G986U1 / Android 13 / Flutter Profile 的连续 FrameTiming 批次中，UI build P95 最高 2.107 ms、Raster P95 最高 3.506 ms，低于 60 Hz 的 16.7 ms 预算。
+- 内存/GC：稳定运行 PSS 175,092 KB、RSS 283,672 KB；进程 GC 记录释放 2,242 KB，暂停 42/12 μs。完整进程 PSS 含 engine/graphics，不能冒充 10,000 根六指标的增量内存预算。
+- Host：同场景缓存热路径 P95 1,436.65 μs，保留无变化/selection-only P95 为 227.0/246.6 μs，保持主机回归阈值通过。
+- 边界：Profile 宿主只用于内部门禁，不公开；完整六指标 10,000 根增量内存、iOS/Web Profile 和发布级端到端输入延迟仍在 P6/P9 复测。
+- 证据：`docs/PERFORMANCE_P5_PROFILE_GATE.md`、`example/lib/v2_performance_main.dart`。
+- 后续：进入 `P6-01`，冻结公开不可变 KChartTheme 与 ChartColors adapter。
 
 ## 13. 参考资料
 

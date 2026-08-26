@@ -172,7 +172,7 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 | `P5-05` | 迁移蜡烛、分时、面积和指标绘制 | P5-02～P5-04 | 已完成 |
 | `P5-06` | 移除 paint 写状态、static 边界和全量 setState | P5-05 | 已完成 |
 | `P5-07` | 多尺寸/主题/副图 Golden 与 repaint 计数 | P5-02～P5-06 | 已完成 |
-| `P5-08` | Profile 帧、内存和 GC 门禁 | P5-07 | 待开始 |
+| `P5-08` | Profile 帧、内存和 GC 门禁 | P5-07 | 已完成 |
 
 退出条件：`ARCH-03/05` 关闭；2,000 根 + 2 副图达到性能预算；视觉基线通过。
 
@@ -308,6 +308,6 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 
 ## 9. 当前立即执行队列
 
-1. `P5-08`：执行 2,000 根 + 2 副图的 Profile、内存与 GC 门禁。
-2. `P6-01`：在 Phase 5 门禁通过后冻结完整 KChartTheme 与 ChartColors adapter。
-3. `P6-02`：扩展蜡烛变体、Heikin-Ashi、最新价和高低点。
+1. `P6-01`：冻结完整 KChartTheme 与 ChartColors adapter。
+2. `P6-02`：扩展蜡烛变体、Heikin-Ashi、最新价和高低点。
+3. `P6-03`：实现周期和图表类型工具栏 Example。
