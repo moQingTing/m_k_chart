@@ -60,4 +60,4 @@
 - clear、幂等 dispose、双实例隔离；
 - 2,000 根 + 2 副图无变化和 selection-only Host Debug 基准。
 
-本阶段尚未把 V2 Pipeline 接入 production Widget，也未建立独立 `RepaintBoundary`/Listenable；`PERF-21` 留给 P5-05～P5-07。真机 UI/Raster、内存和 GC 仍由 P5-08 判定。
+V2 Pipeline 尚未接入 production Widget；P5-06 已在 legacy Widget 建立 `RepaintBoundary` 和局部 `ListenableBuilder`，但 V2 Widget repaint 计数与 Golden 仍由 P5-07 建立。真机 UI/Raster、内存和 GC 仍由 P5-08 判定。

@@ -462,7 +462,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P5-03` 实现可见区裁剪、极值缓存、文本/Path/Picture 缓存。
 - [x] `P5-04` 用数据、视口、样式和 Layer 版本正确实现重绘判定。
 - [x] `P5-05` 迁移蜡烛、分时、面积图及现有指标绘制。
-- [ ] `P5-06` 移除 paint 内 Stream 写入、全局 maxScrollX 和 Widget 全量 setState 链路。
+- [x] `P5-06` 移除 paint 内 Stream 写入、全局 maxScrollX 和 Widget 全量 setState 链路。
 - [ ] `P5-07` 建立多尺寸、多主题、多副图 Golden 和 repaint 计数测试。
 - [ ] `P5-08` 完成 2,000 根 + 2 副图的 Profile 帧性能、内存与 GC 门禁。
 
@@ -920,6 +920,17 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：production Painter、正式入口与 Demo 未接线；P5-07 仍负责 Golden 与 Widget repaint 计数，P5-08 负责真机 Profile、内存和 GC 门禁。
 - 证据：`docs/architecture/KLINE_V2_CHART_MODE_PROTOCOL.md`。
 - 后续：进入 `P5-06`，移除 legacy paint 写状态、static 边界和 Widget 全量 setState 链路。
+
+### 2026-08-26 / P5-06
+
+- 状态：已完成，legacy 生产 Widget/Painter 已移除 paint 写状态、跨实例静态滚动边界和全 Widget `setState` 刷新。
+- 实例：新增纯 `LegacyChartViewportMetrics`；滚动上限、夹取和选中映射由每个 Widget 自己计算，`ChartPainter.maxScrollX` 与 `BaseChartPainter.maxScrollX` 均已删除。
+- 事件：InfoWindow 在长按事件阶段以 chart-local 坐标解析 Kline，独立 `ValueNotifier` 驱动 Overlay；Painter 不再引用 StreamSink 或在 Canvas 绘制期间发布事件。
+- 重绘：手势/闪点动画仅递增本实例 paint notifier，由 `RepaintBoundary` 内 `ListenableBuilder` 重建 CustomPaint；详情 Overlay 使用独立 `ValueListenableBuilder`，外层 Widget 不再调用 setState。
+- Painter：`shouldRepaint` 比较实际绘制输入，避免恒 true；legacy 可变数据仍要求调用方在更新后调用已有 `notifyChanged()` 请求局部刷新。
+- 验证：纯几何、Painter/Widget 架构扫描和 legacy Demo adapter 回归通过。
+- 证据：`docs/architecture/KLINE_V2_LEGACY_REPAINT_BOUNDARY.md`。
+- 后续：进入 `P5-07`，补齐多尺寸、多主题、多副图 Golden 与 Widget repaint 计数。
 
 ## 13. 参考资料
 

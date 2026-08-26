@@ -170,7 +170,7 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 | `P5-03` | 可见区、极值、文本、Path、Picture 缓存 | P5-02 | 已完成 |
 | `P5-04` | 数据/视口/样式/Layer 版本重绘判定 | P5-01、P1-02 | 已完成 |
 | `P5-05` | 迁移蜡烛、分时、面积和指标绘制 | P5-02～P5-04 | 已完成 |
-| `P5-06` | 移除 paint 写状态、static 边界和全量 setState | P5-05 | 待开始 |
+| `P5-06` | 移除 paint 写状态、static 边界和全量 setState | P5-05 | 已完成 |
 | `P5-07` | 多尺寸/主题/副图 Golden 与 repaint 计数 | P5-02～P5-06 | 待开始 |
 | `P5-08` | Profile 帧、内存和 GC 门禁 | P5-07 | 待开始 |
 
@@ -308,6 +308,6 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 
 ## 9. 当前立即执行队列
 
-1. `P5-06`：迁移完成后移除 paint 写状态、static 边界和全量 setState。
-2. `P5-07`：补齐多尺寸/主题/副图 Golden 与 Widget repaint 计数。
-3. `P5-08`：执行 2,000 根 + 2 副图的 Profile、内存与 GC 门禁。
+1. `P5-07`：补齐多尺寸/主题/副图 Golden 与 Widget repaint 计数。
+2. `P5-08`：执行 2,000 根 + 2 副图的 Profile、内存与 GC 门禁。
+3. `P6-01`：在 Phase 5 门禁通过后冻结完整 KChartTheme 与 ChartColors adapter。
