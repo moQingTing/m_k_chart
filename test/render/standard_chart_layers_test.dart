@@ -53,6 +53,38 @@ void main() {
       ),
       isTrue,
     );
+    final main = fixture.layout.mainPanel;
+    final timeAxis = fixture.layout.mainTimeAxisBounds;
+    expect(
+      _pixel(
+        pixels,
+        fixture.width,
+        fixture.layout.gridColumnXs[1].round(),
+        (main.headerBounds.top + main.headerBounds.height / 2).round(),
+      ),
+      fixture.style.backgroundColor,
+      reason: '主图指标参数区域不应绘制纵向网格。',
+    );
+    expect(
+      _pixel(
+        pixels,
+        fixture.width,
+        fixture.layout.gridColumnXs[1].round(),
+        (timeAxis.top + timeAxis.height / 2).round(),
+      ),
+      fixture.style.backgroundColor,
+      reason: '主图时间区域不应绘制纵向网格。',
+    );
+    expect(
+      _pixel(
+        pixels,
+        fixture.width,
+        (main.rightAxisBounds.left + main.rightAxisBounds.width / 2).round(),
+        (main.plotBounds.top + main.plotBounds.height * 0.25).round(),
+      ),
+      fixture.style.backgroundColor,
+      reason: '右侧纵轴留白内不应延续纵向网格。',
+    );
   });
 
   test('main Layer paints both rising and falling candle bodies', () async {
@@ -404,17 +436,20 @@ _Fixture _fixture() {
     width: 180,
     height: 240,
     bottomAxisHeight: 20,
-    panelSpacing: 4,
+    mainTimeAxisHeight: 12,
+    rightAxisWidth: 30,
     gridColumns: 3,
     mainPanel: const ChartPanelSpec.main(
       weight: 2,
       minHeight: 100,
+      headerHeight: 10,
       gridRows: 2,
     ),
     secondaryPanels: const [
       ChartPanelSpec.secondary(
         id: 'volume',
         minHeight: 60,
+        headerHeight: 10,
         gridRows: 2,
       ),
     ],

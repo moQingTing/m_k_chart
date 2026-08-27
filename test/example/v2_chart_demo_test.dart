@@ -84,6 +84,28 @@ void main() {
     await tester.pump();
     expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('main-header-height-setting')),
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.byKey(const ValueKey('main-header-height-setting')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('secondary-header-height-setting')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('main-time-axis-height-setting')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('right-axis-width-setting')),
+      findsOneWidget,
+    );
+
     await tester.drag(find.byType(ListView), const Offset(0, -1400));
     await tester.pump();
     expect(
@@ -97,7 +119,9 @@ void main() {
     final chartCanvas = find.byKey(const ValueKey('v2-chart-canvas'));
     expect(chartCanvas, findsOneWidget);
 
-    await tester.tapAt(tester.getCenter(chartCanvas));
+    await tester.ensureVisible(chartCanvas);
+    await tester.pump();
+    await tester.tapAt(tester.getTopLeft(chartCanvas) + const Offset(100, 80));
     await tester.pump();
     expect(find.byKey(const ValueKey('crosshair-details')), findsOneWidget);
     expect(find.textContaining('横坐标：'), findsOneWidget);

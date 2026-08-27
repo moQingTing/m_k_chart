@@ -69,11 +69,11 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
           snapshot,
           panel.spec.id,
         )
-        .transform(panel.bounds);
+        .transform(panel.plotBounds);
     final window = cache.windowFor(snapshot);
     final canvas = context.canvas;
     canvas.save();
-    canvas.clipRect(_rect(panel.bounds));
+    canvas.clipRect(_rect(panel.plotBounds));
     switch (snapshot.mainMode) {
       case ChartMainMode.candlestick:
       case ChartMainMode.hollowCandlestick:
@@ -90,7 +90,7 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
           canvas: canvas,
           snapshot: snapshot,
           panelId: panel.spec.id,
-          bounds: panel.bounds,
+          bounds: panel.plotBounds,
           window: window,
           valueTransform: priceTransform,
           cache: cache,
@@ -99,7 +99,7 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
         _drawMainPriceSeries(
           canvas: canvas,
           snapshot: snapshot,
-          panel: panel.bounds,
+          panel: panel.plotBounds,
           window: window,
           priceTransform: priceTransform,
           cache: cache,
@@ -109,7 +109,7 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
         _drawMainPriceSeries(
           canvas: canvas,
           snapshot: snapshot,
-          panel: panel.bounds,
+          panel: panel.plotBounds,
           window: window,
           priceTransform: priceTransform,
           cache: cache,
@@ -148,14 +148,14 @@ final class ChartSecondaryLayer<TTheme extends ChartRenderStyle>
             snapshot,
             panel.spec.id,
           )
-          .transform(panel.bounds);
+          .transform(panel.plotBounds);
       context.canvas.save();
-      context.canvas.clipRect(_rect(panel.bounds));
+      context.canvas.clipRect(_rect(panel.plotBounds));
       _drawIndicators(
         canvas: context.canvas,
         snapshot: snapshot,
         panelId: panel.spec.id,
-        bounds: panel.bounds,
+        bounds: panel.plotBounds,
         window: window,
         valueTransform: valueTransform,
         cache: cache,
@@ -196,7 +196,7 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
           text: _formatNumber(value),
           color: theme.axisTextColor,
           fontSize: theme.axisFontSize,
-          x: panel.bounds.right - 3,
+          x: panel.rightAxisBounds.right - 3,
           y: rows[index],
           horizontalAnchor: 1,
           verticalAnchor: index == 0
@@ -213,10 +213,10 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
     }
     final xTransform = cache.windowFor(snapshot).xTransform;
     for (final x in layout.gridColumnXs) {
-      final time = xTransform.localXToTime(x);
+      final time = xTransform.localXToTime(x - layout.drawingBounds.left);
       _drawText(
         canvas: context.canvas,
-        text: _formatTime(time),
+        text: _formatTime(time, snapshot.timeZoneOffset),
         color: theme.axisTextColor,
         fontSize: theme.axisFontSize,
         x: x,
@@ -261,10 +261,10 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
           snapshot,
           panel.spec.id,
         )
-        .transform(panel.bounds);
+        .transform(panel.plotBounds);
     final xTransform = window.xTransform;
     final extrema = cache.extremaFor(snapshot)!;
-    final midpoint = (panel.bounds.left + panel.bounds.right) / 2;
+    final midpoint = (panel.plotBounds.left + panel.plotBounds.right) / 2;
     final paint = Paint()
       ..color = snapshot.theme.markerColor
       ..strokeWidth = snapshot.theme.overlayStrokeWidth
@@ -314,7 +314,7 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
       text: _formatNumber(latest.close),
       color: latestColor,
       fontSize: snapshot.theme.axisFontSize,
-      x: panel.bounds.right - 3,
+      x: panel.rightAxisBounds.right - 3,
       y: localY,
       horizontalAnchor: 1,
       verticalAnchor: 0.5,
@@ -343,7 +343,8 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
     if (!selection.isVisible) {
       return;
     }
-    final bounds = context.snapshot.layout.drawingBounds;
+    final layout = context.snapshot.layout;
+    final bounds = layout.drawingBounds;
     if (!bounds.contains(x: selection.localX, y: selection.localY)) {
       return;
     }
@@ -362,12 +363,22 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
       paint,
     );
     if (selection.price != null) {
+      ChartPanelLayout? selectedPanel;
+      for (final panel in layout.panels) {
+        if (panel.plotBounds.contains(
+          x: selection.localX,
+          y: selection.localY,
+        )) {
+          selectedPanel = panel;
+          break;
+        }
+      }
       _drawText(
         canvas: context.canvas,
         text: _formatNumber(selection.price!),
         color: context.snapshot.theme.crosshairColor,
         fontSize: context.snapshot.theme.axisFontSize,
-        x: bounds.right - 3,
+        x: (selectedPanel?.rightAxisBounds.right ?? bounds.right) - 3,
         y: selection.localY,
         horizontalAnchor: 1,
         verticalAnchor: 0.5,
@@ -467,17 +478,17 @@ Picture _recordGridPicture<TTheme extends ChartRenderStyle>(
     ..color = theme.gridColor
     ..strokeWidth = theme.gridStrokeWidth
     ..style = PaintingStyle.stroke;
-  for (final x in layout.gridColumnXs) {
-    canvas.drawLine(
-      Offset(x, layout.drawingBounds.top),
-      Offset(x, layout.drawingBounds.bottom),
-      paint,
-    );
-  }
   for (final panel in layout.panels) {
+    for (final x in layout.gridColumnXs) {
+      canvas.drawLine(
+        Offset(x, panel.plotBounds.top),
+        Offset(x, panel.plotBounds.bottom),
+        paint,
+      );
+    }
     for (final y in layout.gridRowYsFor(panel.spec.id)) {
       canvas.drawLine(
-        Offset(panel.bounds.left, y),
+        Offset(panel.plotBounds.left, y),
         Offset(panel.bounds.right, y),
         paint,
       );
@@ -865,9 +876,9 @@ String _formatNumber(double value) {
   return value.toStringAsFixed(4);
 }
 
-String _formatTime(int epochMilliseconds) {
+String _formatTime(int epochMilliseconds, Duration timeZoneOffset) {
   final date = DateTime.fromMillisecondsSinceEpoch(
-    epochMilliseconds,
+    epochMilliseconds + timeZoneOffset.inMilliseconds,
     isUtc: true,
   );
   return '${date.hour.toString().padLeft(2, '0')}:'

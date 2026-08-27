@@ -93,13 +93,23 @@ final class ChartPanelLayout {
     required this.spec,
     required this.headerBounds,
     required this.bounds,
+    required this.plotBounds,
+    required this.rightAxisBounds,
   });
 
   final ChartPanelSpec spec;
 
   /// Reserved non-drawing header directly above [bounds].
   final ChartLayoutRect headerBounds;
+
+  /// Full content row, including the optional right-side value axis.
   final ChartLayoutRect bounds;
+
+  /// Candle, indicator, marker, and grid drawing area.
+  final ChartLayoutRect plotBounds;
+
+  /// Reserved value-axis gutter to the right of [plotBounds].
+  final ChartLayoutRect rightAxisBounds;
 
   @override
   bool operator ==(Object other) =>
@@ -107,10 +117,13 @@ final class ChartPanelLayout {
       other is ChartPanelLayout &&
           spec == other.spec &&
           headerBounds == other.headerBounds &&
-          bounds == other.bounds;
+          bounds == other.bounds &&
+          plotBounds == other.plotBounds &&
+          rightAxisBounds == other.rightAxisBounds;
 
   @override
-  int get hashCode => Object.hash(spec, headerBounds, bounds);
+  int get hashCode =>
+      Object.hash(spec, headerBounds, bounds, plotBounds, rightAxisBounds);
 }
 
 /// Deterministic chart-local geometry for the main panel, secondary panels,
@@ -123,6 +136,8 @@ final class ChartLayoutModel {
     double rightPadding = 0,
     double topPadding = 0,
     double bottomAxisHeight = 0,
+    double mainTimeAxisHeight = 0,
+    double rightAxisWidth = 0,
     double panelSpacing = 0,
     int gridColumns = 4,
     ChartPanelSpec mainPanel = const ChartPanelSpec.main(),
@@ -135,6 +150,8 @@ final class ChartLayoutModel {
       rightPadding: rightPadding,
       topPadding: topPadding,
       bottomAxisHeight: bottomAxisHeight,
+      mainTimeAxisHeight: mainTimeAxisHeight,
+      rightAxisWidth: rightAxisWidth,
       panelSpacing: panelSpacing,
       gridColumns: gridColumns,
     );
@@ -143,13 +160,19 @@ final class ChartLayoutModel {
 
     final drawableLeft = leftPadding;
     final drawableRight = width - rightPadding;
+    final plotRight = drawableRight - rightAxisWidth;
     final drawableBottom = height - bottomAxisHeight;
-    if (drawableRight <= drawableLeft) {
-      throw ArgumentError('Horizontal padding leaves no drawable width.');
+    if (plotRight <= drawableLeft) {
+      throw ArgumentError(
+        'Horizontal padding and right axis leave no plot width.',
+      );
     }
 
     final totalSpacing = panelSpacing * (specs.length - 1);
-    final availablePanelHeight = drawableBottom - topPadding - totalSpacing;
+    final resolvedMainTimeAxisHeight =
+        specs.length > 1 ? mainTimeAxisHeight : 0.0;
+    final availablePanelHeight =
+        drawableBottom - topPadding - totalSpacing - resolvedMainTimeAxisHeight;
     final reservedHeaderHeight = specs.fold<double>(
       0,
       (total, spec) => total + spec.headerHeight,
@@ -174,6 +197,12 @@ final class ChartLayoutModel {
         availablePanelHeight - reservedHeaderHeight - minimumContentHeight;
     final layouts = <ChartPanelLayout>[];
     var top = topPadding;
+    var mainTimeAxisBounds = ChartLayoutRect._(
+      left: drawableLeft,
+      top: topPadding,
+      right: plotRight,
+      bottom: topPadding,
+    );
     for (var index = 0; index < specs.length; index++) {
       final spec = specs[index];
       final isLast = index == specs.length - 1;
@@ -196,9 +225,31 @@ final class ChartLayoutModel {
             right: drawableRight,
             bottom: bottom,
           ),
+          plotBounds: ChartLayoutRect._(
+            left: drawableLeft,
+            top: contentTop,
+            right: plotRight,
+            bottom: bottom,
+          ),
+          rightAxisBounds: ChartLayoutRect._(
+            left: plotRight,
+            top: contentTop,
+            right: drawableRight,
+            bottom: bottom,
+          ),
         ),
       );
-      top = bottom + panelSpacing;
+      if (index == 0 && specs.length > 1) {
+        mainTimeAxisBounds = ChartLayoutRect._(
+          left: drawableLeft,
+          top: bottom,
+          right: plotRight,
+          bottom: bottom + resolvedMainTimeAxisHeight,
+        );
+        top = mainTimeAxisBounds.bottom + panelSpacing;
+      } else {
+        top = bottom + panelSpacing;
+      }
     }
 
     final immutableLayouts = List<ChartPanelLayout>.unmodifiable(layouts);
@@ -209,7 +260,7 @@ final class ChartLayoutModel {
       List<double>.generate(
         gridColumns + 1,
         (index) =>
-            drawableLeft + (drawableRight - drawableLeft) * index / gridColumns,
+            drawableLeft + (plotRight - drawableLeft) * index / gridColumns,
       ),
     );
     final rowYs = Map<String, List<double>>.unmodifiable({
@@ -218,8 +269,8 @@ final class ChartLayoutModel {
           List<double>.generate(
             panel.spec.gridRows + 1,
             (index) =>
-                panel.bounds.top +
-                panel.bounds.height * index / panel.spec.gridRows,
+                panel.plotBounds.top +
+                panel.plotBounds.height * index / panel.spec.gridRows,
           ),
         ),
     });
@@ -231,20 +282,23 @@ final class ChartLayoutModel {
       rightPadding: rightPadding,
       topPadding: topPadding,
       bottomAxisHeight: bottomAxisHeight,
+      mainTimeAxisHeight: mainTimeAxisHeight,
+      rightAxisWidth: rightAxisWidth,
       panelSpacing: panelSpacing,
       gridColumns: gridColumns,
       drawingBounds: ChartLayoutRect._(
         left: drawableLeft,
         top: topPadding,
-        right: drawableRight,
+        right: plotRight,
         bottom: drawableBottom,
       ),
       timeAxisBounds: ChartLayoutRect._(
         left: drawableLeft,
         top: drawableBottom,
-        right: drawableRight,
+        right: plotRight,
         bottom: height,
       ),
+      mainTimeAxisBounds: mainTimeAxisBounds,
       panels: immutableLayouts,
       panelById: panelById,
       gridColumnXs: columnXs,
@@ -259,10 +313,13 @@ final class ChartLayoutModel {
     required this.rightPadding,
     required this.topPadding,
     required this.bottomAxisHeight,
+    required this.mainTimeAxisHeight,
+    required this.rightAxisWidth,
     required this.panelSpacing,
     required this.gridColumns,
     required this.drawingBounds,
     required this.timeAxisBounds,
+    required this.mainTimeAxisBounds,
     required this.panels,
     required this.panelById,
     required this.gridColumnXs,
@@ -275,6 +332,8 @@ final class ChartLayoutModel {
   final double rightPadding;
   final double topPadding;
   final double bottomAxisHeight;
+  final double mainTimeAxisHeight;
+  final double rightAxisWidth;
   final double panelSpacing;
 
   /// Number of horizontal intervals. [gridColumnXs] contains one more entry.
@@ -282,6 +341,7 @@ final class ChartLayoutModel {
 
   final ChartLayoutRect drawingBounds;
   final ChartLayoutRect timeAxisBounds;
+  final ChartLayoutRect mainTimeAxisBounds;
   final List<ChartPanelLayout> panels;
   final Map<String, ChartPanelLayout> panelById;
   final List<double> gridColumnXs;
@@ -319,6 +379,8 @@ final class ChartLayoutModel {
           rightPadding == other.rightPadding &&
           topPadding == other.topPadding &&
           bottomAxisHeight == other.bottomAxisHeight &&
+          mainTimeAxisHeight == other.mainTimeAxisHeight &&
+          rightAxisWidth == other.rightAxisWidth &&
           panelSpacing == other.panelSpacing &&
           gridColumns == other.gridColumns &&
           _listEquals(panels, other.panels);
@@ -331,6 +393,8 @@ final class ChartLayoutModel {
         rightPadding,
         topPadding,
         bottomAxisHeight,
+        mainTimeAxisHeight,
+        rightAxisWidth,
         panelSpacing,
         gridColumns,
         ...panels,
@@ -344,6 +408,8 @@ void _validateDimensions({
   required double rightPadding,
   required double topPadding,
   required double bottomAxisHeight,
+  required double mainTimeAxisHeight,
+  required double rightAxisWidth,
   required double panelSpacing,
   required int gridColumns,
 }) {
@@ -354,6 +420,8 @@ void _validateDimensions({
     'rightPadding': rightPadding,
     'topPadding': topPadding,
     'bottomAxisHeight': bottomAxisHeight,
+    'mainTimeAxisHeight': mainTimeAxisHeight,
+    'rightAxisWidth': rightAxisWidth,
     'panelSpacing': panelSpacing,
   };
   for (final entry in values.entries) {

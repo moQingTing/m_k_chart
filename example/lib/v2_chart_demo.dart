@@ -22,9 +22,7 @@ class V2TradingChartDemo extends StatefulWidget {
 }
 
 class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
-  static const _indicatorLegendHeight = 16.0;
-  static const _panelSpacing = 20.0;
-  static const _bottomTimeAxisHeight = 24.0;
+  static const _panelSpacing = 0.0;
 
   static final _intervals = <KlineInterval>[
     KlineInterval.oneMinute,
@@ -166,6 +164,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _candleLimit = 180;
   var _visibleCandles = 90;
   var _secondaryPanelHeight = 108.0;
+  var _mainIndicatorHeaderHeight = 18.0;
+  var _secondaryIndicatorHeaderHeight = 18.0;
+  var _mainTimeAxisHeight = 18.0;
+  var _rightAxisWidth = 52.0;
+  var _timeZoneOffsetHours = 8;
   var _overlaySecondaryIndicators = false;
   var _revision = 0;
   var _viewportRevision = 0;
@@ -336,28 +339,27 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     Offset localPosition,
     RenderSnapshot<KChartTheme> snapshot,
   ) {
-    final bounds = snapshot.layout.drawingBounds;
-    if (!bounds.contains(x: localPosition.dx, y: localPosition.dy) ||
-        snapshot.data.data.isEmpty) {
-      return;
-    }
-    final index = ChartXTransform(
-      viewport: snapshot.viewport,
-      data: snapshot.data,
-    ).localXToNearestIndex(localPosition.dx);
-    String? panelId;
+    if (snapshot.data.data.isEmpty) return;
+    ChartPanelLayout? selectedPanel;
     for (final panel in snapshot.layout.panels) {
-      if (panel.bounds.contains(x: localPosition.dx, y: localPosition.dy)) {
-        panelId = panel.spec.id;
+      if (panel.plotBounds.contains(
+        x: localPosition.dx,
+        y: localPosition.dy,
+      )) {
+        selectedPanel = panel;
         break;
       }
     }
-    double? price;
-    if (panelId != null) {
-      price = ChartLayerGeometry.rangeFor(snapshot, panelId)
-          .transform(snapshot.layout.panel(panelId).bounds)
-          .localYToPrice(localPosition.dy);
-    }
+    if (selectedPanel == null) return;
+    final plotBounds = selectedPanel.plotBounds;
+    final index = ChartXTransform(
+      viewport: snapshot.viewport,
+      data: snapshot.data,
+    ).localXToNearestIndex(localPosition.dx - plotBounds.left);
+    final panelId = selectedPanel.spec.id;
+    final price = ChartLayerGeometry.rangeFor(snapshot, panelId)
+        .transform(plotBounds)
+        .localYToPrice(localPosition.dy);
     setState(() {
       _selectedIndex = index;
       _selectedPanelId = panelId;
@@ -374,9 +376,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     }
     final bounds = snapshot.layout.drawingBounds;
     final localX = ChartXTransform(
-      viewport: snapshot.viewport,
-      data: snapshot.data,
-    ).indexToLocalX(index);
+          viewport: snapshot.viewport,
+          data: snapshot.data,
+        ).indexToLocalX(index) +
+        bounds.left;
     final selectedPrice = _selectedPrice;
     final selectedPanelId = _selectedPanelId;
     final isSnapped = selectedPrice != null && selectedPanelId != null;
@@ -385,7 +388,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       localY = _selectedLocalY.clamp(bounds.top, bounds.bottom).toDouble();
     } else {
       localY = ChartLayerGeometry.rangeFor(snapshot, selectedPanelId)
-          .transform(snapshot.layout.panel(selectedPanelId).bounds)
+          .transform(snapshot.layout.panel(selectedPanelId).plotBounds)
           .priceToLocalY(selectedPrice)
           .clamp(bounds.top, bounds.bottom)
           .toDouble();
@@ -495,18 +498,28 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     };
   }
 
-  List<String> _timeAxisLabels(ChartViewport viewport) {
-    final visible = viewport.visibleRange;
-    final span = visible.end - visible.start;
-    if (span <= 0) return const [];
+  List<_TimeAxisLabel> _timeAxisLabels(
+    ChartLayoutModel layout,
+    ChartViewport viewport,
+  ) {
+    if (_data.data.isEmpty || layout.gridColumnXs.length < 3) return const [];
+    final xTransform = ChartXTransform(viewport: viewport, data: _data);
+    final internalColumns = layout.gridColumnXs.sublist(
+      1,
+      layout.gridColumnXs.length - 1,
+    );
+    final selectedColumns = internalColumns.length <= 2
+        ? internalColumns
+        : [internalColumns.first, internalColumns.last];
+    final timeZoneOffset = Duration(hours: _timeZoneOffsetHours);
     return [
-      for (final fraction in const [0.25, 0.75])
-        _formatAxisTime(
-          _data
-              .data[(visible.start + (span - 1) * fraction)
-                  .round()
-                  .clamp(0, _data.data.length - 1)]
-              .openTime,
+      for (final chartX in selectedColumns)
+        _TimeAxisLabel(
+          localX: chartX - layout.mainTimeAxisBounds.left,
+          text: _formatAxisTime(
+            xTransform.localXToTime(chartX - layout.drawingBounds.left),
+            timeZoneOffset,
+          ),
         ),
     ];
   }
@@ -520,7 +533,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                 ChartPanelSpec.secondary(
                     id: 'secondary-overlay',
                     minHeight: _secondaryPanelHeight,
-                    headerHeight: _indicatorLegendHeight,
+                    headerHeight: _secondaryIndicatorHeaderHeight,
                     gridRows: 3)
               ]
             : [
@@ -528,18 +541,17 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                   ChartPanelSpec.secondary(
                     id: _secondaryPanelId(id),
                     minHeight: _secondaryPanelHeight,
-                    headerHeight: _indicatorLegendHeight,
+                    headerHeight: _secondaryIndicatorHeaderHeight,
                     gridRows: 3,
                   ),
               ];
     final chartHeight = math.max(
       460.0,
       220 +
-          _indicatorLegendHeight +
+          _mainIndicatorHeaderHeight +
           secondaryPanels.length *
-              (_secondaryPanelHeight + _indicatorLegendHeight) +
-          (secondaryPanels.length * _panelSpacing) +
-          _bottomTimeAxisHeight +
+              (_secondaryPanelHeight + _secondaryIndicatorHeaderHeight) +
+          _mainTimeAxisHeight +
           16,
     );
     return Scaffold(
@@ -699,6 +711,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             ],
             const SizedBox(height: 12),
             _SliderSetting(
+              key: const ValueKey('visible-candles-setting'),
               label: '可见 K 线数量',
               value: _visibleCandles.toDouble(),
               min: 20,
@@ -712,6 +725,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               }),
             ),
             _SliderSetting(
+              key: const ValueKey('secondary-panel-height-setting'),
               label: '副图面板最小高度',
               value: _secondaryPanelHeight,
               min: 72,
@@ -723,6 +737,86 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                 _advanceRevision();
               }),
             ),
+            _SliderSetting(
+              key: const ValueKey('main-header-height-setting'),
+              label: '主图指标参数区域高度',
+              value: _mainIndicatorHeaderHeight,
+              min: 0,
+              max: 40,
+              divisions: 20,
+              valueLabel: '${_mainIndicatorHeaderHeight.round()} px',
+              onChanged: (value) => setState(() {
+                _mainIndicatorHeaderHeight = value;
+                _advanceRevision();
+              }),
+            ),
+            _SliderSetting(
+              key: const ValueKey('secondary-header-height-setting'),
+              label: '副图指标参数区域高度',
+              value: _secondaryIndicatorHeaderHeight,
+              min: 0,
+              max: 40,
+              divisions: 20,
+              valueLabel: '${_secondaryIndicatorHeaderHeight.round()} px',
+              onChanged: (value) => setState(() {
+                _secondaryIndicatorHeaderHeight = value;
+                _advanceRevision();
+              }),
+            ),
+            _SliderSetting(
+              key: const ValueKey('main-time-axis-height-setting'),
+              label: '主图与副图之间的时间区域高度',
+              value: _mainTimeAxisHeight,
+              min: 0,
+              max: 40,
+              divisions: 20,
+              valueLabel: '${_mainTimeAxisHeight.round()} px',
+              onChanged: (value) => setState(() {
+                _mainTimeAxisHeight = value;
+                _advanceRevision();
+              }),
+            ),
+            _SliderSetting(
+              key: const ValueKey('right-axis-width-setting'),
+              label: '右侧纵坐标留白宽度',
+              value: _rightAxisWidth,
+              min: 40,
+              max: 120,
+              divisions: 20,
+              valueLabel: '${_rightAxisWidth.round()} px',
+              onChanged: (value) => setState(() {
+                _rightAxisWidth = value;
+                _advanceRevision();
+              }),
+            ),
+            _ToolbarSection(
+              title: '时间显示时区',
+              children: [
+                DropdownButton<int>(
+                  key: const ValueKey('time-zone-offset'),
+                  value: _timeZoneOffsetHours,
+                  items: const [-8, 0, 8, 9]
+                      .map(
+                        (hours) => DropdownMenuItem(
+                          value: hours,
+                          child: Text(
+                            hours == 0
+                                ? 'UTC'
+                                : 'UTC${hours > 0 ? '+' : ''}$hours',
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: (hours) {
+                    if (hours == null) return;
+                    setState(() {
+                      _timeZoneOffsetHours = hours;
+                      _advanceRevision();
+                    });
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             Semantics(
               label: 'V2 图表 ${_interval.code} ${_modeLabel(_mode)}',
@@ -731,16 +825,21 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final width = math.max(1.0, constraints.maxWidth);
+                    final rightAxisWidth = _rightAxisWidth
+                        .clamp(0.0, math.max(0.0, width - 80))
+                        .toDouble();
                     final layout = ChartLayoutModel(
                       width: width,
                       height: chartHeight,
-                      leftPadding: 8,
-                      rightPadding: 8,
-                      bottomAxisHeight: _bottomTimeAxisHeight,
+                      bottomAxisHeight:
+                          secondaryPanels.isEmpty ? _mainTimeAxisHeight : 0,
+                      mainTimeAxisHeight:
+                          secondaryPanels.isEmpty ? 0 : _mainTimeAxisHeight,
+                      rightAxisWidth: rightAxisWidth,
                       panelSpacing: _panelSpacing,
-                      mainPanel: const ChartPanelSpec.main(
+                      mainPanel: ChartPanelSpec.main(
                         minHeight: 220,
-                        headerHeight: _indicatorLegendHeight,
+                        headerHeight: _mainIndicatorHeaderHeight,
                         gridRows: 5,
                       ),
                       secondaryPanels: secondaryPanels,
@@ -766,6 +865,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       ),
                       indicators: _indicatorSnapshots(),
                       mainMode: _mode,
+                      timeZoneOffset: Duration(
+                        hours: _timeZoneOffsetHours,
+                      ),
                     );
                     final snapshot = RenderSnapshot<KChartTheme>(
                       data: _data,
@@ -782,6 +884,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       indicators: baseSnapshot.indicators,
                       selection: _selectionFor(baseSnapshot),
                       mainMode: _mode,
+                      timeZoneOffset: Duration(
+                        hours: _timeZoneOffsetHours,
+                      ),
                     );
                     final selectedIndex = _selectedIndex;
                     final selectedCandle = selectedIndex != null &&
@@ -815,53 +920,49 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                                 key: ValueKey(
                                   'panel-indicator-legend-${panel.spec.id}',
                                 ),
-                                left: layout.drawingBounds.left + 8,
-                                right: 12,
-                                top: panel.headerBounds.top + 3,
+                                left: panel.headerBounds.left + 8,
+                                width: math.max(
+                                  0,
+                                  panel.headerBounds.width - 16,
+                                ),
+                                top: panel.headerBounds.top,
+                                height: panel.headerBounds.height,
                                 child: IgnorePointer(
-                                  child: _PanelIndicatorLegend(
-                                    entries: _indicatorLegendEntries(
-                                      snapshot,
-                                      panelId: panel.spec.id,
-                                      dataIndex: indicatorLegendIndex,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: _PanelIndicatorLegend(
+                                      entries: _indicatorLegendEntries(
+                                        snapshot,
+                                        panelId: panel.spec.id,
+                                        dataIndex: indicatorLegendIndex,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             if (layout.secondaryPanels.isNotEmpty)
                               Positioned(
-                                left: layout.drawingBounds.left + 8,
-                                right: 12,
-                                top: layout.mainPanel.bounds.bottom + 2,
-                                height: _panelSpacing - 4,
+                                left: layout.mainTimeAxisBounds.left,
+                                width: layout.mainTimeAxisBounds.width,
+                                top: layout.mainTimeAxisBounds.top,
+                                height: layout.mainTimeAxisBounds.height,
                                 child: IgnorePointer(
                                   child: _IntermediateTimeAxis(
-                                    labels: _timeAxisLabels(viewport),
+                                    labels: _timeAxisLabels(layout, viewport),
                                   ),
                                 ),
                               ),
-                            const Positioned(
-                              left: 12,
-                              bottom: 30,
-                              child: IgnorePointer(
-                                child: Text(
-                                  '左右滑动查看历史 · 点击或长按查看详情',
-                                  style: TextStyle(
-                                    color: Color(0xff334155),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
                             if (selectedCandle != null)
                               Positioned(
                                 left: 12,
-                                top: layout.panel('main').bounds.top + 8,
+                                top: layout.panel('main').plotBounds.top + 8,
                                 child: IgnorePointer(
                                   child: _CrosshairDetails(
                                     candle: selectedCandle,
                                     selectedPrice: _selectedPrice,
+                                    timeZoneOffset: Duration(
+                                      hours: _timeZoneOffsetHours,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -871,6 +972,15 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     );
                   },
                 ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '左右滑动查看历史 · 双指缩放 · 点击或长按查看详情',
+              style: TextStyle(
+                color: Color(0xff334155),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 12),
@@ -905,7 +1015,8 @@ class _ToolbarSection extends StatelessWidget {
 
 class _SliderSetting extends StatelessWidget {
   const _SliderSetting(
-      {required this.label,
+      {super.key,
+      required this.label,
       required this.value,
       required this.min,
       required this.max,
@@ -982,22 +1093,41 @@ final class _IndicatorLegendEntry {
 class _IntermediateTimeAxis extends StatelessWidget {
   const _IntermediateTimeAxis({required this.labels});
 
-  final List<String> labels;
+  final List<_TimeAxisLabel> labels;
 
   @override
-  Widget build(BuildContext context) => Row(
+  Widget build(BuildContext context) => Stack(
+        clipBehavior: Clip.none,
         children: [
           for (final label in labels)
-            Expanded(
-              child: Center(
-                child: Text(
-                  label,
-                  style: const TextStyle(color: Color(0xff60738e), fontSize: 9),
+            Positioned(
+              left: label.localX,
+              top: 0,
+              bottom: 0,
+              child: FractionalTranslation(
+                translation: const Offset(-0.5, 0),
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Text(
+                    label.text,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: Color(0xff60738e),
+                      fontSize: 9,
+                    ),
+                  ),
                 ),
               ),
             ),
         ],
       );
+}
+
+final class _TimeAxisLabel {
+  const _TimeAxisLabel({required this.localX, required this.text});
+
+  final double localX;
+  final String text;
 }
 
 class _PanelOrderRow extends StatelessWidget {
@@ -1033,10 +1163,15 @@ class _PanelOrderRow extends StatelessWidget {
 }
 
 class _CrosshairDetails extends StatelessWidget {
-  const _CrosshairDetails({required this.candle, required this.selectedPrice});
+  const _CrosshairDetails({
+    required this.candle,
+    required this.selectedPrice,
+    required this.timeZoneOffset,
+  });
 
   final Kline candle;
   final double? selectedPrice;
+  final Duration timeZoneOffset;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -1058,7 +1193,7 @@ class _CrosshairDetails extends StatelessWidget {
             children: [
               const Text('K 线详情',
                   style: TextStyle(fontWeight: FontWeight.w700)),
-              Text('横坐标：${_formatTime(candle.openTime)}'),
+              Text('横坐标：${_formatTime(candle.openTime, timeZoneOffset)}'),
               if (selectedPrice != null)
                 Text('纵坐标：${selectedPrice!.toStringAsFixed(2)}'),
               Text(
@@ -1072,16 +1207,19 @@ class _CrosshairDetails extends StatelessWidget {
       );
 }
 
-String _formatTime(int epochMilliseconds) {
-  final time = DateTime.fromMillisecondsSinceEpoch(epochMilliseconds).toLocal();
+String _formatTime(int epochMilliseconds, Duration timeZoneOffset) {
+  final time = DateTime.fromMillisecondsSinceEpoch(
+    epochMilliseconds + timeZoneOffset.inMilliseconds,
+    isUtc: true,
+  );
   String twoDigits(int value) => value.toString().padLeft(2, '0');
   return '${time.year}-${twoDigits(time.month)}-${twoDigits(time.day)} '
       '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
 }
 
-String _formatAxisTime(int epochMilliseconds) {
+String _formatAxisTime(int epochMilliseconds, Duration timeZoneOffset) {
   final time = DateTime.fromMillisecondsSinceEpoch(
-    epochMilliseconds,
+    epochMilliseconds + timeZoneOffset.inMilliseconds,
     isUtc: true,
   );
   String twoDigits(int value) => value.toString().padLeft(2, '0');

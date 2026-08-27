@@ -227,6 +227,7 @@ final class RenderSnapshot<TTheme extends Object> {
     RenderHistorySnapshot history = const RenderHistorySnapshot(),
     Iterable<RenderLineDrawing> drawings = const [],
     ChartMainMode mainMode = ChartMainMode.candlestick,
+    Duration timeZoneOffset = Duration.zero,
   }) {
     if (viewport.itemCount != data.data.length) {
       throw ArgumentError(
@@ -312,6 +313,7 @@ final class RenderSnapshot<TTheme extends Object> {
       drawings: immutableDrawings,
       drawingById: UnmodifiableMapView(drawingById),
       mainMode: mainMode,
+      timeZoneOffset: timeZoneOffset,
     );
   }
 
@@ -328,6 +330,7 @@ final class RenderSnapshot<TTheme extends Object> {
     required this.drawings,
     required this.drawingById,
     required this.mainMode,
+    required this.timeZoneOffset,
   });
 
   final VersionedKlineData data;
@@ -342,6 +345,9 @@ final class RenderSnapshot<TTheme extends Object> {
   final List<RenderLineDrawing> drawings;
   final Map<String, RenderLineDrawing> drawingById;
   final ChartMainMode mainMode;
+
+  /// Display offset applied by axis and overlay time formatters.
+  final Duration timeZoneOffset;
 
   RenderIndicatorSnapshot indicator(String instanceId) {
     final result = indicatorById[instanceId];
