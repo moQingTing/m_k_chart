@@ -428,6 +428,69 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     ];
   }
 
+  int _indicatorLegendIndex(ChartViewport viewport) {
+    final selected = _selectedIndex;
+    if (selected != null && selected < _data.data.length) {
+      return selected;
+    }
+    final visible = viewport.visibleRange;
+    return (visible.end - 1).clamp(0, _data.data.length - 1);
+  }
+
+  List<_IndicatorLegendEntry> _indicatorLegendEntries(
+    RenderSnapshot<KChartTheme> snapshot, {
+    required String panelId,
+    required int dataIndex,
+  }) {
+    final entries = <_IndicatorLegendEntry>[];
+    for (final indicator in snapshot.indicators) {
+      if (indicator.panelId != panelId) continue;
+      for (final descriptor in indicator.descriptor.series) {
+        final value = indicator.seriesById(descriptor.id)!.values[dataIndex];
+        entries.add(
+          _IndicatorLegendEntry(
+            label: descriptor.label,
+            value: value,
+            color: _indicatorLegendColor(
+              snapshot,
+              indicator: indicator,
+              descriptor: descriptor,
+              dataIndex: dataIndex,
+              value: value,
+            ),
+          ),
+        );
+      }
+    }
+    return entries;
+  }
+
+  Color _indicatorLegendColor(
+    RenderSnapshot<KChartTheme> snapshot, {
+    required RenderIndicatorSnapshot indicator,
+    required IndicatorSeriesDescriptor descriptor,
+    required int dataIndex,
+    required double? value,
+  }) {
+    final seriesColor =
+        _theme.indicatorColor(indicator.instanceId, descriptor.id);
+    if (value == null) return seriesColor;
+    return switch (descriptor.colorStrategy) {
+      IndicatorColorStrategy.series => seriesColor,
+      IndicatorColorStrategy.candleDirection =>
+        snapshot.data.data[dataIndex].close >=
+                snapshot.data.data[dataIndex].open
+            ? _theme.upColor
+            : _theme.downColor,
+      IndicatorColorStrategy.valueSign =>
+        value >= 0 ? _theme.upColor : _theme.downColor,
+      IndicatorColorStrategy.pricePosition =>
+        value <= snapshot.data.data[dataIndex].close
+            ? _theme.upColor
+            : _theme.downColor,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final secondaryPanels = _secondaryIndicators.isEmpty
@@ -703,6 +766,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                             selectedIndex < _data.data.length
                         ? _data.data[selectedIndex]
                         : null;
+                    final indicatorLegendIndex =
+                        _indicatorLegendIndex(viewport);
                     return ChartGestureRegion(
                       machine: _interactionMachine,
                       navigationMachine: _navigationMachine,
@@ -723,6 +788,24 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                                 size: Size(width, chartHeight),
                               ),
                             ),
+                            for (final panel in layout.panels)
+                              Positioned(
+                                key: ValueKey(
+                                  'panel-indicator-legend-${panel.spec.id}',
+                                ),
+                                left: layout.drawingBounds.left + 8,
+                                right: 12,
+                                top: panel.bounds.top + 6,
+                                child: IgnorePointer(
+                                  child: _PanelIndicatorLegend(
+                                    entries: _indicatorLegendEntries(
+                                      snapshot,
+                                      panelId: panel.spec.id,
+                                      dataIndex: indicatorLegendIndex,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             const Positioned(
                               left: 12,
                               bottom: 30,
@@ -740,7 +823,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                             if (selectedCandle != null)
                               Positioned(
                                 left: 12,
-                                top: 12,
+                                top: layout.panel('main').bounds.top + 50,
                                 child: IgnorePointer(
                                   child: _CrosshairDetails(
                                     candle: selectedCandle,
@@ -856,6 +939,52 @@ class _ActiveIndicatorParameters extends StatelessWidget {
           ],
         ),
       );
+}
+
+class _PanelIndicatorLegend extends StatelessWidget {
+  const _PanelIndicatorLegend({required this.entries});
+
+  final List<_IndicatorLegendEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    if (entries.isEmpty) return const SizedBox.shrink();
+    return Container(
+      color: const Color(0xe6ffffff),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+      child: RichText(
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        text: TextSpan(
+          children: [
+            for (final entry in entries) ...[
+              TextSpan(
+                text: '${entry.label}: ${_formatIndicatorValue(entry.value)}',
+                style: TextStyle(
+                  color: entry.color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const TextSpan(text: '   '),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+final class _IndicatorLegendEntry {
+  const _IndicatorLegendEntry({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final double? value;
+  final Color color;
 }
 
 class _ParameterLine extends StatelessWidget {
@@ -992,6 +1121,21 @@ String _formatTime(int epochMilliseconds) {
 }
 
 String _formatPrice(double value) => value.toStringAsFixed(2);
+
+String _formatIndicatorValue(double? value) {
+  if (value == null) return '--';
+  final absolute = value.abs();
+  final sign = value < 0 ? '-' : '';
+  if (absolute >= 1000000) {
+    return '$sign${(absolute / 1000000).toStringAsFixed(2)}M';
+  }
+  if (absolute >= 1000) {
+    return '$sign${(absolute / 1000).toStringAsFixed(2)}K';
+  }
+  if (absolute >= 100) return value.toStringAsFixed(2);
+  if (absolute >= 1) return value.toStringAsFixed(3);
+  return value.toStringAsFixed(4);
+}
 
 String _formatVolume(double value) {
   if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(2)}M';

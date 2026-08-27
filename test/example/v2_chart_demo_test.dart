@@ -93,6 +93,14 @@ void main() {
     expect(find.textContaining('MA · 周期 5 / 10 / 20 / 30'), findsOneWidget);
     expect(find.textContaining('BOLL · 周期 20 · 倍数 2'), findsOneWidget);
     expect(find.textContaining('RSI · 周期 14'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('panel-indicator-legend-main')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('panel-indicator-legend-secondary-overlay')),
+      findsOneWidget,
+    );
     final chartCanvas = find.byKey(const ValueKey('v2-chart-canvas'));
     expect(chartCanvas, findsOneWidget);
 
