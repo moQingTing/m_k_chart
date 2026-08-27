@@ -22,15 +22,21 @@ legacy `ExamplePage` 和现有网络数据示例仍保留在 `example/lib/main.d
 | Secondary layout | 合并为一个面板、分面板排序、72～180 px 最小高度 | 允许副图指标叠加，或按用户顺序拥有独立面板 |
 | Viewport | 20～300 根可见 K 线 | 将可见根数换算成 viewport 的 item extent |
 
+界面采用高对比浅色主题，标题和操作文案均为中文。指标缩写沿用交易软件的行业通用写法。
+
+## 3. 图表手势与坐标详情
+
+图表区域支持左右拖动，按数据槽位更新 `ChartViewport.scrollOffsetItems` 浏览历史 K 线。点击或长按会显示十字光标，并在信息卡中展示所选 K 线的横坐标（时间）、纵坐标（指针价格）、开高低收及成交量；拖动浏览时会自动隐藏该信息卡，避免将旧选择误认为当前视图的数据。
+
 周期和图表类型使用 `ChoiceChip`，指标使用 `FilterChip`；它们带稳定 key（如 `period-5m`、`mode-heikinAshi`、`main-indicator-boll`）和选中状态。图表容器提供包含当前周期和类型的语义标签，便于无障碍工具和自动化测试定位。
 
-## 3. Renderer 装配边界
+## 4. Renderer 装配边界
 
 示例直接装配内部 V2 `RenderSnapshot`、`ChartViewport`、`ChartLayoutModel` 和 `StandardChartRenderPipeline`，主题使用公开 `KChartTheme`。这些 Renderer 合约尚未通过 public API 准入，因此 Example 经由 `package:m_k_chart/v2_example_support.dart` 这个未从正式入口导出的仓库演示桥接库使用它们；不会示范 `package:m_k_chart/src/...` 深路径 import。它是 P6 阶段的真实 Renderer 演示，不是提前稳定的 `KChart` Widget API；正式 Widget/Controller 公共化仍须遵守 API 准入门禁。
 
 `ChartMainMode` 当前属于 Renderer 输入，尚未拥有独立版本切片。因此示例在切换模式时推进 visual version，使 retained Layers 必定重录；后续 public Controller 会将此装配细节隐藏起来。
 
-## 4. 回归门禁
+## 5. 回归门禁
 
 `example/test/okx_market_data_client_test.dart` 验证 OKX 请求参数、官方行结构到 `Kline` 的映射、时间排序，以及异常信封和参数校验。
 
@@ -40,5 +46,6 @@ legacy `ExamplePage` 和现有网络数据示例仍保留在 `example/lib/main.d
 - 切换至 `5m` 后 ChoiceChip 状态同步；
 - Hollow、OHLC、Heikin-Ashi、Line、Area 全部可切换且各自成为唯一选中项；
 - 主图增加 BOLL、副图增加 RSI、再切换为单副图叠加后，真实 Renderer 可以完成绘制。
+- 点击图表后出现十字光标详情，且包含横坐标与纵坐标；左右拖动后选择状态清除。
 
 P6-02 Golden 继续冻结所有实际主图模式的像素输出；P6-03/P6-04 覆盖 Example 的装配与交互。

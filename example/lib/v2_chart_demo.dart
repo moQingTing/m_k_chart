@@ -63,7 +63,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   late final OkxMarketDataClient _marketData;
   late final IndicatorEngine _indicatorEngine;
   final _instrumentController = TextEditingController(text: 'BTC-USDT');
-  final KChartTheme _theme = KChartTheme();
+  final KChartTheme _theme = KChartTheme.light(
+    upColor: const Color(0xff0b9b69),
+    downColor: const Color(0xffd93d56),
+  );
   final Set<String> _mainIndicators = {'ma'};
   final List<String> _secondaryIndicators = ['vol', 'macd'];
 
@@ -75,6 +78,12 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _secondaryPanelHeight = 108.0;
   var _overlaySecondaryIndicators = false;
   var _revision = 0;
+  var _viewportRevision = 0;
+  var _selectionRevision = 0;
+  var _scrollOffsetItems = 0.0;
+  int? _selectedIndex;
+  double? _selectedPrice;
+  var _selectedLocalY = 0.0;
   var _loadGeneration = 0;
   var _isLoading = false;
   String? _loadError;
@@ -107,6 +116,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       _interval = interval;
       _advanceRevision();
       _data = _createData(interval, _revision);
+      _scrollOffsetItems = 0;
+      _clearSelection();
     });
     _loadCandles();
   }
@@ -120,7 +131,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   void _submitInstrument() {
     final instrument = _instrumentController.text.trim().toUpperCase();
     if (!RegExp(r'^[A-Z0-9]+-[A-Z0-9]+(?:-[A-Z0-9]+)?$').hasMatch(instrument)) {
-      setState(() => _loadError = 'Use an OKX instrument ID, e.g. BTC-USDT.');
+      setState(() => _loadError = '请输入 OKX 交易对，例如 BTC-USDT。');
       return;
     }
     setState(() {
@@ -147,6 +158,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         _advanceRevision();
         _data = _DemoData(
             UnmodifiableListView(candles), KlineDataVersion(_revision));
+        _scrollOffsetItems = 0;
+        _clearSelection();
       });
     } on Object catch (error) {
       if (!mounted || generation != _loadGeneration) return;
@@ -192,6 +205,77 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 
   void _advanceRevision() => _revision++;
+
+  void _clearSelection() {
+    _selectedIndex = null;
+    _selectedPrice = null;
+    _selectionRevision++;
+  }
+
+  void _panChart(DragUpdateDetails details, ChartViewport viewport) {
+    setState(() {
+      _scrollOffsetItems = viewport
+          .scrollByItems(-details.delta.dx / viewport.itemExtent)
+          .scrollOffsetItems;
+      _viewportRevision++;
+      _clearSelection();
+    });
+  }
+
+  void _selectChartPosition(
+    Offset localPosition,
+    RenderSnapshot<KChartTheme> snapshot,
+  ) {
+    final bounds = snapshot.layout.drawingBounds;
+    if (!bounds.contains(x: localPosition.dx, y: localPosition.dy) ||
+        snapshot.data.data.isEmpty) {
+      return;
+    }
+    final index = ChartXTransform(
+      viewport: snapshot.viewport,
+      data: snapshot.data,
+    ).localXToNearestIndex(localPosition.dx);
+    final mainBounds = snapshot.layout.panel('main').bounds;
+    double? price;
+    if (mainBounds.contains(x: localPosition.dx, y: localPosition.dy)) {
+      price = ChartLayerGeometry.rangeFor(snapshot, 'main')
+          .transform(mainBounds)
+          .localYToPrice(localPosition.dy);
+    }
+    setState(() {
+      _selectedIndex = index;
+      _selectedPrice = price;
+      _selectedLocalY = localPosition.dy;
+      _selectionRevision++;
+    });
+  }
+
+  RenderSelectionSnapshot _selectionFor(RenderSnapshot<KChartTheme> snapshot) {
+    final index = _selectedIndex;
+    if (index == null || index >= snapshot.data.data.length) {
+      return const RenderSelectionSnapshot.hidden();
+    }
+    final bounds = snapshot.layout.drawingBounds;
+    final localX = ChartXTransform(
+      viewport: snapshot.viewport,
+      data: snapshot.data,
+    ).indexToLocalX(index);
+    final selectedPrice = _selectedPrice;
+    final localY = selectedPrice == null
+        ? _selectedLocalY.clamp(bounds.top, bounds.bottom).toDouble()
+        : ChartLayerGeometry.rangeFor(snapshot, 'main')
+            .transform(snapshot.layout.panel('main').bounds)
+            .priceToLocalY(selectedPrice)
+            .clamp(bounds.top, bounds.bottom)
+            .toDouble();
+    return RenderSelectionSnapshot.visible(
+      localX: localX.clamp(bounds.left, bounds.right).toDouble(),
+      localY: localY,
+      dataIndex: index,
+      price: selectedPrice,
+      valueKind: selectedPrice == null ? null : RenderSelectionValueKind.close,
+    );
+  }
 
   _IndicatorOption _indicator(String id) =>
       _indicators.singleWhere((option) => option.id == id);
@@ -250,18 +334,18 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     );
     return Scaffold(
       appBar: AppBar(
-        title: const Text('V2 Trading Chart'),
-        backgroundColor: const Color(0xff0b0e11),
+        title: const Text('V2 交易图表'),
+        backgroundColor: const Color(0xff075985),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            tooltip: 'Refresh OKX market data',
+            tooltip: '刷新 OKX 行情',
             onPressed: _isLoading ? null : _loadCandles,
             icon: const Icon(Icons.refresh),
           ),
         ],
       ),
-      backgroundColor: const Color(0xff0b0e11),
+      backgroundColor: const Color(0xfff8fafc),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -269,22 +353,22 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             Text(
               '$_instrumentId · ${_interval.code}',
               style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xff0f172a),
                   fontSize: 20,
                   fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
             Text(
               _isLoading
-                  ? 'Loading OKX market data…'
+                  ? '正在加载 OKX 行情…'
                   : _loadError == null
-                      ? 'OKX public market data · ${_data.data.length} candles'
-                      : 'Offline fallback · $_loadError',
-              style: const TextStyle(color: Color(0xff848e9c)),
+                      ? 'OKX 公共行情 · ${_data.data.length} 根 K 线'
+                      : '已使用离线数据 · $_loadError',
+              style: const TextStyle(color: Color(0xff475569)),
             ),
             const SizedBox(height: 16),
             _ToolbarSection(
-              title: 'Instrument & data window',
+              title: '交易对与数据范围',
               children: [
                 SizedBox(
                   width: 210,
@@ -292,9 +376,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     key: const ValueKey('instrument-input'),
                     controller: _instrumentController,
                     textCapitalization: TextCapitalization.characters,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: Color(0xff0f172a)),
                     decoration: const InputDecoration(
-                        labelText: 'OKX instrument',
+                        labelText: 'OKX 交易对',
                         hintText: 'BTC-USDT',
                         isDense: true),
                     onSubmitted: (_) => _submitInstrument(),
@@ -303,15 +387,15 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                 OutlinedButton(
                   key: const ValueKey('load-instrument'),
                   onPressed: _isLoading ? null : _submitInstrument,
-                  child: const Text('Load'),
+                  child: const Text('加载'),
                 ),
                 DropdownButton<int>(
                   key: const ValueKey('candle-limit'),
                   value: _candleLimit,
-                  dropdownColor: const Color(0xff1e2329),
+                  dropdownColor: Colors.white,
                   items: const [100, 180, 300]
                       .map((limit) => DropdownMenuItem(
-                          value: limit, child: Text('$limit candles')))
+                          value: limit, child: Text('$limit 根 K 线')))
                       .toList(growable: false),
                   onChanged: (limit) {
                     if (limit != null) _selectCandleLimit(limit);
@@ -321,7 +405,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             ),
             const SizedBox(height: 12),
             _ToolbarSection(
-              title: 'Period',
+              title: '周期',
               children: [
                 for (final interval in _intervals)
                   ChoiceChip(
@@ -334,7 +418,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             ),
             const SizedBox(height: 12),
             _ToolbarSection(
-              title: 'Main chart',
+              title: '主图类型',
               children: [
                 for (final mode in _modes)
                   ChoiceChip(
@@ -347,7 +431,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             ),
             const SizedBox(height: 12),
             _ToolbarSection(
-              title: 'Main overlays',
+              title: '主图叠加指标',
               children: [
                 for (final option in _indicators.where((item) => item.isMain))
                   FilterChip(
@@ -361,7 +445,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             ),
             const SizedBox(height: 12),
             _ToolbarSection(
-              title: 'Secondary indicators',
+              title: '副图指标',
               children: [
                 for (final option in _indicators.where((item) => !item.isMain))
                   FilterChip(
@@ -376,12 +460,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             const SizedBox(height: 8),
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
-              title: const Text(
-                  'Overlay selected secondary indicators in one panel',
-                  style: TextStyle(color: Color(0xffd9dce1))),
-              subtitle: const Text(
-                  'Turn off for one adjustable panel per indicator.',
-                  style: TextStyle(color: Color(0xff848e9c))),
+              title: const Text('将选中的副图指标叠加到同一面板',
+                  style: TextStyle(color: Color(0xff0f172a))),
+              subtitle: const Text('关闭后，每个指标都拥有可调整高度的独立面板。',
+                  style: TextStyle(color: Color(0xff475569))),
               value: _overlaySecondaryIndicators,
               onChanged: (value) => setState(() {
                 _overlaySecondaryIndicators = value;
@@ -391,9 +473,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             if (!_overlaySecondaryIndicators &&
                 _secondaryIndicators.length > 1) ...[
               const SizedBox(height: 4),
-              const Text('Secondary panel order',
+              const Text('副图面板顺序',
                   style: TextStyle(
-                      color: Color(0xffb7bdc6), fontWeight: FontWeight.w600)),
+                      color: Color(0xff0f172a), fontWeight: FontWeight.w600)),
               for (var index = 0; index < _secondaryIndicators.length; index++)
                 _PanelOrderRow(
                   label: _indicator(_secondaryIndicators[index]).label,
@@ -407,7 +489,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             ],
             const SizedBox(height: 12),
             _SliderSetting(
-              label: 'Visible candles',
+              label: '可见 K 线数量',
               value: _visibleCandles.toDouble(),
               min: 20,
               max: 300,
@@ -419,7 +501,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               }),
             ),
             _SliderSetting(
-              label: 'Secondary panel minimum height',
+              label: '副图面板最小高度',
               value: _secondaryPanelHeight,
               min: 72,
               max: 180,
@@ -432,7 +514,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             ),
             const SizedBox(height: 16),
             Semantics(
-              label: 'V2 chart ${_interval.code} ${_modeLabel(_mode)}',
+              label: 'V2 图表 ${_interval.code} ${_modeLabel(_mode)}',
               child: SizedBox(
                 height: chartHeight,
                 child: LayoutBuilder(
@@ -449,30 +531,94 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                           minHeight: 220, gridRows: 5),
                       secondaryPanels: secondaryPanels,
                     );
-                    final snapshot = RenderSnapshot<KChartTheme>(
+                    final viewport = ChartViewport(
+                      itemCount: _data.data.length,
+                      width: layout.drawingBounds.width,
+                      itemExtent: layout.drawingBounds.width / _visibleCandles,
+                      scrollOffsetItems: _scrollOffsetItems,
+                    );
+                    final baseSnapshot = RenderSnapshot<KChartTheme>(
                       data: _data,
-                      viewport: ChartViewport(
-                        itemCount: _data.data.length,
-                        width: layout.drawingBounds.width,
-                        itemExtent:
-                            layout.drawingBounds.width / _visibleCandles,
-                      ),
+                      viewport: viewport,
                       layout: layout,
                       theme: _theme,
                       versions: RenderSnapshotVersions(
                         data: _data.version.value,
+                        viewport: _viewportRevision,
+                        selection: _selectionRevision,
                         theme: _revision,
                         layout: _revision,
                       ),
                       indicators: _indicatorSnapshots(),
                       mainMode: _mode,
                     );
-                    return RepaintBoundary(
-                      child: CustomPaint(
-                        key: const ValueKey('v2-chart-canvas'),
-                        painter: _DemoPainter(
-                            pipeline: _pipeline, snapshot: snapshot),
-                        size: Size(width, chartHeight),
+                    final snapshot = RenderSnapshot<KChartTheme>(
+                      data: _data,
+                      viewport: viewport,
+                      layout: layout,
+                      theme: _theme,
+                      versions: RenderSnapshotVersions(
+                        data: _data.version.value,
+                        viewport: _viewportRevision,
+                        selection: _selectionRevision,
+                        theme: _revision,
+                        layout: _revision,
+                      ),
+                      indicators: baseSnapshot.indicators,
+                      selection: _selectionFor(baseSnapshot),
+                      mainMode: _mode,
+                    );
+                    final selectedIndex = _selectedIndex;
+                    final selectedCandle = selectedIndex != null &&
+                            selectedIndex < _data.data.length
+                        ? _data.data[selectedIndex]
+                        : null;
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onHorizontalDragUpdate: (details) =>
+                          _panChart(details, viewport),
+                      onTapDown: (details) => _selectChartPosition(
+                          details.localPosition, baseSnapshot),
+                      onLongPressStart: (details) => _selectChartPosition(
+                          details.localPosition, baseSnapshot),
+                      onLongPressMoveUpdate: (details) => _selectChartPosition(
+                          details.localPosition, baseSnapshot),
+                      child: Stack(
+                        children: [
+                          RepaintBoundary(
+                            child: CustomPaint(
+                              key: const ValueKey('v2-chart-canvas'),
+                              painter: _DemoPainter(
+                                  pipeline: _pipeline, snapshot: snapshot),
+                              size: Size(width, chartHeight),
+                            ),
+                          ),
+                          const Positioned(
+                            left: 12,
+                            bottom: 30,
+                            child: IgnorePointer(
+                              child: Text(
+                                '左右滑动查看历史 · 点击或长按查看详情',
+                                style: TextStyle(
+                                  color: Color(0xff334155),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (selectedCandle != null)
+                            Positioned(
+                              left: 12,
+                              top: 12,
+                              child: IgnorePointer(
+                                child: _CrosshairDetails(
+                                  candle: selectedCandle,
+                                  selectedPrice: _selectedPrice,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   },
@@ -481,8 +627,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'OKX requests are public and unauthenticated. If they are not available, the demo keeps rendering deterministic local data.',
-              style: TextStyle(color: Color(0xff848e9c)),
+              'OKX 行情接口无需认证；网络不可用时，Demo 会继续展示本地确定性数据。',
+              style: TextStyle(color: Color(0xff475569)),
             ),
           ],
         ),
@@ -502,7 +648,7 @@ class _ToolbarSection extends StatelessWidget {
         children: [
           Text(title,
               style: const TextStyle(
-                  color: Color(0xffb7bdc6), fontWeight: FontWeight.w600)),
+                  color: Color(0xff0f172a), fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: children),
         ],
@@ -531,7 +677,7 @@ class _SliderSetting extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('$label · $valueLabel',
-              style: const TextStyle(color: Color(0xffb7bdc6))),
+              style: const TextStyle(color: Color(0xff334155))),
           Slider(
               value: value,
               min: min,
@@ -560,17 +706,74 @@ class _PanelOrderRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(
         children: [
           Expanded(
-              child: Text(label, style: const TextStyle(color: Colors.white))),
+            child:
+                Text(label, style: const TextStyle(color: Color(0xff0f172a))),
+          ),
           IconButton(
-              tooltip: 'Move $label panel up',
+              tooltip: '上移 $label 面板',
               onPressed: canMoveUp ? onMoveUp : null,
               icon: const Icon(Icons.arrow_upward)),
           IconButton(
-              tooltip: 'Move $label panel down',
+              tooltip: '下移 $label 面板',
               onPressed: canMoveDown ? onMoveDown : null,
-              icon: const Icon(Icons.arrow_downward)),
+              icon: const Icon(Icons.arrow_downward))
         ],
       );
+}
+
+class _CrosshairDetails extends StatelessWidget {
+  const _CrosshairDetails({required this.candle, required this.selectedPrice});
+
+  final Kline candle;
+  final double? selectedPrice;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        key: const ValueKey('crosshair-details'),
+        width: 214,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xf2ffffff),
+          border: Border.all(color: const Color(0xff94a3b8)),
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: const [
+            BoxShadow(color: Color(0x1f0f172a), blurRadius: 8),
+          ],
+        ),
+        child: DefaultTextStyle(
+          style: const TextStyle(color: Color(0xff0f172a), fontSize: 11),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('K 线详情',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              Text('横坐标：${_formatTime(candle.openTime)}'),
+              if (selectedPrice != null)
+                Text('纵坐标：${selectedPrice!.toStringAsFixed(2)}'),
+              Text(
+                  '开 ${_formatPrice(candle.open)}  高 ${_formatPrice(candle.high)}'),
+              Text(
+                  '低 ${_formatPrice(candle.low)}  收 ${_formatPrice(candle.close)}'),
+              Text('成交量：${_formatVolume(candle.baseVolume)}'),
+            ],
+          ),
+        ),
+      );
+}
+
+String _formatTime(int epochMilliseconds) {
+  final time = DateTime.fromMillisecondsSinceEpoch(epochMilliseconds).toLocal();
+  String twoDigits(int value) => value.toString().padLeft(2, '0');
+  return '${time.year}-${twoDigits(time.month)}-${twoDigits(time.day)} '
+      '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
+}
+
+String _formatPrice(double value) => value.toStringAsFixed(2);
+
+String _formatVolume(double value) {
+  if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(2)}M';
+  if (value >= 1000) return '${(value / 1000).toStringAsFixed(2)}K';
+  return value.toStringAsFixed(2);
 }
 
 class _DemoPainter extends CustomPainter {
@@ -612,12 +815,12 @@ _DemoData _createData(KlineInterval interval, int revision) {
 }
 
 String _modeLabel(ChartMainMode mode) => switch (mode) {
-      ChartMainMode.candlestick => 'Candle',
-      ChartMainMode.hollowCandlestick => 'Hollow',
+      ChartMainMode.candlestick => '蜡烛图',
+      ChartMainMode.hollowCandlestick => '空心蜡烛',
       ChartMainMode.ohlc => 'OHLC',
-      ChartMainMode.heikinAshi => 'Heikin-Ashi',
-      ChartMainMode.line => 'Line',
-      ChartMainMode.area => 'Area',
+      ChartMainMode.heikinAshi => '平均 K 线',
+      ChartMainMode.line => '折线图',
+      ChartMainMode.area => '面积图',
     };
 
 final class _IndicatorOption {

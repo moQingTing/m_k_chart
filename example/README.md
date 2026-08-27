@@ -27,7 +27,9 @@ This is an example Flutter application demonstrating how to use the `m_k_chart` 
   period, request size, chart mode, main overlays (MA/EMA/BOLL/SAR/VWAP), and
   secondary indicators (VOL/MACD/KDJ/RSI/WR/OBV/ATR/CCI/DMI/ROC/Stoch RSI).
   Secondary indicators can be independently ordered and sized or overlaid in
-  a single panel.
+  a single panel. The light, Chinese-language UI also supports horizontal
+  chart panning plus tap/long-press crosshair details for time, price, OHLC,
+  and volume.
 
 - **K-line Chart**: Shows how to use `KChartWidget` with:
   - MA (Moving Average) indicators
