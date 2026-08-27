@@ -22,8 +22,8 @@ class V2TradingChartDemo extends StatefulWidget {
 }
 
 class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
-  static const _indicatorLegendHeight = 22.0;
-  static const _panelSpacing = 28.0;
+  static const _indicatorLegendHeight = 16.0;
+  static const _panelSpacing = 20.0;
   static const _bottomTimeAxisHeight = 24.0;
 
   static final _intervals = <KlineInterval>[
@@ -495,6 +495,22 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     };
   }
 
+  List<String> _timeAxisLabels(ChartViewport viewport) {
+    final visible = viewport.visibleRange;
+    final span = visible.end - visible.start;
+    if (span <= 0) return const [];
+    return [
+      for (final fraction in const [0.25, 0.75])
+        _formatAxisTime(
+          _data
+              .data[(visible.start + (span - 1) * fraction)
+                  .round()
+                  .clamp(0, _data.data.length - 1)]
+              .openTime,
+        ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final secondaryPanels = _secondaryIndicators.isEmpty
@@ -524,7 +540,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               (_secondaryPanelHeight + _indicatorLegendHeight) +
           (secondaryPanels.length * _panelSpacing) +
           _bottomTimeAxisHeight +
-          36,
+          16,
     );
     return Scaffold(
       appBar: AppBar(
@@ -801,7 +817,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                                 ),
                                 left: layout.drawingBounds.left + 8,
                                 right: 12,
-                                top: panel.headerBounds.top + 5,
+                                top: panel.headerBounds.top + 3,
                                 child: IgnorePointer(
                                   child: _PanelIndicatorLegend(
                                     entries: _indicatorLegendEntries(
@@ -816,18 +832,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                               Positioned(
                                 left: layout.drawingBounds.left + 8,
                                 right: 12,
-                                top: layout.mainPanel.bounds.bottom + 4,
-                                height: _panelSpacing - 8,
+                                top: layout.mainPanel.bounds.bottom + 2,
+                                height: _panelSpacing - 4,
                                 child: IgnorePointer(
                                   child: _IntermediateTimeAxis(
-                                    start: _formatAxisTime(
-                                      _data.data[viewport.visibleRange.start]
-                                          .openTime,
-                                    ),
-                                    end: _formatAxisTime(
-                                      _data.data[viewport.visibleRange.end - 1]
-                                          .openTime,
-                                    ),
+                                    labels: _timeAxisLabels(viewport),
                                   ),
                                 ),
                               ),
@@ -971,19 +980,22 @@ final class _IndicatorLegendEntry {
 }
 
 class _IntermediateTimeAxis extends StatelessWidget {
-  const _IntermediateTimeAxis({required this.start, required this.end});
+  const _IntermediateTimeAxis({required this.labels});
 
-  final String start;
-  final String end;
+  final List<String> labels;
 
   @override
   Widget build(BuildContext context) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(start,
-              style: const TextStyle(color: Color(0xff60738e), fontSize: 10)),
-          Text(end,
-              style: const TextStyle(color: Color(0xff60738e), fontSize: 10)),
+          for (final label in labels)
+            Expanded(
+              child: Center(
+                child: Text(
+                  label,
+                  style: const TextStyle(color: Color(0xff60738e), fontSize: 9),
+                ),
+              ),
+            ),
         ],
       );
 }
@@ -1068,9 +1080,12 @@ String _formatTime(int epochMilliseconds) {
 }
 
 String _formatAxisTime(int epochMilliseconds) {
-  final time = DateTime.fromMillisecondsSinceEpoch(epochMilliseconds).toLocal();
+  final time = DateTime.fromMillisecondsSinceEpoch(
+    epochMilliseconds,
+    isUtc: true,
+  );
   String twoDigits(int value) => value.toString().padLeft(2, '0');
-  return '${twoDigits(time.month)}-${twoDigits(time.day)} '
+  return '${time.year}-${twoDigits(time.month)}-${twoDigits(time.day)} '
       '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
 }
 
