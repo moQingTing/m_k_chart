@@ -8,6 +8,8 @@ library;
 
 export 'src/model/model.dart';
 export 'src/indicator/indicator.dart';
+export 'src/interaction/interaction.dart';
 export 'src/render/render.dart';
 export 'src/render/chart_layer_geometry.dart';
 export 'src/viewport/viewport.dart';
+export 'src/widget/chart_gesture_region.dart';

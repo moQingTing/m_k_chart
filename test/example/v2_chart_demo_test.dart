@@ -95,8 +95,19 @@ void main() {
     expect(find.textContaining('横坐标：'), findsOneWidget);
     expect(find.textContaining('纵坐标：'), findsOneWidget);
 
-    await tester.drag(chartCanvas, const Offset(-90, 0));
+    await tester.drag(chartCanvas, const Offset(90, 0));
     await tester.pump();
     expect(find.byKey(const ValueKey('crosshair-details')), findsNothing);
+
+    final center = tester.getCenter(chartCanvas);
+    final first = await tester.startGesture(center + const Offset(-40, 0));
+    final second = await tester.startGesture(center + const Offset(40, 0));
+    await first.moveTo(center + const Offset(-70, 0));
+    await second.moveTo(center + const Offset(70, 0));
+    await tester.pump();
+    await first.up();
+    await second.up();
+    await tester.pump();
+    expect(tester.takeException(), isNull);
   });
 }

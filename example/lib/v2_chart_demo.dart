@@ -60,6 +60,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   ];
 
   late final StandardChartRenderPipeline<KChartTheme> _pipeline;
+  late final ChartInteractionMachine _interactionMachine;
+  late final ChartNavigationMachine _navigationMachine;
   late final OkxMarketDataClient _marketData;
   late final IndicatorEngine _indicatorEngine;
   final _instrumentController = TextEditingController(text: 'BTC-USDT');
@@ -81,6 +83,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _viewportRevision = 0;
   var _selectionRevision = 0;
   var _scrollOffsetItems = 0.0;
+  double? _itemExtent;
   int? _selectedIndex;
   double? _selectedPrice;
   var _selectedLocalY = 0.0;
@@ -93,6 +96,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   void initState() {
     super.initState();
     _pipeline = StandardChartRenderPipeline<KChartTheme>();
+    _interactionMachine = ChartInteractionMachine();
+    _navigationMachine = ChartNavigationMachine();
     _marketData = OkxMarketDataClient();
     final registry = IndicatorRegistry();
     registerBuiltInIndicatorDefinitions(registry);
@@ -117,6 +122,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       _advanceRevision();
       _data = _createData(interval, _revision);
       _scrollOffsetItems = 0;
+      _itemExtent = null;
       _clearSelection();
     });
     _loadCandles();
@@ -159,6 +165,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         _data = _DemoData(
             UnmodifiableListView(candles), KlineDataVersion(_revision));
         _scrollOffsetItems = 0;
+        _itemExtent = null;
         _clearSelection();
       });
     } on Object catch (error) {
@@ -212,14 +219,27 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _selectionRevision++;
   }
 
-  void _panChart(DragUpdateDetails details, ChartViewport viewport) {
-    setState(() {
-      _scrollOffsetItems = viewport
-          .scrollByItems(-details.delta.dx / viewport.itemExtent)
-          .scrollOffsetItems;
-      _viewportRevision++;
-      _clearSelection();
-    });
+  void _handleChartIntent(
+    ChartInteractionIntent intent,
+    RenderSnapshot<KChartTheme> snapshot,
+  ) {
+    switch (intent) {
+      case ChartViewportIntent(:final viewport):
+        setState(() {
+          _scrollOffsetItems = viewport.scrollOffsetItems;
+          _itemExtent = viewport.itemExtent;
+          _viewportRevision++;
+          _clearSelection();
+        });
+      case ChartCrosshairIntent(:final isActive, :final localX, :final localY):
+        if (isActive) {
+          _selectChartPosition(Offset(localX, localY), snapshot);
+        } else {
+          setState(_clearSelection);
+        }
+      case ChartHistoryPagingIntent():
+        break;
+    }
   }
 
   void _selectChartPosition(
@@ -497,6 +517,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               valueLabel: '$_visibleCandles',
               onChanged: (value) => setState(() {
                 _visibleCandles = value.round();
+                _itemExtent = null;
                 _advanceRevision();
               }),
             ),
@@ -534,7 +555,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     final viewport = ChartViewport(
                       itemCount: _data.data.length,
                       width: layout.drawingBounds.width,
-                      itemExtent: layout.drawingBounds.width / _visibleCandles,
+                      itemExtent: _itemExtent ??
+                          layout.drawingBounds.width / _visibleCandles,
                       scrollOffsetItems: _scrollOffsetItems,
                     );
                     final baseSnapshot = RenderSnapshot<KChartTheme>(
@@ -573,52 +595,53 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                             selectedIndex < _data.data.length
                         ? _data.data[selectedIndex]
                         : null;
-                    return GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onHorizontalDragUpdate: (details) =>
-                          _panChart(details, viewport),
-                      onTapDown: (details) => _selectChartPosition(
-                          details.localPosition, baseSnapshot),
-                      onLongPressStart: (details) => _selectChartPosition(
-                          details.localPosition, baseSnapshot),
-                      onLongPressMoveUpdate: (details) => _selectChartPosition(
-                          details.localPosition, baseSnapshot),
-                      child: Stack(
-                        children: [
-                          RepaintBoundary(
-                            child: CustomPaint(
-                              key: const ValueKey('v2-chart-canvas'),
-                              painter: _DemoPainter(
-                                  pipeline: _pipeline, snapshot: snapshot),
-                              size: Size(width, chartHeight),
-                            ),
-                          ),
-                          const Positioned(
-                            left: 12,
-                            bottom: 30,
-                            child: IgnorePointer(
-                              child: Text(
-                                '左右滑动查看历史 · 点击或长按查看详情',
-                                style: TextStyle(
-                                  color: Color(0xff334155),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                    return ChartGestureRegion(
+                      machine: _interactionMachine,
+                      navigationMachine: _navigationMachine,
+                      viewport: () => viewport,
+                      onIntent: (intent) =>
+                          _handleChartIntent(intent, baseSnapshot),
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapDown: (details) => _selectChartPosition(
+                            details.localPosition, baseSnapshot),
+                        child: Stack(
+                          children: [
+                            RepaintBoundary(
+                              child: CustomPaint(
+                                key: const ValueKey('v2-chart-canvas'),
+                                painter: _DemoPainter(
+                                    pipeline: _pipeline, snapshot: snapshot),
+                                size: Size(width, chartHeight),
                               ),
                             ),
-                          ),
-                          if (selectedCandle != null)
-                            Positioned(
+                            const Positioned(
                               left: 12,
-                              top: 12,
+                              bottom: 30,
                               child: IgnorePointer(
-                                child: _CrosshairDetails(
-                                  candle: selectedCandle,
-                                  selectedPrice: _selectedPrice,
+                                child: Text(
+                                  '左右滑动查看历史 · 点击或长按查看详情',
+                                  style: TextStyle(
+                                    color: Color(0xff334155),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
-                        ],
+                            if (selectedCandle != null)
+                              Positioned(
+                                left: 12,
+                                top: 12,
+                                child: IgnorePointer(
+                                  child: _CrosshairDetails(
+                                    candle: selectedCandle,
+                                    selectedPrice: _selectedPrice,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     );
                   },
