@@ -102,7 +102,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('right-axis-width-setting')),
+      find.byKey(const ValueKey('right-blank-width-setting')),
       findsOneWidget,
     );
 

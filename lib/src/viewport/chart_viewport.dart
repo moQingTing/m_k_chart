@@ -4,7 +4,8 @@ import 'visible_index_range.dart';
 ///
 /// Horizontal scrolling is measured in data slots instead of pixels.
 /// [scrollOffsetItems] is the distance from the latest edge: zero keeps the
-/// newest item at the right edge and positive values move toward history.
+/// newest item before the optional [trailingPaddingItems], while positive
+/// values move toward history.
 /// Pixel/data coordinate conversion is intentionally deferred to P4-02.
 final class ChartViewport {
   factory ChartViewport({
@@ -13,6 +14,7 @@ final class ChartViewport {
     double itemExtent = defaultItemExtent,
     double minItemExtent = defaultMinItemExtent,
     double maxItemExtent = defaultMaxItemExtent,
+    double trailingPaddingItems = 0,
     double scrollOffsetItems = 0,
   }) {
     _validate(
@@ -21,6 +23,7 @@ final class ChartViewport {
       itemExtent: itemExtent,
       minItemExtent: minItemExtent,
       maxItemExtent: maxItemExtent,
+      trailingPaddingItems: trailingPaddingItems,
       scrollOffsetItems: scrollOffsetItems,
     );
     final boundedExtent = _clamp(itemExtent, minItemExtent, maxItemExtent);
@@ -28,6 +31,7 @@ final class ChartViewport {
       itemCount: itemCount,
       width: width,
       itemExtent: boundedExtent,
+      trailingPaddingItems: trailingPaddingItems,
     );
     return ChartViewport._(
       itemCount: itemCount,
@@ -35,6 +39,7 @@ final class ChartViewport {
       itemExtent: boundedExtent,
       minItemExtent: minItemExtent,
       maxItemExtent: maxItemExtent,
+      trailingPaddingItems: trailingPaddingItems,
       scrollOffsetItems: _clamp(scrollOffsetItems, 0, maximum),
     );
   }
@@ -45,6 +50,7 @@ final class ChartViewport {
         itemExtent = defaultItemExtent,
         minItemExtent = defaultMinItemExtent,
         maxItemExtent = defaultMaxItemExtent,
+        trailingPaddingItems = 0,
         scrollOffsetItems = 0;
 
   const ChartViewport._({
@@ -53,6 +59,7 @@ final class ChartViewport {
     required this.itemExtent,
     required this.minItemExtent,
     required this.maxItemExtent,
+    required this.trailingPaddingItems,
     required this.scrollOffsetItems,
   });
 
@@ -70,7 +77,13 @@ final class ChartViewport {
   final double minItemExtent;
   final double maxItemExtent;
 
-  /// Number of data slots between the visible right edge and the latest edge.
+  /// Virtual data slots after the newest item.
+  ///
+  /// This reproduces the legacy chart's `marginRight` behavior without
+  /// shrinking the plot, grid, or value-axis geometry.
+  final double trailingPaddingItems;
+
+  /// Data-slot distance shifted away from the latest padded alignment.
   final double scrollOffsetItems;
 
   double get visibleItemCapacity => width / itemExtent;
@@ -80,12 +93,14 @@ final class ChartViewport {
       visibleRightDataPosition - visibleItemCapacity;
 
   /// Continuous data-slot coordinate at the right edge of the viewport.
-  double get visibleRightDataPosition => itemCount - scrollOffsetItems;
+  double get visibleRightDataPosition =>
+      itemCount + trailingPaddingItems - scrollOffsetItems;
 
   double get maxScrollOffsetItems => _maximumScrollOffsetItems(
         itemCount: itemCount,
         width: width,
         itemExtent: itemExtent,
+        trailingPaddingItems: trailingPaddingItems,
       );
 
   bool get isAtLatest => scrollOffsetItems == 0;
@@ -108,6 +123,7 @@ final class ChartViewport {
     double? itemExtent,
     double? minItemExtent,
     double? maxItemExtent,
+    double? trailingPaddingItems,
     double? scrollOffsetItems,
   }) =>
       ChartViewport(
@@ -116,6 +132,7 @@ final class ChartViewport {
         itemExtent: itemExtent ?? this.itemExtent,
         minItemExtent: minItemExtent ?? this.minItemExtent,
         maxItemExtent: maxItemExtent ?? this.maxItemExtent,
+        trailingPaddingItems: trailingPaddingItems ?? this.trailingPaddingItems,
         scrollOffsetItems: scrollOffsetItems ?? this.scrollOffsetItems,
       );
 
@@ -137,6 +154,7 @@ final class ChartViewport {
           itemExtent == other.itemExtent &&
           minItemExtent == other.minItemExtent &&
           maxItemExtent == other.maxItemExtent &&
+          trailingPaddingItems == other.trailingPaddingItems &&
           scrollOffsetItems == other.scrollOffsetItems;
 
   @override
@@ -146,12 +164,14 @@ final class ChartViewport {
         itemExtent,
         minItemExtent,
         maxItemExtent,
+        trailingPaddingItems,
         scrollOffsetItems,
       );
 
   @override
   String toString() => 'ChartViewport(itemCount: $itemCount, width: $width, '
-      'itemExtent: $itemExtent, scrollOffsetItems: $scrollOffsetItems)';
+      'itemExtent: $itemExtent, trailingPaddingItems: $trailingPaddingItems, '
+      'scrollOffsetItems: $scrollOffsetItems)';
 }
 
 void _validate({
@@ -160,6 +180,7 @@ void _validate({
   required double itemExtent,
   required double minItemExtent,
   required double maxItemExtent,
+  required double trailingPaddingItems,
   required double scrollOffsetItems,
 }) {
   if (itemCount < 0) {
@@ -193,6 +214,13 @@ void _validate({
       'Must be finite and positive.',
     );
   }
+  if (!trailingPaddingItems.isFinite || trailingPaddingItems < 0) {
+    throw ArgumentError.value(
+      trailingPaddingItems,
+      'trailingPaddingItems',
+      'Must be finite and non-negative.',
+    );
+  }
   if (!scrollOffsetItems.isFinite) {
     throw ArgumentError.value(
       scrollOffsetItems,
@@ -206,8 +234,9 @@ double _maximumScrollOffsetItems({
   required int itemCount,
   required double width,
   required double itemExtent,
+  required double trailingPaddingItems,
 }) {
-  final maximum = itemCount - width / itemExtent;
+  final maximum = itemCount + trailingPaddingItems - width / itemExtent;
   return maximum > 0 ? maximum : 0;
 }
 

@@ -75,16 +75,6 @@ void main() {
       fixture.style.backgroundColor,
       reason: '主图时间区域不应绘制纵向网格。',
     );
-    expect(
-      _pixel(
-        pixels,
-        fixture.width,
-        (main.rightAxisBounds.left + main.rightAxisBounds.width / 2).round(),
-        (main.plotBounds.top + main.plotBounds.height * 0.25).round(),
-      ),
-      fixture.style.backgroundColor,
-      reason: '右侧纵轴留白内不应延续纵向网格。',
-    );
   });
 
   test('main Layer paints both rising and falling candle bodies', () async {
@@ -437,7 +427,6 @@ _Fixture _fixture() {
     height: 240,
     bottomAxisHeight: 20,
     mainTimeAxisHeight: 12,
-    rightAxisWidth: 30,
     gridColumns: 3,
     mainPanel: const ChartPanelSpec.main(
       weight: 2,

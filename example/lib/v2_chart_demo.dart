@@ -167,7 +167,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _mainIndicatorHeaderHeight = 18.0;
   var _secondaryIndicatorHeaderHeight = 18.0;
   var _mainTimeAxisHeight = 18.0;
-  var _rightAxisWidth = 52.0;
+  var _rightBlankWidth = 52.0;
   var _timeZoneOffsetHours = 8;
   var _overlaySecondaryIndicators = false;
   var _revision = 0;
@@ -342,7 +342,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     if (snapshot.data.data.isEmpty) return;
     ChartPanelLayout? selectedPanel;
     for (final panel in snapshot.layout.panels) {
-      if (panel.plotBounds.contains(
+      if (panel.bounds.contains(
         x: localPosition.dx,
         y: localPosition.dy,
       )) {
@@ -351,14 +351,14 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       }
     }
     if (selectedPanel == null) return;
-    final plotBounds = selectedPanel.plotBounds;
+    final panelBounds = selectedPanel.bounds;
     final index = ChartXTransform(
       viewport: snapshot.viewport,
       data: snapshot.data,
-    ).localXToNearestIndex(localPosition.dx - plotBounds.left);
+    ).localXToNearestIndex(localPosition.dx - panelBounds.left);
     final panelId = selectedPanel.spec.id;
     final price = ChartLayerGeometry.rangeFor(snapshot, panelId)
-        .transform(plotBounds)
+        .transform(panelBounds)
         .localYToPrice(localPosition.dy);
     setState(() {
       _selectedIndex = index;
@@ -388,7 +388,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       localY = _selectedLocalY.clamp(bounds.top, bounds.bottom).toDouble();
     } else {
       localY = ChartLayerGeometry.rangeFor(snapshot, selectedPanelId)
-          .transform(snapshot.layout.panel(selectedPanelId).plotBounds)
+          .transform(snapshot.layout.panel(selectedPanelId).bounds)
           .priceToLocalY(selectedPrice)
           .clamp(bounds.top, bounds.bottom)
           .toDouble();
@@ -777,15 +777,15 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               }),
             ),
             _SliderSetting(
-              key: const ValueKey('right-axis-width-setting'),
-              label: '右侧纵坐标留白宽度',
-              value: _rightAxisWidth,
-              min: 40,
+              key: const ValueKey('right-blank-width-setting'),
+              label: '最新 K 线右侧留白宽度',
+              value: _rightBlankWidth,
+              min: 0,
               max: 120,
-              divisions: 20,
-              valueLabel: '${_rightAxisWidth.round()} px',
+              divisions: 24,
+              valueLabel: '${_rightBlankWidth.round()} px',
               onChanged: (value) => setState(() {
-                _rightAxisWidth = value;
+                _rightBlankWidth = value;
                 _advanceRevision();
               }),
             ),
@@ -825,9 +825,6 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final width = math.max(1.0, constraints.maxWidth);
-                    final rightAxisWidth = _rightAxisWidth
-                        .clamp(0.0, math.max(0.0, width - 80))
-                        .toDouble();
                     final layout = ChartLayoutModel(
                       width: width,
                       height: chartHeight,
@@ -835,7 +832,6 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                           secondaryPanels.isEmpty ? _mainTimeAxisHeight : 0,
                       mainTimeAxisHeight:
                           secondaryPanels.isEmpty ? 0 : _mainTimeAxisHeight,
-                      rightAxisWidth: rightAxisWidth,
                       panelSpacing: _panelSpacing,
                       mainPanel: ChartPanelSpec.main(
                         minHeight: 220,
@@ -844,11 +840,17 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       ),
                       secondaryPanels: secondaryPanels,
                     );
+                    final itemExtent = _itemExtent ??
+                        layout.drawingBounds.width / _visibleCandles;
+                    final trailingPaddingItems = math.max(
+                      0.0,
+                      _rightBlankWidth / itemExtent - 0.5,
+                    );
                     final viewport = ChartViewport(
                       itemCount: _data.data.length,
                       width: layout.drawingBounds.width,
-                      itemExtent: _itemExtent ??
-                          layout.drawingBounds.width / _visibleCandles,
+                      itemExtent: itemExtent,
+                      trailingPaddingItems: trailingPaddingItems,
                       scrollOffsetItems: _scrollOffsetItems,
                     );
                     final baseSnapshot = RenderSnapshot<KChartTheme>(
@@ -955,7 +957,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                             if (selectedCandle != null)
                               Positioned(
                                 left: 12,
-                                top: layout.panel('main').plotBounds.top + 8,
+                                top: layout.panel('main').bounds.top + 8,
                                 child: IgnorePointer(
                                   child: _CrosshairDetails(
                                     candle: selectedCandle,

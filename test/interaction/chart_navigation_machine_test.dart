@@ -97,6 +97,7 @@ void main() {
         itemCount: 5,
         width: 16,
         itemExtent: 8,
+        trailingPaddingItems: 2,
         scrollOffsetItems: 2,
       );
 

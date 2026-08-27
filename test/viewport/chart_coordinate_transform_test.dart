@@ -43,6 +43,22 @@ void main() {
       }
     });
 
+    test('places the newest candle before virtual trailing space', () {
+      final data = _data([0, 60000, 120000, 180000]);
+      final transform = ChartXTransform(
+        viewport: ChartViewport(
+          itemCount: 4,
+          width: 80,
+          itemExtent: 8,
+          trailingPaddingItems: 1.5,
+        ),
+        data: data,
+      );
+
+      expect(transform.indexToLocalX(3), 64);
+      expect(80 - transform.indexToLocalX(3), 16);
+    });
+
     test('selects the containing slot and clamps outside data', () {
       final data = _data([0, 60000, 120000, 180000]);
       final transform = ChartXTransform(

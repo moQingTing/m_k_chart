@@ -69,11 +69,11 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
           snapshot,
           panel.spec.id,
         )
-        .transform(panel.plotBounds);
+        .transform(panel.bounds);
     final window = cache.windowFor(snapshot);
     final canvas = context.canvas;
     canvas.save();
-    canvas.clipRect(_rect(panel.plotBounds));
+    canvas.clipRect(_rect(panel.bounds));
     switch (snapshot.mainMode) {
       case ChartMainMode.candlestick:
       case ChartMainMode.hollowCandlestick:
@@ -90,7 +90,7 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
           canvas: canvas,
           snapshot: snapshot,
           panelId: panel.spec.id,
-          bounds: panel.plotBounds,
+          bounds: panel.bounds,
           window: window,
           valueTransform: priceTransform,
           cache: cache,
@@ -99,7 +99,7 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
         _drawMainPriceSeries(
           canvas: canvas,
           snapshot: snapshot,
-          panel: panel.plotBounds,
+          panel: panel.bounds,
           window: window,
           priceTransform: priceTransform,
           cache: cache,
@@ -109,7 +109,7 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
         _drawMainPriceSeries(
           canvas: canvas,
           snapshot: snapshot,
-          panel: panel.plotBounds,
+          panel: panel.bounds,
           window: window,
           priceTransform: priceTransform,
           cache: cache,
@@ -148,14 +148,14 @@ final class ChartSecondaryLayer<TTheme extends ChartRenderStyle>
             snapshot,
             panel.spec.id,
           )
-          .transform(panel.plotBounds);
+          .transform(panel.bounds);
       context.canvas.save();
-      context.canvas.clipRect(_rect(panel.plotBounds));
+      context.canvas.clipRect(_rect(panel.bounds));
       _drawIndicators(
         canvas: context.canvas,
         snapshot: snapshot,
         panelId: panel.spec.id,
-        bounds: panel.plotBounds,
+        bounds: panel.bounds,
         window: window,
         valueTransform: valueTransform,
         cache: cache,
@@ -196,7 +196,7 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
           text: _formatNumber(value),
           color: theme.axisTextColor,
           fontSize: theme.axisFontSize,
-          x: panel.rightAxisBounds.right - 3,
+          x: panel.bounds.right - 3,
           y: rows[index],
           horizontalAnchor: 1,
           verticalAnchor: index == 0
@@ -261,10 +261,10 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
           snapshot,
           panel.spec.id,
         )
-        .transform(panel.plotBounds);
+        .transform(panel.bounds);
     final xTransform = window.xTransform;
     final extrema = cache.extremaFor(snapshot)!;
-    final midpoint = (panel.plotBounds.left + panel.plotBounds.right) / 2;
+    final midpoint = (panel.bounds.left + panel.bounds.right) / 2;
     final paint = Paint()
       ..color = snapshot.theme.markerColor
       ..strokeWidth = snapshot.theme.overlayStrokeWidth
@@ -314,7 +314,7 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
       text: _formatNumber(latest.close),
       color: latestColor,
       fontSize: snapshot.theme.axisFontSize,
-      x: panel.rightAxisBounds.right - 3,
+      x: panel.bounds.right - 3,
       y: localY,
       horizontalAnchor: 1,
       verticalAnchor: 0.5,
@@ -365,7 +365,7 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
     if (selection.price != null) {
       ChartPanelLayout? selectedPanel;
       for (final panel in layout.panels) {
-        if (panel.plotBounds.contains(
+        if (panel.bounds.contains(
           x: selection.localX,
           y: selection.localY,
         )) {
@@ -378,7 +378,7 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
         text: _formatNumber(selection.price!),
         color: context.snapshot.theme.crosshairColor,
         fontSize: context.snapshot.theme.axisFontSize,
-        x: (selectedPanel?.rightAxisBounds.right ?? bounds.right) - 3,
+        x: (selectedPanel?.bounds.right ?? bounds.right) - 3,
         y: selection.localY,
         horizontalAnchor: 1,
         verticalAnchor: 0.5,
@@ -481,14 +481,14 @@ Picture _recordGridPicture<TTheme extends ChartRenderStyle>(
   for (final panel in layout.panels) {
     for (final x in layout.gridColumnXs) {
       canvas.drawLine(
-        Offset(x, panel.plotBounds.top),
-        Offset(x, panel.plotBounds.bottom),
+        Offset(x, panel.bounds.top),
+        Offset(x, panel.bounds.bottom),
         paint,
       );
     }
     for (final y in layout.gridRowYsFor(panel.spec.id)) {
       canvas.drawLine(
-        Offset(panel.plotBounds.left, y),
+        Offset(panel.bounds.left, y),
         Offset(panel.bounds.right, y),
         paint,
       );

@@ -66,6 +66,31 @@ void main() {
         inInclusiveRange(0, zoomed.viewport.maxScrollOffsetItems),
       );
     });
+
+    test('preserves the focal anchor with virtual trailing space', () {
+      final machine = ChartInteractionMachine();
+      final viewport = ChartViewport(
+        itemCount: 100,
+        width: 160,
+        itemExtent: 8,
+        minItemExtent: 4,
+        maxItemExtent: 24,
+        trailingPaddingItems: 4,
+        scrollOffsetItems: 20,
+      );
+      const focalX = 80.0;
+      final anchor =
+          viewport.visibleLeftDataPosition + focalX / viewport.itemExtent;
+
+      machine.beginScale(viewport: viewport, focalLocalX: focalX);
+      final next = machine.updateScale(scale: 2, focalLocalX: focalX)!.viewport;
+
+      expect(next.trailingPaddingItems, 4);
+      expect(
+        next.visibleLeftDataPosition + focalX / next.itemExtent,
+        closeTo(anchor, 1e-12),
+      );
+    });
   });
 
   group('ChartInteractionMachine mutual exclusion', () {

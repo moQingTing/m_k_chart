@@ -81,7 +81,9 @@ final class ChartInteractionMachine {
     final desiredLeft = anchor - focalLocalX / extentAdjusted.itemExtent;
     final desiredRight =
         desiredLeft + extentAdjusted.width / extentAdjusted.itemExtent;
-    final desiredScroll = extentAdjusted.itemCount - desiredRight;
+    final desiredScroll = extentAdjusted.itemCount +
+        extentAdjusted.trailingPaddingItems -
+        desiredRight;
     final next = extentAdjusted.copyWith(scrollOffsetItems: desiredScroll);
     final current = _currentViewport!;
     _currentViewport = next;

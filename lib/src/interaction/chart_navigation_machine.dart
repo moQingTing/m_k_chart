@@ -110,7 +110,8 @@ abstract final class ChartViewportNavigator {
     final desiredLeft = position - viewport.visibleItemCapacity * alignment;
     final desiredRight = desiredLeft + viewport.visibleItemCapacity;
     return viewport.copyWith(
-      scrollOffsetItems: viewport.itemCount - desiredRight,
+      scrollOffsetItems:
+          viewport.itemCount + viewport.trailingPaddingItems - desiredRight,
     );
   }
 

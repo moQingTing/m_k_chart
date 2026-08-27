@@ -70,7 +70,7 @@ void main() {
       expect(layout.mainPanel.bounds.height, 186);
     });
 
-    test('separates plot, right axis, and main time-axis geometry', () {
+    test('reserves an independent main time-axis geometry', () {
       final layout = ChartLayoutModel(
         width: 360,
         height: 400,
@@ -79,7 +79,6 @@ void main() {
         topPadding: 12,
         bottomAxisHeight: 30,
         mainTimeAxisHeight: 24,
-        rightAxisWidth: 60,
         panelSpacing: 4,
         mainPanel: const ChartPanelSpec.main(minHeight: 120),
         secondaryPanels: const [
@@ -87,11 +86,8 @@ void main() {
         ],
       );
 
-      expect(layout.drawingBounds.right, 280);
-      expect(layout.mainPanel.plotBounds.right, 280);
+      expect(layout.drawingBounds.right, 340);
       expect(layout.mainPanel.bounds.right, 340);
-      expect(layout.mainPanel.rightAxisBounds.left, 280);
-      expect(layout.mainPanel.rightAxisBounds.right, 340);
       expect(
         layout.mainTimeAxisBounds.top,
         layout.mainPanel.bounds.bottom,
@@ -101,7 +97,7 @@ void main() {
         layout.panel('volume').headerBounds.top,
         layout.mainTimeAxisBounds.bottom + 4,
       );
-      expect(layout.gridColumnXs.last, 280);
+      expect(layout.gridColumnXs.last, 340);
     });
 
     test('applies drawable width to a viewport and re-clamps scrolling', () {
@@ -182,16 +178,6 @@ void main() {
           height: 200,
           leftPadding: 50,
           rightPadding: 50,
-        ),
-        throwsArgumentError,
-      );
-      expect(
-        () => ChartLayoutModel(
-          width: 200,
-          height: 300,
-          leftPadding: 20,
-          rightPadding: 20,
-          rightAxisWidth: 160,
         ),
         throwsArgumentError,
       );

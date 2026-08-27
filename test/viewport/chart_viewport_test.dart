@@ -40,6 +40,24 @@ void main() {
       expect(viewport.visibleRange.contains(100), isFalse);
     });
 
+    test('keeps legacy-style virtual space after the newest item', () {
+      final viewport = ChartViewport(
+        itemCount: 100,
+        width: 80,
+        itemExtent: 8,
+        trailingPaddingItems: 1.5,
+      );
+
+      expect(viewport.visibleRightDataPosition, 101.5);
+      expect(viewport.visibleLeftDataPosition, 91.5);
+      expect(viewport.visibleRange, const VisibleIndexRange(91, 100));
+      expect(viewport.maxScrollOffsetItems, 91.5);
+      expect(
+        viewport.copyWith(scrollOffsetItems: 500).visibleLeftDataPosition,
+        0,
+      );
+    });
+
     test('clamps scrolling at both latest and oldest boundaries', () {
       final viewport = ChartViewport(
         itemCount: 100,
@@ -129,6 +147,10 @@ void main() {
       );
       expect(
         () => ChartViewport(scrollOffsetItems: double.nan),
+        throwsArgumentError,
+      );
+      expect(
+        () => ChartViewport(trailingPaddingItems: -1),
         throwsArgumentError,
       );
       expect(
