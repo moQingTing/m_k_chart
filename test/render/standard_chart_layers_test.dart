@@ -272,6 +272,32 @@ void main() {
     }
   });
 
+  test('marker keeps the legacy latest-price pill when latest candle is hidden',
+      () async {
+    final fixture = _fixture();
+    final hiddenLatestViewport = fixture.viewport.copyWith(
+      itemExtent: 40,
+      scrollOffsetItems: double.maxFinite,
+    );
+    final pixels = await _paint(
+      fixture.snapshotWithViewport(hiddenLatestViewport),
+      [ChartMarkerLayer<DefaultChartRenderStyle>(cache)],
+    );
+    final main = fixture.layout.mainPanel.bounds;
+
+    expect(hiddenLatestViewport.visibleRange.contains(5), isFalse);
+    expect(
+      _hasColor(
+        pixels,
+        fixture.width,
+        Rect.fromLTRB(main.left, main.top, main.right, main.bottom),
+        fixture.style.mainLineColor,
+      ),
+      isTrue,
+      reason: '旧版在最新 K 线滑出右侧后仍绘制实时价虚线和价格胶囊。',
+    );
+  });
+
   test('hidden or out-of-bounds crosshair produces no Canvas output', () async {
     final fixture = _fixture();
     final layer = ChartCrosshairLayer<DefaultChartRenderStyle>(cache);
@@ -597,14 +623,20 @@ final class _Fixture {
   ) =>
       _snapshot(mainMode: mainMode);
 
+  RenderSnapshot<DefaultChartRenderStyle> snapshotWithViewport(
+    ChartViewport viewport,
+  ) =>
+      _snapshot(viewport: viewport);
+
   RenderSnapshot<DefaultChartRenderStyle> _snapshot({
     RenderSelectionSnapshot selection = const RenderSelectionSnapshot.hidden(),
     Iterable<RenderLineDrawing> drawings = const [],
     ChartMainMode mainMode = ChartMainMode.candlestick,
+    ChartViewport? viewport,
   }) =>
       RenderSnapshot<DefaultChartRenderStyle>(
         data: data,
-        viewport: viewport,
+        viewport: viewport ?? this.viewport,
         layout: layout,
         theme: style,
         versions: const RenderSnapshotVersions(),

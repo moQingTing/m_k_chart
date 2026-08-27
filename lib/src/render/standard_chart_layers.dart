@@ -250,11 +250,8 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
   @override
   void paint(RenderLayerContext<TTheme> context) {
     final snapshot = context.snapshot;
+    if (snapshot.data.data.isEmpty) return;
     final window = cache.windowFor(snapshot);
-    final visible = window.range;
-    if (visible.isEmpty) {
-      return;
-    }
     final panel = snapshot.layout.mainPanel;
     final transform = cache
         .panelRangeFor(
@@ -263,61 +260,49 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
         )
         .transform(panel.bounds);
     final xTransform = window.xTransform;
-    final extrema = cache.extremaFor(snapshot)!;
     final midpoint = (panel.bounds.left + panel.bounds.right) / 2;
     final paint = Paint()
       ..color = snapshot.theme.markerColor
       ..strokeWidth = snapshot.theme.overlayStrokeWidth
       ..style = PaintingStyle.stroke;
-    for (final point in <(int, double, String)>[
-      (extrema.maxIndex, extrema.max, 'H'),
-      (extrema.minIndex, extrema.min, 'L'),
-    ]) {
-      final x = xTransform.indexToLocalX(point.$1);
-      final y = transform.priceToLocalY(point.$2);
-      context.canvas.drawCircle(
-        Offset(x, y),
-        3,
-        paint,
-      );
-      _drawText(
-        canvas: context.canvas,
-        text: '${point.$3} ${_formatNumber(point.$2)}',
-        color: snapshot.theme.markerColor,
-        fontSize: snapshot.theme.axisFontSize,
-        x: x < midpoint ? x + 5 : x - 5,
-        y: y,
-        horizontalAnchor: x < midpoint ? 0 : 1,
-        verticalAnchor: 0.5,
-        cache: cache,
-      );
+    final extrema = cache.extremaFor(snapshot);
+    if (extrema != null) {
+      for (final point in <(int, double, String)>[
+        (extrema.maxIndex, extrema.max, 'H'),
+        (extrema.minIndex, extrema.min, 'L'),
+      ]) {
+        final x = xTransform.indexToLocalX(point.$1);
+        final y = transform.priceToLocalY(point.$2);
+        context.canvas.drawCircle(
+          Offset(x, y),
+          3,
+          paint,
+        );
+        _drawText(
+          canvas: context.canvas,
+          text: '${point.$3} ${_formatNumber(point.$2)}',
+          color: snapshot.theme.markerColor,
+          fontSize: snapshot.theme.axisFontSize,
+          x: x < midpoint ? x + 5 : x - 5,
+          y: y,
+          horizontalAnchor: x < midpoint ? 0 : 1,
+          verticalAnchor: 0.5,
+          cache: cache,
+        );
+      }
     }
 
     final latestIndex = snapshot.data.data.length - 1;
-    if (!visible.contains(latestIndex)) {
-      return;
-    }
     final latest = cache.candlesFor(snapshot).candles[latestIndex];
     final localX = xTransform.indexToLocalX(latestIndex);
-    final localY = transform.priceToLocalY(latest.close);
-    final latestColor = latest.close >= latest.open
-        ? snapshot.theme.upColor
-        : snapshot.theme.downColor;
-    paint.color = latestColor;
-    context.canvas.drawLine(
-      Offset(localX, localY),
-      Offset(panel.bounds.right, localY),
-      paint,
-    );
-    _drawText(
+    _drawLegacyLatestPrice(
       canvas: context.canvas,
-      text: _formatNumber(latest.close),
-      color: latestColor,
-      fontSize: snapshot.theme.axisFontSize,
-      x: panel.bounds.right - 3,
-      y: localY,
-      horizontalAnchor: 1,
-      verticalAnchor: 0.5,
+      panel: panel.bounds,
+      latestX: localX,
+      latestPrice: latest.close,
+      priceTransform: transform,
+      mainMode: snapshot.mainMode,
+      theme: snapshot.theme,
       cache: cache,
     );
   }
@@ -838,6 +823,136 @@ PaintingStyle _histogramPaintingStyle({
   final increasing = value > previous;
   final hollow = value >= 0 ? !increasing : increasing;
   return hollow ? PaintingStyle.stroke : PaintingStyle.fill;
+}
+
+void _drawLegacyLatestPrice<TTheme extends ChartRenderStyle>({
+  required Canvas canvas,
+  required ChartLayoutRect panel,
+  required double latestX,
+  required double latestPrice,
+  required ChartPriceTransform priceTransform,
+  required ChartMainMode mainMode,
+  required TTheme theme,
+  required ChartRenderCache cache,
+}) {
+  const textColor = Color(0xffffffff);
+  const labelPadding = 5.0;
+  const pillPadding = 3.0;
+  const triangleHeight = 8.0;
+  const triangleWidth = 5.0;
+  final text = _formatNumber(latestPrice);
+  var textPainter = cache.textPainter(
+    text: text,
+    color: textColor,
+    fontSize: theme.axisFontSize,
+  );
+  final remainingRight = panel.right - latestX;
+  final linePaint = Paint()
+    ..color = theme.mainLineColor
+    ..strokeWidth = 0.2
+    ..style = PaintingStyle.stroke;
+  var y = priceTransform.priceToLocalY(latestPrice);
+
+  if (textPainter.width < remainingRight) {
+    final lineStartX =
+        mainMode == ChartMainMode.line || mainMode == ChartMainMode.area
+            ? latestX
+            : latestX + ChartViewport.defaultItemExtent / 2;
+    _drawLegacyDashedHorizontalLine(
+      canvas: canvas,
+      startX: lineStartX,
+      length: remainingRight - textPainter.width - labelPadding * 2,
+      y: y,
+      paint: linePaint,
+    );
+    final textLeft = panel.right - textPainter.width;
+    final top = y - textPainter.height / 2;
+    canvas.drawRRect(
+      RRect.fromLTRBR(
+        textLeft - labelPadding,
+        top,
+        panel.right + labelPadding,
+        top + textPainter.height,
+        const Radius.circular(2),
+      ),
+      Paint()..color = theme.mainLineColor,
+    );
+    textPainter.paint(canvas, Offset(textLeft, top));
+    return;
+  }
+
+  final visibleLatestPrice = latestPrice.clamp(
+    priceTransform.minPrice,
+    priceTransform.maxPrice,
+  );
+  y = priceTransform.priceToLocalY(visibleLatestPrice);
+  _drawLegacyDashedHorizontalLine(
+    canvas: canvas,
+    startX: panel.left,
+    length: panel.width,
+    y: y,
+    paint: linePaint,
+  );
+
+  final left = panel.right - textPainter.width * 2.5;
+  final top = y - textPainter.height / 2 - pillPadding;
+  final right = left + textPainter.width + pillPadding * 3 + triangleWidth;
+  final bottom = top + textPainter.height + pillPadding * 2;
+  final radius = (bottom - top) / 2;
+  final inner = RRect.fromLTRBR(
+    left,
+    top,
+    right,
+    bottom,
+    Radius.circular(radius),
+  );
+  final outer = RRect.fromLTRBR(
+    left - 1,
+    top - 1,
+    right + 1,
+    bottom + 1,
+    Radius.circular(radius + 2),
+  );
+  canvas
+    ..drawRRect(outer, Paint()..color = theme.markerColor)
+    ..drawRRect(inner, Paint()..color = theme.mainLineColor);
+
+  textPainter = cache.textPainter(
+    text: text,
+    color: textColor,
+    fontSize: theme.axisFontSize,
+  );
+  final textOffset = Offset(left + pillPadding, y - textPainter.height / 2);
+  textPainter.paint(canvas, textOffset);
+  final triangleX = textOffset.dx + textPainter.width + pillPadding;
+  final triangleY = top + (bottom - top - triangleHeight) / 2;
+  final triangle = Path()
+    ..moveTo(triangleX, triangleY)
+    ..lineTo(triangleX + triangleWidth, triangleY + triangleHeight / 2)
+    ..lineTo(triangleX, triangleY + triangleHeight)
+    ..close();
+  canvas.drawPath(triangle, Paint()..color = textColor);
+}
+
+void _drawLegacyDashedHorizontalLine({
+  required Canvas canvas,
+  required double startX,
+  required double length,
+  required double y,
+  required Paint paint,
+  double dashWidth = 4,
+  double dashSpace = 4,
+}) {
+  if (length <= 0) return;
+  var offset = 0.0;
+  while (offset < length) {
+    canvas.drawLine(
+      Offset(startX + offset, y),
+      Offset(startX + offset + dashWidth, y),
+      paint,
+    );
+    offset += dashWidth + dashSpace;
+  }
 }
 
 void _drawText({

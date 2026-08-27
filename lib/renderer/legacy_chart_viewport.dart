@@ -63,6 +63,15 @@ final class LegacyChartViewportMetrics {
 
   double get maxScrollX => minTranslateX.abs();
 
+  /// Exact virtual-slot equivalent of the legacy `mMarginRight` and
+  /// `minTranslateX` calculations for the immutable V2 viewport.
+  double get trailingPaddingItems {
+    if (itemCount == 0 || width == 0) return 0;
+    final visibleCapacity = width / (pointWidth * scaleX);
+    final padding = maxScrollX / pointWidth + visibleCapacity - itemCount;
+    return padding > 0 ? padding : 0;
+  }
+
   double clampScrollX(double value) => value.clamp(0.0, maxScrollX).toDouble();
 
   int selectedIndex({

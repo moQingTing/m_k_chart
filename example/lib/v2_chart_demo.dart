@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:m_k_chart/m_k_chart.dart';
+import 'package:m_k_chart/renderer/legacy_chart_viewport.dart';
 import 'package:m_k_chart/v2_example_support.dart';
 
 import 'okx_market_data_client.dart';
@@ -167,7 +168,6 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _mainIndicatorHeaderHeight = 18.0;
   var _secondaryIndicatorHeaderHeight = 18.0;
   var _mainTimeAxisHeight = 18.0;
-  var _rightBlankWidth = 52.0;
   var _timeZoneOffsetHours = 8;
   var _overlaySecondaryIndicators = false;
   var _revision = 0;
@@ -776,19 +776,6 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                 _advanceRevision();
               }),
             ),
-            _SliderSetting(
-              key: const ValueKey('right-blank-width-setting'),
-              label: '最新 K 线右侧留白宽度',
-              value: _rightBlankWidth,
-              min: 0,
-              max: 120,
-              divisions: 24,
-              valueLabel: '${_rightBlankWidth.round()} px',
-              onChanged: (value) => setState(() {
-                _rightBlankWidth = value;
-                _advanceRevision();
-              }),
-            ),
             _ToolbarSection(
               title: '时间显示时区',
               children: [
@@ -842,15 +829,17 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     );
                     final itemExtent = _itemExtent ??
                         layout.drawingBounds.width / _visibleCandles;
-                    final trailingPaddingItems = math.max(
-                      0.0,
-                      _rightBlankWidth / itemExtent - 0.5,
+                    final legacyViewport = LegacyChartViewportMetrics(
+                      itemCount: _data.data.length,
+                      width: layout.drawingBounds.width,
+                      scaleX: itemExtent / ChartViewport.defaultItemExtent,
+                      pointWidth: ChartViewport.defaultItemExtent,
                     );
                     final viewport = ChartViewport(
                       itemCount: _data.data.length,
                       width: layout.drawingBounds.width,
                       itemExtent: itemExtent,
-                      trailingPaddingItems: trailingPaddingItems,
+                      trailingPaddingItems: legacyViewport.trailingPaddingItems,
                       scrollOffsetItems: _scrollOffsetItems,
                     );
                     final baseSnapshot = RenderSnapshot<KChartTheme>(
