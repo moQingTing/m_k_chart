@@ -85,6 +85,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _scrollOffsetItems = 0.0;
   double? _itemExtent;
   int? _selectedIndex;
+  String? _selectedPanelId;
   double? _selectedPrice;
   var _selectedLocalY = 0.0;
   var _loadGeneration = 0;
@@ -215,6 +216,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
 
   void _clearSelection() {
     _selectedIndex = null;
+    _selectedPanelId = null;
     _selectedPrice = null;
     _selectionRevision++;
   }
@@ -255,15 +257,22 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       viewport: snapshot.viewport,
       data: snapshot.data,
     ).localXToNearestIndex(localPosition.dx);
-    final mainBounds = snapshot.layout.panel('main').bounds;
+    String? panelId;
+    for (final panel in snapshot.layout.panels) {
+      if (panel.bounds.contains(x: localPosition.dx, y: localPosition.dy)) {
+        panelId = panel.spec.id;
+        break;
+      }
+    }
     double? price;
-    if (mainBounds.contains(x: localPosition.dx, y: localPosition.dy)) {
-      price = ChartLayerGeometry.rangeFor(snapshot, 'main')
-          .transform(mainBounds)
+    if (panelId != null) {
+      price = ChartLayerGeometry.rangeFor(snapshot, panelId)
+          .transform(snapshot.layout.panel(panelId).bounds)
           .localYToPrice(localPosition.dy);
     }
     setState(() {
       _selectedIndex = index;
+      _selectedPanelId = panelId;
       _selectedPrice = price;
       _selectedLocalY = localPosition.dy;
       _selectionRevision++;
@@ -281,19 +290,24 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       data: snapshot.data,
     ).indexToLocalX(index);
     final selectedPrice = _selectedPrice;
-    final localY = selectedPrice == null
-        ? _selectedLocalY.clamp(bounds.top, bounds.bottom).toDouble()
-        : ChartLayerGeometry.rangeFor(snapshot, 'main')
-            .transform(snapshot.layout.panel('main').bounds)
-            .priceToLocalY(selectedPrice)
-            .clamp(bounds.top, bounds.bottom)
-            .toDouble();
+    final selectedPanelId = _selectedPanelId;
+    final isSnapped = selectedPrice != null && selectedPanelId != null;
+    final double localY;
+    if (selectedPrice == null || selectedPanelId == null) {
+      localY = _selectedLocalY.clamp(bounds.top, bounds.bottom).toDouble();
+    } else {
+      localY = ChartLayerGeometry.rangeFor(snapshot, selectedPanelId)
+          .transform(snapshot.layout.panel(selectedPanelId).bounds)
+          .priceToLocalY(selectedPrice)
+          .clamp(bounds.top, bounds.bottom)
+          .toDouble();
+    }
     return RenderSelectionSnapshot.visible(
       localX: localX.clamp(bounds.left, bounds.right).toDouble(),
       localY: localY,
-      dataIndex: index,
-      price: selectedPrice,
-      valueKind: selectedPrice == null ? null : RenderSelectionValueKind.close,
+      dataIndex: isSnapped ? index : null,
+      price: isSnapped ? selectedPrice : null,
+      valueKind: isSnapped ? RenderSelectionValueKind.close : null,
     );
   }
 
