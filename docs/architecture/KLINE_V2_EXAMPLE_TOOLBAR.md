@@ -20,10 +20,10 @@ legacy `ExamplePage` 和现有网络数据示例仍保留在 `example/lib/main.d
 | Main overlays | MA、EMA、BOLL、SAR、VWAP | 将内置指标计算结果装配到 `main` panel，与 K 线叠加显示 |
 | Secondary indicators | VOL、MACD、KDJ、RSI、WR、OBV、ATR、CCI、DMI、ROC、Stoch RSI | 可以任意组合；默认 VOL + MACD |
 | Secondary layout | 合并为一个面板、分面板排序、72～180 px 最小高度 | 允许副图指标叠加，或按用户顺序拥有独立面板 |
-| Active indicator parameters | 当前主图和副图指标 | 在图表前显示真实生效的周期、倍数和平滑参数；这些值也会传入 `IndicatorConfig` |
+| Panel legends | 当前主图和副图指标 | 在每个面板左上角的透明专用标题区显示当前序列值；计算参数会传入 `IndicatorConfig` |
 | Viewport | 20～300 根可见 K 线 | 将可见根数换算成 viewport 的 item extent |
 
-界面采用高对比浅色主题，标题和操作文案均为中文。指标缩写沿用交易软件的行业通用写法；“当前指标参数”区域会将 MA、BOLL、MACD 等已选指标的实际参数直接列出，避免只能根据缩写推测计算口径。图表每个面板的左上角同时显示与线条同色的 `系列名称: 当前值` 图例；默认使用当前视图最后一根 K 线，点击或长按后切换为所选 K 线的数值。
+界面采用高对比浅色主题，标题和操作文案均为中文。指标缩写沿用交易软件的行业通用写法。图表每个面板的左上角均预留透明标题区，显示与线条同色的 `系列名称: 当前值` 图例；默认使用当前视图最后一根 K 线，点击或长按后切换为所选 K 线的数值。主图与首个副图之间另预留时间轴区域，展示当前视图的起止时间。
 
 ## 3. 图表手势与坐标详情
 

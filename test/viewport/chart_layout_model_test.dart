@@ -54,6 +54,22 @@ void main() {
       expect(layout.mainPanel.bounds.height, 210);
     });
 
+    test('reserves panel headers outside drawable chart content', () {
+      final layout = ChartLayoutModel(
+        width: 300,
+        height: 240,
+        topPadding: 10,
+        bottomAxisHeight: 20,
+        mainPanel: const ChartPanelSpec.main(headerHeight: 24),
+      );
+
+      expect(layout.mainPanel.headerBounds.top, 10);
+      expect(layout.mainPanel.headerBounds.bottom, 34);
+      expect(layout.mainPanel.bounds.top, 34);
+      expect(layout.mainPanel.bounds.bottom, 220);
+      expect(layout.mainPanel.bounds.height, 186);
+    });
+
     test('applies drawable width to a viewport and re-clamps scrolling', () {
       final layout = _multiPanelLayout();
       final viewport = ChartViewport(
@@ -132,6 +148,14 @@ void main() {
           height: 200,
           leftPadding: 50,
           rightPadding: 50,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ChartLayoutModel(
+          width: 200,
+          height: 300,
+          mainPanel: const ChartPanelSpec.main(headerHeight: -1),
         ),
         throwsArgumentError,
       );

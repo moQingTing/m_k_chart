@@ -87,13 +87,6 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -1400));
     await tester.pump();
     expect(
-      find.byKey(const ValueKey('active-indicator-parameters')),
-      findsOneWidget,
-    );
-    expect(find.textContaining('MA · 周期 5 / 10 / 20 / 30'), findsOneWidget);
-    expect(find.textContaining('BOLL · 周期 20 · 倍数 2'), findsOneWidget);
-    expect(find.textContaining('RSI · 周期 14'), findsOneWidget);
-    expect(
       find.byKey(const ValueKey('panel-indicator-legend-main')),
       findsOneWidget,
     );

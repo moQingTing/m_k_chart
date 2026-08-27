@@ -11,6 +11,7 @@ final class ChartPanelSpec {
     this.id = 'main',
     this.weight = 3,
     this.minHeight = 120,
+    this.headerHeight = 0,
     this.gridRows = 4,
   }) : kind = ChartPanelKind.main;
 
@@ -18,6 +19,7 @@ final class ChartPanelSpec {
     required this.id,
     this.weight = 1,
     this.minHeight = 60,
+    this.headerHeight = 0,
     this.gridRows = 2,
   }) : kind = ChartPanelKind.secondary;
 
@@ -25,6 +27,10 @@ final class ChartPanelSpec {
   final ChartPanelKind kind;
   final double weight;
   final double minHeight;
+
+  /// Reserved height above the drawable panel, for overlays such as legends.
+  /// It is excluded from indicator, candle, and grid rendering.
+  final double headerHeight;
 
   /// Number of vertical intervals. The generated horizontal line count is
   /// [gridRows] + 1, including both panel edges.
@@ -38,10 +44,12 @@ final class ChartPanelSpec {
           kind == other.kind &&
           weight == other.weight &&
           minHeight == other.minHeight &&
+          headerHeight == other.headerHeight &&
           gridRows == other.gridRows;
 
   @override
-  int get hashCode => Object.hash(id, kind, weight, minHeight, gridRows);
+  int get hashCode =>
+      Object.hash(id, kind, weight, minHeight, headerHeight, gridRows);
 }
 
 /// A rectangle in chart-local logical pixels.
@@ -83,19 +91,26 @@ final class ChartLayoutRect {
 final class ChartPanelLayout {
   const ChartPanelLayout._({
     required this.spec,
+    required this.headerBounds,
     required this.bounds,
   });
 
   final ChartPanelSpec spec;
+
+  /// Reserved non-drawing header directly above [bounds].
+  final ChartLayoutRect headerBounds;
   final ChartLayoutRect bounds;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ChartPanelLayout && spec == other.spec && bounds == other.bounds;
+      other is ChartPanelLayout &&
+          spec == other.spec &&
+          headerBounds == other.headerBounds &&
+          bounds == other.bounds;
 
   @override
-  int get hashCode => Object.hash(spec, bounds);
+  int get hashCode => Object.hash(spec, headerBounds, bounds);
 }
 
 /// Deterministic chart-local geometry for the main panel, secondary panels,
@@ -134,15 +149,20 @@ final class ChartLayoutModel {
     }
 
     final totalSpacing = panelSpacing * (specs.length - 1);
-    final panelHeight = drawableBottom - topPadding - totalSpacing;
-    final minimumHeight = specs.fold<double>(
+    final availablePanelHeight = drawableBottom - topPadding - totalSpacing;
+    final reservedHeaderHeight = specs.fold<double>(
+      0,
+      (total, spec) => total + spec.headerHeight,
+    );
+    final minimumContentHeight = specs.fold<double>(
       0,
       (total, spec) => total + spec.minHeight,
     );
-    if (panelHeight < minimumHeight) {
+    if (availablePanelHeight < reservedHeaderHeight + minimumContentHeight) {
       throw ArgumentError(
-        'Chart height provides $panelHeight logical pixels for panels, but '
-        '$minimumHeight is required.',
+        'Chart height provides $availablePanelHeight logical pixels for '
+        'panel headers and content, but '
+        '${reservedHeaderHeight + minimumContentHeight} is required.',
       );
     }
 
@@ -150,21 +170,29 @@ final class ChartLayoutModel {
       0,
       (total, spec) => total + spec.weight,
     );
-    final weightedHeight = panelHeight - minimumHeight;
+    final weightedContentHeight =
+        availablePanelHeight - reservedHeaderHeight - minimumContentHeight;
     final layouts = <ChartPanelLayout>[];
     var top = topPadding;
     for (var index = 0; index < specs.length; index++) {
       final spec = specs[index];
       final isLast = index == specs.length - 1;
-      final heightShare =
-          spec.minHeight + weightedHeight * spec.weight / totalWeight;
-      final bottom = isLast ? drawableBottom : top + heightShare;
+      final contentTop = top + spec.headerHeight;
+      final contentHeight =
+          spec.minHeight + weightedContentHeight * spec.weight / totalWeight;
+      final bottom = isLast ? drawableBottom : contentTop + contentHeight;
       layouts.add(
         ChartPanelLayout._(
           spec: spec,
-          bounds: ChartLayoutRect._(
+          headerBounds: ChartLayoutRect._(
             left: drawableLeft,
             top: top,
+            right: drawableRight,
+            bottom: contentTop,
+          ),
+          bounds: ChartLayoutRect._(
+            left: drawableLeft,
+            top: contentTop,
             right: drawableRight,
             bottom: bottom,
           ),
@@ -376,6 +404,13 @@ void _validatePanels(List<ChartPanelSpec> specs) {
         spec.minHeight,
         'minHeight',
         'Must be finite and positive.',
+      );
+    }
+    if (!spec.headerHeight.isFinite || spec.headerHeight < 0) {
+      throw ArgumentError.value(
+        spec.headerHeight,
+        'headerHeight',
+        'Must be finite and non-negative.',
       );
     }
     if (spec.gridRows <= 0) {

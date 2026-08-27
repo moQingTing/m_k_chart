@@ -22,6 +22,10 @@ class V2TradingChartDemo extends StatefulWidget {
 }
 
 class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
+  static const _indicatorLegendHeight = 22.0;
+  static const _panelSpacing = 28.0;
+  static const _bottomTimeAxisHeight = 24.0;
+
   static final _intervals = <KlineInterval>[
     KlineInterval.oneMinute,
     KlineInterval.fiveMinutes,
@@ -500,6 +504,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                 ChartPanelSpec.secondary(
                     id: 'secondary-overlay',
                     minHeight: _secondaryPanelHeight,
+                    headerHeight: _indicatorLegendHeight,
                     gridRows: 3)
               ]
             : [
@@ -507,12 +512,19 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                   ChartPanelSpec.secondary(
                     id: _secondaryPanelId(id),
                     minHeight: _secondaryPanelHeight,
+                    headerHeight: _indicatorLegendHeight,
                     gridRows: 3,
                   ),
               ];
     final chartHeight = math.max(
-      390.0,
-      260 + secondaryPanels.length * (_secondaryPanelHeight + 8),
+      460.0,
+      220 +
+          _indicatorLegendHeight +
+          secondaryPanels.length *
+              (_secondaryPanelHeight + _indicatorLegendHeight) +
+          (secondaryPanels.length * _panelSpacing) +
+          _bottomTimeAxisHeight +
+          36,
     );
     return Scaffold(
       appBar: AppBar(
@@ -695,15 +707,6 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                 _advanceRevision();
               }),
             ),
-            const SizedBox(height: 8),
-            _ActiveIndicatorParameters(
-              main: [
-                for (final id in _mainIndicators) _indicator(id),
-              ],
-              secondary: [
-                for (final id in _secondaryIndicators) _indicator(id),
-              ],
-            ),
             const SizedBox(height: 16),
             Semantics(
               label: 'V2 图表 ${_interval.code} ${_modeLabel(_mode)}',
@@ -717,10 +720,13 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       height: chartHeight,
                       leftPadding: 8,
                       rightPadding: 8,
-                      bottomAxisHeight: 24,
-                      panelSpacing: 8,
+                      bottomAxisHeight: _bottomTimeAxisHeight,
+                      panelSpacing: _panelSpacing,
                       mainPanel: const ChartPanelSpec.main(
-                          minHeight: 220, gridRows: 5),
+                        minHeight: 220,
+                        headerHeight: _indicatorLegendHeight,
+                        gridRows: 5,
+                      ),
                       secondaryPanels: secondaryPanels,
                     );
                     final viewport = ChartViewport(
@@ -795,13 +801,32 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                                 ),
                                 left: layout.drawingBounds.left + 8,
                                 right: 12,
-                                top: panel.bounds.top + 6,
+                                top: panel.headerBounds.top + 5,
                                 child: IgnorePointer(
                                   child: _PanelIndicatorLegend(
                                     entries: _indicatorLegendEntries(
                                       snapshot,
                                       panelId: panel.spec.id,
                                       dataIndex: indicatorLegendIndex,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if (layout.secondaryPanels.isNotEmpty)
+                              Positioned(
+                                left: layout.drawingBounds.left + 8,
+                                right: 12,
+                                top: layout.mainPanel.bounds.bottom + 4,
+                                height: _panelSpacing - 8,
+                                child: IgnorePointer(
+                                  child: _IntermediateTimeAxis(
+                                    start: _formatAxisTime(
+                                      _data.data[viewport.visibleRange.start]
+                                          .openTime,
+                                    ),
+                                    end: _formatAxisTime(
+                                      _data.data[viewport.visibleRange.end - 1]
+                                          .openTime,
                                     ),
                                   ),
                                 ),
@@ -823,7 +848,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                             if (selectedCandle != null)
                               Positioned(
                                 left: 12,
-                                top: layout.panel('main').bounds.top + 50,
+                                top: layout.panel('main').bounds.top + 8,
                                 child: IgnorePointer(
                                   child: _CrosshairDetails(
                                     candle: selectedCandle,
@@ -903,44 +928,6 @@ class _SliderSetting extends StatelessWidget {
       );
 }
 
-class _ActiveIndicatorParameters extends StatelessWidget {
-  const _ActiveIndicatorParameters({
-    required this.main,
-    required this.secondary,
-  });
-
-  final List<_IndicatorOption> main;
-  final List<_IndicatorOption> secondary;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        key: const ValueKey('active-indicator-parameters'),
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xffeff6ff),
-          border: Border.all(color: const Color(0xff93c5fd)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '当前指标参数',
-              style: TextStyle(
-                color: Color(0xff1e3a8a),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _ParameterLine(title: '主图', options: main),
-            const SizedBox(height: 6),
-            _ParameterLine(title: '副图', options: secondary),
-          ],
-        ),
-      );
-}
-
 class _PanelIndicatorLegend extends StatelessWidget {
   const _PanelIndicatorLegend({required this.entries});
 
@@ -949,27 +936,23 @@ class _PanelIndicatorLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty) return const SizedBox.shrink();
-    return Container(
-      color: const Color(0xe6ffffff),
-      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-      child: RichText(
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        text: TextSpan(
-          children: [
-            for (final entry in entries) ...[
-              TextSpan(
-                text: '${entry.label}: ${_formatIndicatorValue(entry.value)}',
-                style: TextStyle(
-                  color: entry.color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
+    return RichText(
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        children: [
+          for (final entry in entries) ...[
+            TextSpan(
+              text: '${entry.label}: ${_formatIndicatorValue(entry.value)}',
+              style: TextStyle(
+                color: entry.color,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
               ),
-              const TextSpan(text: '   '),
-            ],
+            ),
+            const TextSpan(text: '   '),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -987,56 +970,20 @@ final class _IndicatorLegendEntry {
   final Color color;
 }
 
-class _ParameterLine extends StatelessWidget {
-  const _ParameterLine({required this.title, required this.options});
+class _IntermediateTimeAxis extends StatelessWidget {
+  const _IntermediateTimeAxis({required this.start, required this.end});
 
-  final String title;
-  final List<_IndicatorOption> options;
+  final String start;
+  final String end;
 
   @override
   Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          SizedBox(
-            width: 38,
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xff334155),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: options.isEmpty
-                  ? const [
-                      Text('未添加指标', style: TextStyle(color: Color(0xff64748b)))
-                    ]
-                  : [
-                      for (final option in options)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '${option.label} · ${option.parameterSummary}',
-                            style: const TextStyle(
-                              color: Color(0xff0f172a),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                    ],
-            ),
-          ),
+          Text(start,
+              style: const TextStyle(color: Color(0xff60738e), fontSize: 10)),
+          Text(end,
+              style: const TextStyle(color: Color(0xff60738e), fontSize: 10)),
         ],
       );
 }
@@ -1117,6 +1064,13 @@ String _formatTime(int epochMilliseconds) {
   final time = DateTime.fromMillisecondsSinceEpoch(epochMilliseconds).toLocal();
   String twoDigits(int value) => value.toString().padLeft(2, '0');
   return '${time.year}-${twoDigits(time.month)}-${twoDigits(time.day)} '
+      '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
+}
+
+String _formatAxisTime(int epochMilliseconds) {
+  final time = DateTime.fromMillisecondsSinceEpoch(epochMilliseconds).toLocal();
+  String twoDigits(int value) => value.toString().padLeft(2, '0');
+  return '${twoDigits(time.month)}-${twoDigits(time.day)} '
       '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
 }
 
