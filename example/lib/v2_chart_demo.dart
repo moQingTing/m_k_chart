@@ -41,22 +41,106 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   ];
 
   static const _indicators = <_IndicatorOption>[
-    _IndicatorOption('ma', 'MA', 'legacy.ma', true),
-    _IndicatorOption('ema', 'EMA', 'legacy.ema', true),
-    _IndicatorOption('boll', 'BOLL', 'legacy.boll', true),
-    _IndicatorOption('sar', 'SAR', 'legacy.sar', true),
-    _IndicatorOption('vwap', 'VWAP', 'builtin.vwap', true),
-    _IndicatorOption('vol', 'VOL', 'legacy.vol', false),
-    _IndicatorOption('macd', 'MACD', 'legacy.macd', false),
-    _IndicatorOption('kdj', 'KDJ', 'legacy.kdj', false),
-    _IndicatorOption('rsi', 'RSI', 'legacy.rsi', false),
-    _IndicatorOption('wr', 'WR', 'legacy.wr', false),
-    _IndicatorOption('obv', 'OBV', 'legacy.obv', false),
-    _IndicatorOption('atr', 'ATR', 'builtin.atr', false),
-    _IndicatorOption('cci', 'CCI', 'builtin.cci', false),
-    _IndicatorOption('dmi', 'DMI', 'builtin.dmi', false),
-    _IndicatorOption('roc', 'ROC', 'builtin.roc', false),
-    _IndicatorOption('stoch-rsi', 'Stoch RSI', 'builtin.stochRsi', false),
+    _IndicatorOption('ma', 'MA', 'legacy.ma', true, '周期 5 / 10 / 20 / 30'),
+    _IndicatorOption('ema', 'EMA', 'legacy.ema', true, '周期 5 / 10 / 30'),
+    _IndicatorOption(
+      'boll',
+      'BOLL',
+      'legacy.boll',
+      true,
+      '周期 20 · 倍数 2',
+      parameters: {'period': 20, 'multiplier': 2},
+    ),
+    _IndicatorOption(
+      'sar',
+      'SAR',
+      'legacy.sar',
+      true,
+      '起始 0.02 · 步长 0.02 · 最大 0.20',
+      parameters: {'afStart': 0.02, 'afIncrement': 0.02, 'afMax': 0.2},
+    ),
+    _IndicatorOption(
+        'vwap', 'VWAP', 'builtin.vwap', true, '典型价 (高 + 低 + 收) / 3'),
+    _IndicatorOption('vol', 'VOL', 'legacy.vol', false, '均量周期 5 / 10'),
+    _IndicatorOption(
+        'macd', 'MACD', 'legacy.macd', false, '快速 12 · 慢速 26 · 信号 9'),
+    _IndicatorOption(
+      'kdj',
+      'KDJ',
+      'legacy.kdj',
+      false,
+      '周期 14 · 平滑 3 / 3',
+      parameters: {'period': 14},
+    ),
+    _IndicatorOption(
+      'rsi',
+      'RSI',
+      'legacy.rsi',
+      false,
+      '周期 14',
+      parameters: {'period': 14},
+    ),
+    _IndicatorOption(
+      'wr',
+      'WR',
+      'legacy.wr',
+      false,
+      '周期 14',
+      parameters: {'period': 14},
+    ),
+    _IndicatorOption(
+      'obv',
+      'OBV',
+      'legacy.obv',
+      false,
+      '均线周期 30',
+      parameters: {'period': 30},
+    ),
+    _IndicatorOption(
+      'atr',
+      'ATR',
+      'builtin.atr',
+      false,
+      '周期 14',
+      parameters: {'period': 14},
+    ),
+    _IndicatorOption(
+      'cci',
+      'CCI',
+      'builtin.cci',
+      false,
+      '周期 20 · 常数 0.015',
+      parameters: {'period': 20, 'constant': 0.015},
+    ),
+    _IndicatorOption(
+      'dmi',
+      'DMI',
+      'builtin.dmi',
+      false,
+      'DI 周期 14 · ADX 周期 14',
+      parameters: {'period': 14, 'adxPeriod': 14},
+    ),
+    _IndicatorOption(
+      'roc',
+      'ROC',
+      'builtin.roc',
+      false,
+      '周期 12',
+      parameters: {'period': 12},
+    ),
+    _IndicatorOption(
+      'stoch-rsi',
+      'Stoch RSI',
+      'builtin.stochRsi',
+      false,
+      'RSI 14 · 随机 14 · K 3 · D 3',
+      parameters: {
+        'rsiPeriod': 14,
+        'stochPeriod': 14,
+        'kPeriod': 3,
+        'dPeriod': 3,
+      },
+    ),
   ];
 
   late final StandardChartRenderPipeline<KChartTheme> _pipeline;
@@ -327,6 +411,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         IndicatorConfig(
           instanceId: 'demo-${option.id}',
           definitionId: option.definitionId,
+          parameters: option.parameters,
         ),
     ];
     final batch = _indicatorEngine.resolveAll(_data, configs);
@@ -547,6 +632,15 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                 _advanceRevision();
               }),
             ),
+            const SizedBox(height: 8),
+            _ActiveIndicatorParameters(
+              main: [
+                for (final id in _mainIndicators) _indicator(id),
+              ],
+              secondary: [
+                for (final id in _secondaryIndicators) _indicator(id),
+              ],
+            ),
             const SizedBox(height: 16),
             Semantics(
               label: 'V2 图表 ${_interval.code} ${_modeLabel(_mode)}',
@@ -726,6 +820,98 @@ class _SliderSetting extends StatelessWidget {
       );
 }
 
+class _ActiveIndicatorParameters extends StatelessWidget {
+  const _ActiveIndicatorParameters({
+    required this.main,
+    required this.secondary,
+  });
+
+  final List<_IndicatorOption> main;
+  final List<_IndicatorOption> secondary;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        key: const ValueKey('active-indicator-parameters'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xffeff6ff),
+          border: Border.all(color: const Color(0xff93c5fd)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '当前指标参数',
+              style: TextStyle(
+                color: Color(0xff1e3a8a),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _ParameterLine(title: '主图', options: main),
+            const SizedBox(height: 6),
+            _ParameterLine(title: '副图', options: secondary),
+          ],
+        ),
+      );
+}
+
+class _ParameterLine extends StatelessWidget {
+  const _ParameterLine({required this.title, required this.options});
+
+  final String title;
+  final List<_IndicatorOption> options;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 38,
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xff334155),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: options.isEmpty
+                  ? const [
+                      Text('未添加指标', style: TextStyle(color: Color(0xff64748b)))
+                    ]
+                  : [
+                      for (final option in options)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${option.label} · ${option.parameterSummary}',
+                            style: const TextStyle(
+                              color: Color(0xff0f172a),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+            ),
+          ),
+        ],
+      );
+}
+
 class _PanelOrderRow extends StatelessWidget {
   const _PanelOrderRow(
       {required this.label,
@@ -861,11 +1047,21 @@ String _modeLabel(ChartMainMode mode) => switch (mode) {
     };
 
 final class _IndicatorOption {
-  const _IndicatorOption(this.id, this.label, this.definitionId, this.isMain);
+  const _IndicatorOption(
+    this.id,
+    this.label,
+    this.definitionId,
+    this.isMain,
+    this.parameterSummary, {
+    this.parameters = const {},
+  });
+
   final String id;
   final String label;
   final String definitionId;
   final bool isMain;
+  final String parameterSummary;
+  final Map<String, num> parameters;
 }
 
 final class _DemoData implements VersionedKlineData {
