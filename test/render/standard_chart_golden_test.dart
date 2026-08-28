@@ -270,7 +270,8 @@ bool _sameVersions(
     first.selection == second.selection &&
     first.history == second.history &&
     first.layout == second.layout &&
-    first.theme == second.theme;
+    first.theme == second.theme &&
+    first.clock == second.clock;
 
 RenderSnapshot<DefaultChartRenderStyle> _snapshot({
   required double width,
@@ -310,6 +311,7 @@ RenderSnapshot<DefaultChartRenderStyle> _snapshot({
       localY: height * 0.26,
     ),
     mainMode: mainMode,
+    currentTime: data.data.last.openTime + 44500,
   );
 }
 
@@ -330,6 +332,7 @@ RenderSnapshot<DefaultChartRenderStyle> _copySnapshot(
       history: source.history,
       drawings: source.drawings,
       mainMode: source.mainMode,
+      currentTime: source.currentTime,
     );
 
 List<RenderIndicatorSnapshot> _indicators(

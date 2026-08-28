@@ -301,10 +301,9 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
       panel: panel.bounds,
       latestX: localX,
       latestPrice: latest.close,
-      latestTime: snapshot.latestPriceTime,
+      countdownText: snapshot.latestPriceCountdownText,
       priceTransform: transform,
       mainMode: snapshot.mainMode,
-      timeZoneOffset: snapshot.timeZoneOffset,
       theme: snapshot.theme,
       cache: cache,
     );
@@ -833,10 +832,9 @@ void _drawLatestPrice<TTheme extends ChartRenderStyle>({
   required ChartLayoutRect panel,
   required double latestX,
   required double latestPrice,
-  required int latestTime,
+  required String countdownText,
   required ChartPriceTransform priceTransform,
   required ChartMainMode mainMode,
-  required Duration timeZoneOffset,
   required TTheme theme,
   required ChartRenderCache cache,
 }) {
@@ -846,7 +844,6 @@ void _drawLatestPrice<TTheme extends ChartRenderStyle>({
   const triangleHeight = 8.0;
   const triangleWidth = 4.0;
   final priceText = _formatLatestPrice(latestPrice);
-  final timeText = _formatClockTime(latestTime, timeZoneOffset);
   final fontSize = theme.axisFontSize + 2;
   final pricePainter = cache.textPainter(
     text: priceText,
@@ -854,7 +851,7 @@ void _drawLatestPrice<TTheme extends ChartRenderStyle>({
     fontSize: fontSize,
   );
   final timePainter = cache.textPainter(
-    text: timeText,
+    text: countdownText,
     color: theme.axisTextColor,
     fontSize: fontSize,
   );
@@ -1052,19 +1049,6 @@ String _formatLatestPrice(double value) {
     grouped.write(digits[index]);
   }
   return '$sign$grouped.${parts[1]}';
-}
-
-String _formatClockTime(
-  int epochMilliseconds,
-  Duration timeZoneOffset,
-) {
-  final date = DateTime.fromMillisecondsSinceEpoch(
-    epochMilliseconds + timeZoneOffset.inMilliseconds,
-    isUtc: true,
-  );
-  return '${date.hour.toString().padLeft(2, '0')}:'
-      '${date.minute.toString().padLeft(2, '0')}:'
-      '${date.second.toString().padLeft(2, '0')}';
 }
 
 void _drawText({

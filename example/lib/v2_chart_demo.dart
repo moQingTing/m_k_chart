@@ -176,7 +176,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _viewportRevision = 0;
   var _selectionRevision = 0;
   var _clockRevision = 0;
-  var _latestPriceTime = DateTime.now().millisecondsSinceEpoch;
+  var _currentTime = DateTime.now().millisecondsSinceEpoch;
   var _scrollOffsetItems = 0.0;
   double? _itemExtent;
   int? _selectedIndex;
@@ -203,7 +203,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
         setState(() {
-          _latestPriceTime = DateTime.now().millisecondsSinceEpoch;
+          _currentTime = DateTime.now().millisecondsSinceEpoch;
           _clockRevision++;
         });
       });
@@ -879,7 +879,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       timeZoneOffset: Duration(
                         hours: _timeZoneOffsetHours,
                       ),
-                      latestPriceTime: _latestPriceTime,
+                      currentTime: _currentTime,
                     );
                     final snapshot = RenderSnapshot<KChartTheme>(
                       data: _data,
@@ -900,7 +900,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       timeZoneOffset: Duration(
                         hours: _timeZoneOffsetHours,
                       ),
-                      latestPriceTime: _latestPriceTime,
+                      currentTime: _currentTime,
                     );
                     final selectedIndex = _selectedIndex;
                     final selectedCandle = selectedIndex != null &&

@@ -213,7 +213,8 @@ void main() {
     expect(_fixture().snapshot().mainMode, ChartMainMode.candlestick);
   });
 
-  test('snapshot accepts a host market clock and rejects negative values', () {
+  test('snapshot calculates minute countdown and rounds up partial seconds',
+      () {
     final fixture = _fixture();
     final snapshot = RenderSnapshot<_Theme>(
       data: fixture.data,
@@ -221,10 +222,74 @@ void main() {
       layout: fixture.layout,
       theme: const _Theme('dark'),
       versions: const RenderSnapshotVersions(clock: 1),
-      latestPriceTime: 1700000000000,
+      currentTime: 1704067350500,
     );
 
-    expect(snapshot.latestPriceTime, 1700000000000);
+    expect(snapshot.currentTime, 1704067350500);
+    expect(snapshot.latestPriceCountdown, const Duration(milliseconds: 29500));
+    expect(snapshot.latestPriceCountdownText, '00:30');
+
+    final oneSecondLater = RenderSnapshot<_Theme>(
+      data: fixture.data,
+      viewport: fixture.viewport,
+      layout: fixture.layout,
+      theme: const _Theme('dark'),
+      versions: const RenderSnapshotVersions(clock: 2),
+      currentTime: 1704067351500,
+    );
+    expect(oneSecondLater.latestPriceCountdownText, '00:29');
+  });
+
+  test('snapshot formats long countdown and remains zero past the boundary',
+      () {
+    final fixture = _fixture();
+    RenderSnapshot<_Theme> snapshotAt(int currentTime) =>
+        RenderSnapshot<_Theme>(
+          data: fixture.data,
+          viewport: fixture.viewport,
+          layout: fixture.layout,
+          theme: const _Theme('dark'),
+          versions: const RenderSnapshotVersions(clock: 1),
+          currentTime: currentTime,
+        );
+
+    expect(snapshotAt(1704012480000).latestPriceCountdownText, '15:15:00');
+    expect(snapshotAt(1704067380000).latestPriceCountdownText, '00:00');
+    expect(snapshotAt(1704067440000).latestPriceCountdownText, '00:00');
+
+    final nextData = _StableData(
+      UnmodifiableListView(buildV2KlineFixture(4)),
+      KlineDataVersion(4),
+    );
+    final nextCandle = RenderSnapshot<_Theme>(
+      data: nextData,
+      viewport: fixture.viewport.copyWith(itemCount: 4),
+      layout: fixture.layout,
+      theme: const _Theme('dark'),
+      versions: const RenderSnapshotVersions(data: 1, clock: 2),
+      currentTime: 1704067380000,
+    );
+    expect(nextCandle.latestPriceCountdownText, '01:00');
+  });
+
+  test('snapshot uses zero countdown without an interval and rejects time', () {
+    final fixture = _fixture();
+    final oneCandleData = _StableData(
+      UnmodifiableListView(fixture.data.data.take(1)),
+      fixture.data.version,
+    );
+    final oneCandleViewport = fixture.viewport.copyWith(itemCount: 1);
+    final snapshot = RenderSnapshot<_Theme>(
+      data: oneCandleData,
+      viewport: oneCandleViewport,
+      layout: fixture.layout,
+      theme: const _Theme('dark'),
+      versions: const RenderSnapshotVersions(),
+      currentTime: 1704067200000,
+    );
+
+    expect(snapshot.latestPriceCountdown, Duration.zero);
+    expect(snapshot.latestPriceCountdownText, '00:00');
     expect(
       () => RenderSnapshot<_Theme>(
         data: fixture.data,
@@ -232,7 +297,7 @@ void main() {
         layout: fixture.layout,
         theme: const _Theme('dark'),
         versions: const RenderSnapshotVersions(),
-        latestPriceTime: -1,
+        currentTime: -1,
       ),
       throwsArgumentError,
     );

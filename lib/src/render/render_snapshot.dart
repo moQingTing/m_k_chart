@@ -233,7 +233,7 @@ final class RenderSnapshot<TTheme extends Object> {
     Iterable<RenderLineDrawing> drawings = const [],
     ChartMainMode mainMode = ChartMainMode.candlestick,
     Duration timeZoneOffset = Duration.zero,
-    int? latestPriceTime,
+    int? currentTime,
   }) {
     if (viewport.itemCount != data.data.length) {
       throw ArgumentError(
@@ -303,12 +303,11 @@ final class RenderSnapshot<TTheme extends Object> {
       drawingById[drawing.id] = drawing;
     }
 
-    final resolvedLatestPriceTime =
-        latestPriceTime ?? (data.data.isEmpty ? 0 : data.data.last.closeTime);
-    if (resolvedLatestPriceTime < 0) {
+    final resolvedCurrentTime = currentTime ?? _nextExpectedOpenTime(data.data);
+    if (resolvedCurrentTime < 0) {
       throw ArgumentError.value(
-        latestPriceTime,
-        'latestPriceTime',
+        currentTime,
+        'currentTime',
         'Must not be negative.',
       );
     }
@@ -330,7 +329,7 @@ final class RenderSnapshot<TTheme extends Object> {
       drawingById: UnmodifiableMapView(drawingById),
       mainMode: mainMode,
       timeZoneOffset: timeZoneOffset,
-      latestPriceTime: resolvedLatestPriceTime,
+      currentTime: resolvedCurrentTime,
     );
   }
 
@@ -348,7 +347,7 @@ final class RenderSnapshot<TTheme extends Object> {
     required this.drawingById,
     required this.mainMode,
     required this.timeZoneOffset,
-    required this.latestPriceTime,
+    required this.currentTime,
   });
 
   final VersionedKlineData data;
@@ -367,8 +366,38 @@ final class RenderSnapshot<TTheme extends Object> {
   /// Display offset applied by axis and overlay time formatters.
   final Duration timeZoneOffset;
 
-  /// Host-supplied market clock used by the latest-price label.
-  final int latestPriceTime;
+  /// Host-supplied clock used to calculate the latest-candle countdown.
+  final int currentTime;
+
+  /// Remaining time until the next candle is expected from the latest two
+  /// opening timestamps. It stays at zero when the interval is unknown or
+  /// after the expected boundary has passed.
+  Duration get latestPriceCountdown {
+    if (data.data.length < 2) return Duration.zero;
+    final previous = data.data[data.data.length - 2];
+    final latest = data.data.last;
+    final interval = latest.openTime - previous.openTime;
+    if (interval <= 0) return Duration.zero;
+    final remaining = latest.openTime + interval - currentTime;
+    return remaining > 0 ? Duration(milliseconds: remaining) : Duration.zero;
+  }
+
+  /// Compact countdown used by the latest-price label.
+  ///
+  /// Sub-hour intervals use `MM:SS`; longer intervals use `HH:MM:SS`.
+  String get latestPriceCountdownText {
+    final milliseconds = latestPriceCountdown.inMilliseconds;
+    if (milliseconds <= 0) return '00:00';
+    final totalSeconds = (milliseconds + 999) ~/ 1000;
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+    final minuteText = minutes.toString().padLeft(2, '0');
+    final secondText = seconds.toString().padLeft(2, '0');
+    if (hours == 0) return '$minuteText:$secondText';
+    return '${hours.toString().padLeft(2, '0')}:'
+        '$minuteText:$secondText';
+  }
 
   RenderIndicatorSnapshot indicator(String instanceId) {
     final result = indicatorById[instanceId];
@@ -385,4 +414,13 @@ final class RenderSnapshot<TTheme extends Object> {
     }
     return result;
   }
+}
+
+int _nextExpectedOpenTime(List<Kline> data) {
+  if (data.isEmpty) return 0;
+  if (data.length < 2) return data.last.openTime;
+  final previous = data[data.length - 2];
+  final latest = data.last;
+  final interval = latest.openTime - previous.openTime;
+  return interval > 0 ? latest.openTime + interval : latest.openTime;
 }
