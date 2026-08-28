@@ -34,8 +34,9 @@ final class ChartNavigationMachine {
     _requireFinite(velocityLocalXPerSecond, 'velocityLocalXPerSecond');
     cancelInertia();
     if (velocityLocalXPerSecond.abs() < minimumVelocityLocalXPerSecond ||
-        viewport.maxScrollOffsetItems == 0 ||
-        (velocityLocalXPerSecond < 0 && viewport.isAtLatest) ||
+        (viewport.maxScrollOffsetItems == 0 &&
+            viewport.minScrollOffsetItems == 0) ||
+        (velocityLocalXPerSecond < 0 && viewport.isAtFutureLimit) ||
         (velocityLocalXPerSecond > 0 && viewport.isAtOldest)) {
       return false;
     }
@@ -68,7 +69,7 @@ final class ChartNavigationMachine {
                 appliedSeconds);
     final next = current.scrollByItems(distance);
     final hitBoundary = next == current ||
-        (direction < 0 && next.isAtLatest) ||
+        (direction < 0 && next.isAtFutureLimit) ||
         (direction > 0 && next.isAtOldest);
     final stopped = appliedSeconds >= timeUntilStop;
     if (hitBoundary || stopped) {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:math' as math;
 
@@ -151,6 +152,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   late final ChartNavigationMachine _navigationMachine;
   late final OkxMarketDataClient _marketData;
   late final IndicatorEngine _indicatorEngine;
+  Timer? _clockTimer;
   final _instrumentController = TextEditingController(text: 'BTC-USDT');
   final KChartTheme _theme = KChartTheme.light(
     upColor: const Color(0xff0b9b69),
@@ -173,6 +175,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _revision = 0;
   var _viewportRevision = 0;
   var _selectionRevision = 0;
+  var _clockRevision = 0;
+  var _latestPriceTime = DateTime.now().millisecondsSinceEpoch;
   var _scrollOffsetItems = 0.0;
   double? _itemExtent;
   int? _selectedIndex;
@@ -196,12 +200,20 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _indicatorEngine = IndicatorEngine(registry: registry);
     _data = _createData(_interval, _revision);
     if (widget.loadOnStart) {
+      _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        setState(() {
+          _latestPriceTime = DateTime.now().millisecondsSinceEpoch;
+          _clockRevision++;
+        });
+      });
       _loadCandles();
     }
   }
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     _instrumentController.dispose();
     _pipeline.dispose();
     super.dispose();
@@ -835,11 +847,18 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       scaleX: itemExtent / ChartViewport.defaultItemExtent,
                       pointWidth: ChartViewport.defaultItemExtent,
                     );
+                    final futurePaddingItems = math.max(
+                      0.0,
+                      layout.drawingBounds.width / itemExtent -
+                          legacyViewport.trailingPaddingItems -
+                          1,
+                    );
                     final viewport = ChartViewport(
                       itemCount: _data.data.length,
                       width: layout.drawingBounds.width,
                       itemExtent: itemExtent,
                       trailingPaddingItems: legacyViewport.trailingPaddingItems,
+                      futurePaddingItems: futurePaddingItems,
                       scrollOffsetItems: _scrollOffsetItems,
                     );
                     final baseSnapshot = RenderSnapshot<KChartTheme>(
@@ -853,12 +872,14 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                         selection: _selectionRevision,
                         theme: _revision,
                         layout: _revision,
+                        clock: _clockRevision,
                       ),
                       indicators: _indicatorSnapshots(),
                       mainMode: _mode,
                       timeZoneOffset: Duration(
                         hours: _timeZoneOffsetHours,
                       ),
+                      latestPriceTime: _latestPriceTime,
                     );
                     final snapshot = RenderSnapshot<KChartTheme>(
                       data: _data,
@@ -871,6 +892,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                         selection: _selectionRevision,
                         theme: _revision,
                         layout: _revision,
+                        clock: _clockRevision,
                       ),
                       indicators: baseSnapshot.indicators,
                       selection: _selectionFor(baseSnapshot),
@@ -878,6 +900,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       timeZoneOffset: Duration(
                         hours: _timeZoneOffsetHours,
                       ),
+                      latestPriceTime: _latestPriceTime,
                     );
                     final selectedIndex = _selectedIndex;
                     final selectedCandle = selectedIndex != null &&

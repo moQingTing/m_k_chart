@@ -14,6 +14,7 @@ enum RenderSnapshotSlice {
   history,
   layout,
   theme,
+  clock,
 }
 
 /// Immutable version vector used by Layers to declare invalidation inputs.
@@ -25,12 +26,14 @@ final class RenderSnapshotVersions {
     this.history = 0,
     this.layout = 0,
     this.theme = 0,
+    this.clock = 0,
   })  : assert(data >= 0),
         assert(viewport >= 0),
         assert(selection >= 0),
         assert(history >= 0),
         assert(layout >= 0),
-        assert(theme >= 0);
+        assert(theme >= 0),
+        assert(clock >= 0);
 
   final int data;
   final int viewport;
@@ -38,6 +41,7 @@ final class RenderSnapshotVersions {
   final int history;
   final int layout;
   final int theme;
+  final int clock;
 
   int versionOf(RenderSnapshotSlice slice) => switch (slice) {
         RenderSnapshotSlice.data => data,
@@ -46,6 +50,7 @@ final class RenderSnapshotVersions {
         RenderSnapshotSlice.history => history,
         RenderSnapshotSlice.layout => layout,
         RenderSnapshotSlice.theme => theme,
+        RenderSnapshotSlice.clock => clock,
       };
 }
 
@@ -228,6 +233,7 @@ final class RenderSnapshot<TTheme extends Object> {
     Iterable<RenderLineDrawing> drawings = const [],
     ChartMainMode mainMode = ChartMainMode.candlestick,
     Duration timeZoneOffset = Duration.zero,
+    int? latestPriceTime,
   }) {
     if (viewport.itemCount != data.data.length) {
       throw ArgumentError(
@@ -297,6 +303,16 @@ final class RenderSnapshot<TTheme extends Object> {
       drawingById[drawing.id] = drawing;
     }
 
+    final resolvedLatestPriceTime =
+        latestPriceTime ?? (data.data.isEmpty ? 0 : data.data.last.closeTime);
+    if (resolvedLatestPriceTime < 0) {
+      throw ArgumentError.value(
+        latestPriceTime,
+        'latestPriceTime',
+        'Must not be negative.',
+      );
+    }
+
     return RenderSnapshot._(
       data: data,
       viewport: viewport,
@@ -314,6 +330,7 @@ final class RenderSnapshot<TTheme extends Object> {
       drawingById: UnmodifiableMapView(drawingById),
       mainMode: mainMode,
       timeZoneOffset: timeZoneOffset,
+      latestPriceTime: resolvedLatestPriceTime,
     );
   }
 
@@ -331,6 +348,7 @@ final class RenderSnapshot<TTheme extends Object> {
     required this.drawingById,
     required this.mainMode,
     required this.timeZoneOffset,
+    required this.latestPriceTime,
   });
 
   final VersionedKlineData data;
@@ -348,6 +366,9 @@ final class RenderSnapshot<TTheme extends Object> {
 
   /// Display offset applied by axis and overlay time formatters.
   final Duration timeZoneOffset;
+
+  /// Host-supplied market clock used by the latest-price label.
+  final int latestPriceTime;
 
   RenderIndicatorSnapshot indicator(String instanceId) {
     final result = indicatorById[instanceId];

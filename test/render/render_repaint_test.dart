@@ -120,9 +120,32 @@ void main() {
       ),
     );
     expect(theme.repaintedLayerIds, _standardLayerIds);
-    expect(pipeline.repaintStats.frameCount, 8);
+
+    final clock = _paint(
+      pipeline,
+      _snapshot(
+        versions: const RenderSnapshotVersions(
+          data: 1,
+          viewport: 1,
+          selection: 1,
+          history: 1,
+          layout: 1,
+          theme: 1,
+          clock: 1,
+        ),
+        selection: RenderSelectionSnapshot.visible(localX: 50, localY: 60),
+      ),
+    );
+    expect(clock.repaintedLayerIds, ['marker']);
+    expect(
+      clock.invalidatedSlices['marker'],
+      {RenderSnapshotSlice.clock},
+    );
+
+    expect(pipeline.repaintStats.frameCount, 9);
     expect(pipeline.repaintStats.repaintCount('grid'), 3);
     expect(pipeline.repaintStats.repaintCount('main'), 5);
+    expect(pipeline.repaintStats.repaintCount('marker'), 6);
     expect(pipeline.repaintStats.repaintCount('crosshair'), 4);
     pipeline.dispose();
   });

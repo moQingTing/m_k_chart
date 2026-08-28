@@ -58,6 +58,32 @@ void main() {
       );
     });
 
+    test('reveals configurable future space without changing latest alignment',
+        () {
+      final viewport = ChartViewport(
+        itemCount: 100,
+        width: 80,
+        itemExtent: 8,
+        trailingPaddingItems: 1.5,
+        futurePaddingItems: 7.5,
+      );
+
+      expect(viewport.visibleRightDataPosition, 101.5);
+      expect(viewport.minScrollOffsetItems, -7.5);
+      expect(viewport.isAtLatest, isTrue);
+      expect(viewport.isAtFutureLimit, isFalse);
+
+      final future = viewport.scrollByItems(-100);
+      expect(future.scrollOffsetItems, -7.5);
+      expect(future.visibleRightDataPosition, 109);
+      expect(future.visibleRange, const VisibleIndexRange(99, 100));
+      final latestX =
+          (99.5 - future.visibleLeftDataPosition) * future.itemExtent;
+      expect(latestX, 4, reason: '最新蜡烛应完整停在视口最左侧。');
+      expect(future.isAtLatest, isFalse);
+      expect(future.isAtFutureLimit, isTrue);
+    });
+
     test('clamps scrolling at both latest and oldest boundaries', () {
       final viewport = ChartViewport(
         itemCount: 100,
@@ -151,6 +177,10 @@ void main() {
       );
       expect(
         () => ChartViewport(trailingPaddingItems: -1),
+        throwsArgumentError,
+      );
+      expect(
+        () => ChartViewport(futurePaddingItems: -1),
         throwsArgumentError,
       );
       expect(

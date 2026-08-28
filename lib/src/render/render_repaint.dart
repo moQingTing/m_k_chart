@@ -12,6 +12,7 @@ final class RenderLayerVersionStamp {
     required this.history,
     required this.layout,
     required this.theme,
+    required this.clock,
   });
 
   factory RenderLayerVersionStamp.capture({
@@ -31,6 +32,7 @@ final class RenderLayerVersionStamp {
             _versionFor(dependencies, versions, RenderSnapshotSlice.history),
         layout: _versionFor(dependencies, versions, RenderSnapshotSlice.layout),
         theme: _versionFor(dependencies, versions, RenderSnapshotSlice.theme),
+        clock: _versionFor(dependencies, versions, RenderSnapshotSlice.clock),
       );
 
   final int? data;
@@ -39,6 +41,7 @@ final class RenderLayerVersionStamp {
   final int? history;
   final int? layout;
   final int? theme;
+  final int? clock;
 
   int? versionOf(RenderSnapshotSlice slice) => switch (slice) {
         RenderSnapshotSlice.data => data,
@@ -47,6 +50,7 @@ final class RenderLayerVersionStamp {
         RenderSnapshotSlice.history => history,
         RenderSnapshotSlice.layout => layout,
         RenderSnapshotSlice.theme => theme,
+        RenderSnapshotSlice.clock => clock,
       };
 
   Set<RenderSnapshotSlice> changedSlicesSince(
@@ -69,7 +73,8 @@ final class RenderLayerVersionStamp {
           selection == other.selection &&
           history == other.history &&
           layout == other.layout &&
-          theme == other.theme;
+          theme == other.theme &&
+          clock == other.clock;
 
   @override
   int get hashCode => Object.hash(
@@ -79,6 +84,7 @@ final class RenderLayerVersionStamp {
         history,
         layout,
         theme,
+        clock,
       );
 }
 

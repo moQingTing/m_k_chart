@@ -242,6 +242,7 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
             RenderSnapshotSlice.viewport,
             RenderSnapshotSlice.layout,
             RenderSnapshotSlice.theme,
+            RenderSnapshotSlice.clock,
           },
         );
 
@@ -295,13 +296,15 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
     final latestIndex = snapshot.data.data.length - 1;
     final latest = cache.candlesFor(snapshot).candles[latestIndex];
     final localX = xTransform.indexToLocalX(latestIndex);
-    _drawLegacyLatestPrice(
+    _drawLatestPrice(
       canvas: context.canvas,
       panel: panel.bounds,
       latestX: localX,
       latestPrice: latest.close,
+      latestTime: snapshot.latestPriceTime,
       priceTransform: transform,
       mainMode: snapshot.mainMode,
+      timeZoneOffset: snapshot.timeZoneOffset,
       theme: snapshot.theme,
       cache: cache,
     );
@@ -825,59 +828,85 @@ PaintingStyle _histogramPaintingStyle({
   return hollow ? PaintingStyle.stroke : PaintingStyle.fill;
 }
 
-void _drawLegacyLatestPrice<TTheme extends ChartRenderStyle>({
+void _drawLatestPrice<TTheme extends ChartRenderStyle>({
   required Canvas canvas,
   required ChartLayoutRect panel,
   required double latestX,
   required double latestPrice,
+  required int latestTime,
   required ChartPriceTransform priceTransform,
   required ChartMainMode mainMode,
+  required Duration timeZoneOffset,
   required TTheme theme,
   required ChartRenderCache cache,
 }) {
-  const textColor = Color(0xffffffff);
-  const labelPadding = 5.0;
-  const pillPadding = 3.0;
+  const horizontalPadding = 7.0;
+  const verticalPadding = 4.0;
+  const lineGap = 1.0;
   const triangleHeight = 8.0;
-  const triangleWidth = 5.0;
-  final text = _formatNumber(latestPrice);
-  var textPainter = cache.textPainter(
-    text: text,
-    color: textColor,
-    fontSize: theme.axisFontSize,
+  const triangleWidth = 4.0;
+  final priceText = _formatLatestPrice(latestPrice);
+  final timeText = _formatClockTime(latestTime, timeZoneOffset);
+  final fontSize = theme.axisFontSize + 2;
+  final pricePainter = cache.textPainter(
+    text: priceText,
+    color: theme.axisTextColor,
+    fontSize: fontSize,
   );
+  final timePainter = cache.textPainter(
+    text: timeText,
+    color: theme.axisTextColor,
+    fontSize: fontSize,
+  );
+  final contentWidth = math.max(pricePainter.width, timePainter.width);
+  final baseLabelWidth = contentWidth + horizontalPadding * 2;
+  final labelHeight =
+      pricePainter.height + timePainter.height + lineGap + verticalPadding * 2;
   final remainingRight = panel.right - latestX;
+  final lineStartX =
+      mainMode == ChartMainMode.line || mainMode == ChartMainMode.area
+          ? latestX
+          : latestX + ChartViewport.defaultItemExtent / 2;
+  final candleClearance = lineStartX - latestX;
+  final availableLabelWidth = remainingRight - candleClearance;
   final linePaint = Paint()
-    ..color = theme.mainLineColor
-    ..strokeWidth = 0.2
+    ..color = theme.axisTextColor
+    ..strokeWidth = 0.6
     ..style = PaintingStyle.stroke;
   var y = priceTransform.priceToLocalY(latestPrice);
 
-  if (textPainter.width < remainingRight) {
-    final lineStartX =
-        mainMode == ChartMainMode.line || mainMode == ChartMainMode.area
-            ? latestX
-            : latestX + ChartViewport.defaultItemExtent / 2;
-    _drawLegacyDashedHorizontalLine(
+  // The legacy renderer selected this branch from the text width, then fitted
+  // the label into the available right margin. Keep that behavior on compact
+  // screens by shrinking only the horizontal inset, never the text.
+  if (contentWidth < availableLabelWidth) {
+    final visibleHorizontalPadding = math.min(
+      horizontalPadding,
+      (availableLabelWidth - contentWidth) / 2,
+    );
+    final visibleLabelWidth = contentWidth + visibleHorizontalPadding * 2;
+    final labelLeft = panel.right - visibleLabelWidth;
+    _drawLatestPriceDashedHorizontalLine(
       canvas: canvas,
       startX: lineStartX,
-      length: remainingRight - textPainter.width - labelPadding * 2,
+      length: labelLeft - lineStartX,
       y: y,
       paint: linePaint,
     );
-    final textLeft = panel.right - textPainter.width;
-    final top = y - textPainter.height / 2;
-    canvas.drawRRect(
-      RRect.fromLTRBR(
-        textLeft - labelPadding,
-        top,
-        panel.right + labelPadding,
-        top + textPainter.height,
-        const Radius.circular(2),
-      ),
-      Paint()..color = theme.mainLineColor,
+    _drawLatestPriceLabel(
+      canvas: canvas,
+      panel: panel,
+      left: labelLeft,
+      centerY: y,
+      width: visibleLabelWidth,
+      height: labelHeight,
+      horizontalPadding: visibleHorizontalPadding,
+      verticalPadding: verticalPadding,
+      lineGap: lineGap,
+      pricePainter: pricePainter,
+      timePainter: timePainter,
+      theme: theme,
+      showChevron: false,
     );
-    textPainter.paint(canvas, Offset(textLeft, top));
     return;
   }
 
@@ -886,7 +915,7 @@ void _drawLegacyLatestPrice<TTheme extends ChartRenderStyle>({
     priceTransform.maxPrice,
   );
   y = priceTransform.priceToLocalY(visibleLatestPrice);
-  _drawLegacyDashedHorizontalLine(
+  _drawLatestPriceDashedHorizontalLine(
     canvas: canvas,
     startX: panel.left,
     length: panel.width,
@@ -894,47 +923,102 @@ void _drawLegacyLatestPrice<TTheme extends ChartRenderStyle>({
     paint: linePaint,
   );
 
-  final left = panel.right - textPainter.width * 2.5;
-  final top = y - textPainter.height / 2 - pillPadding;
-  final right = left + textPainter.width + pillPadding * 3 + triangleWidth;
-  final bottom = top + textPainter.height + pillPadding * 2;
-  final radius = (bottom - top) / 2;
-  final inner = RRect.fromLTRBR(
-    left,
-    top,
-    right,
-    bottom,
-    Radius.circular(radius),
+  final hiddenLabelWidth = baseLabelWidth + triangleWidth + 5;
+  final left = math.max(
+    panel.left,
+    panel.right - hiddenLabelWidth * 2.25,
   );
-  final outer = RRect.fromLTRBR(
-    left - 1,
-    top - 1,
-    right + 1,
-    bottom + 1,
-    Radius.circular(radius + 2),
+  _drawLatestPriceLabel(
+    canvas: canvas,
+    panel: panel,
+    left: left,
+    centerY: y,
+    width: hiddenLabelWidth,
+    height: labelHeight,
+    horizontalPadding: horizontalPadding,
+    verticalPadding: verticalPadding,
+    lineGap: lineGap,
+    pricePainter: pricePainter,
+    timePainter: timePainter,
+    theme: theme,
+    showChevron: true,
+    chevronWidth: triangleWidth,
+    chevronHeight: triangleHeight,
   );
-  canvas
-    ..drawRRect(outer, Paint()..color = theme.markerColor)
-    ..drawRRect(inner, Paint()..color = theme.mainLineColor);
-
-  textPainter = cache.textPainter(
-    text: text,
-    color: textColor,
-    fontSize: theme.axisFontSize,
-  );
-  final textOffset = Offset(left + pillPadding, y - textPainter.height / 2);
-  textPainter.paint(canvas, textOffset);
-  final triangleX = textOffset.dx + textPainter.width + pillPadding;
-  final triangleY = top + (bottom - top - triangleHeight) / 2;
-  final triangle = Path()
-    ..moveTo(triangleX, triangleY)
-    ..lineTo(triangleX + triangleWidth, triangleY + triangleHeight / 2)
-    ..lineTo(triangleX, triangleY + triangleHeight)
-    ..close();
-  canvas.drawPath(triangle, Paint()..color = textColor);
 }
 
-void _drawLegacyDashedHorizontalLine({
+void _drawLatestPriceLabel<TTheme extends ChartRenderStyle>({
+  required Canvas canvas,
+  required ChartLayoutRect panel,
+  required double left,
+  required double centerY,
+  required double width,
+  required double height,
+  required double horizontalPadding,
+  required double verticalPadding,
+  required double lineGap,
+  required TextPainter pricePainter,
+  required TextPainter timePainter,
+  required TTheme theme,
+  required bool showChevron,
+  double chevronWidth = 0,
+  double chevronHeight = 0,
+}) {
+  final top = (centerY - height / 2)
+      .clamp(
+        panel.top + 1,
+        panel.bottom - height - 1,
+      )
+      .toDouble();
+  final rect = RRect.fromLTRBR(
+    left,
+    top,
+    left + width,
+    top + height,
+    const Radius.circular(5),
+  );
+  canvas
+    ..drawRRect(rect, Paint()..color = theme.backgroundColor)
+    ..drawRRect(
+      rect,
+      Paint()
+        ..color = theme.axisTextColor
+        ..strokeWidth = 0.8
+        ..style = PaintingStyle.stroke,
+    );
+  final contentRightPadding = showChevron ? chevronWidth + 5 : 0;
+  final contentWidth = width - horizontalPadding * 2 - contentRightPadding;
+  pricePainter.paint(
+    canvas,
+    Offset(
+      left + horizontalPadding + (contentWidth - pricePainter.width) / 2,
+      top + verticalPadding,
+    ),
+  );
+  timePainter.paint(
+    canvas,
+    Offset(
+      left + horizontalPadding + (contentWidth - timePainter.width) / 2,
+      top + verticalPadding + pricePainter.height + lineGap,
+    ),
+  );
+  if (!showChevron) return;
+  final chevronX = left + width - horizontalPadding - chevronWidth;
+  final chevronY = top + (height - chevronHeight) / 2;
+  final chevron = Path()
+    ..moveTo(chevronX, chevronY)
+    ..lineTo(chevronX + chevronWidth, chevronY + chevronHeight / 2)
+    ..lineTo(chevronX, chevronY + chevronHeight);
+  canvas.drawPath(
+    chevron,
+    Paint()
+      ..color = theme.axisTextColor
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke,
+  );
+}
+
+void _drawLatestPriceDashedHorizontalLine({
   required Canvas canvas,
   required double startX,
   required double length,
@@ -953,6 +1037,34 @@ void _drawLegacyDashedHorizontalLine({
     );
     offset += dashWidth + dashSpace;
   }
+}
+
+String _formatLatestPrice(double value) {
+  final fixed = value.toStringAsFixed(2);
+  final parts = fixed.split('.');
+  final sign = parts.first.startsWith('-') ? '-' : '';
+  final digits = sign.isEmpty ? parts.first : parts.first.substring(1);
+  final grouped = StringBuffer();
+  for (var index = 0; index < digits.length; index++) {
+    if (index > 0 && (digits.length - index) % 3 == 0) {
+      grouped.write(',');
+    }
+    grouped.write(digits[index]);
+  }
+  return '$sign$grouped.${parts[1]}';
+}
+
+String _formatClockTime(
+  int epochMilliseconds,
+  Duration timeZoneOffset,
+) {
+  final date = DateTime.fromMillisecondsSinceEpoch(
+    epochMilliseconds + timeZoneOffset.inMilliseconds,
+    isUtc: true,
+  );
+  return '${date.hour.toString().padLeft(2, '0')}:'
+      '${date.minute.toString().padLeft(2, '0')}:'
+      '${date.second.toString().padLeft(2, '0')}';
 }
 
 void _drawText({

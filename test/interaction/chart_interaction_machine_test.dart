@@ -26,6 +26,18 @@ void main() {
       expect(machine.isIdle, isTrue);
       expect(machine.cancelPan(), isFalse);
     });
+
+    test('can pan the newest candle into configured future space', () {
+      final machine = ChartInteractionMachine();
+      final viewport = _viewport().copyWith(futurePaddingItems: 15);
+
+      machine.beginPan(viewport);
+      final moved = machine.updatePan(-1000)!.viewport;
+
+      expect(moved.scrollOffsetItems, -15);
+      expect(moved.isAtFutureLimit, isTrue);
+      expect(machine.endPan(), isTrue);
+    });
   });
 
   group('ChartInteractionMachine focus scale', () {
@@ -86,6 +98,33 @@ void main() {
       final next = machine.updateScale(scale: 2, focalLocalX: focalX)!.viewport;
 
       expect(next.trailingPaddingItems, 4);
+      expect(
+        next.visibleLeftDataPosition + focalX / next.itemExtent,
+        closeTo(anchor, 1e-12),
+      );
+    });
+
+    test('preserves a focal anchor while zooming inside future space', () {
+      final machine = ChartInteractionMachine();
+      final viewport = ChartViewport(
+        itemCount: 100,
+        width: 160,
+        itemExtent: 8,
+        minItemExtent: 4,
+        maxItemExtent: 24,
+        trailingPaddingItems: 4,
+        futurePaddingItems: 15,
+        scrollOffsetItems: -8,
+      );
+      const focalX = 80.0;
+      final anchor =
+          viewport.visibleLeftDataPosition + focalX / viewport.itemExtent;
+
+      machine.beginScale(viewport: viewport, focalLocalX: focalX);
+      final next =
+          machine.updateScale(scale: 1.25, focalLocalX: focalX)!.viewport;
+
+      expect(next.scrollOffsetItems, lessThan(0));
       expect(
         next.visibleLeftDataPosition + focalX / next.itemExtent,
         closeTo(anchor, 1e-12),

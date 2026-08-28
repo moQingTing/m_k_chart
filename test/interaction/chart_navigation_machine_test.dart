@@ -58,6 +58,45 @@ void main() {
       expect(machine.isInertiaActive, isFalse);
     });
 
+    test('continues through latest and stops at the configured future limit',
+        () {
+      final machine = ChartNavigationMachine(
+        decelerationLocalXPerSecondSquared: 800,
+        minimumVelocityLocalXPerSecond: 10,
+      );
+      final viewport = _viewport(scrollOffsetItems: 0).copyWith(
+        futurePaddingItems: 5,
+      );
+
+      expect(
+        machine.startInertia(
+          viewport: viewport,
+          velocityLocalXPerSecond: -400,
+        ),
+        isTrue,
+      );
+      final bounded = machine.advanceInertia(const Duration(seconds: 1));
+
+      expect(bounded!.viewport.scrollOffsetItems, -5);
+      expect(bounded.viewport.isAtFutureLimit, isTrue);
+      expect(machine.isInertiaActive, isFalse);
+
+      final shortDataViewport = ChartViewport(
+        itemCount: 5,
+        width: 160,
+        itemExtent: 8,
+        futurePaddingItems: 5,
+      );
+      expect(shortDataViewport.maxScrollOffsetItems, 0);
+      expect(
+        machine.startInertia(
+          viewport: shortDataViewport,
+          velocityLocalXPerSecond: -400,
+        ),
+        isTrue,
+      );
+    });
+
     test('validates configuration and velocity', () {
       expect(
         () => ChartNavigationMachine(

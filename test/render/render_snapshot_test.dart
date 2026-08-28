@@ -197,6 +197,7 @@ void main() {
       history: 4,
       layout: 5,
       theme: 6,
+      clock: 7,
     );
 
     expect(
@@ -204,12 +205,37 @@ void main() {
         for (final slice in RenderSnapshotSlice.values)
           versions.versionOf(slice),
       ],
-      [1, 2, 3, 4, 5, 6],
+      [1, 2, 3, 4, 5, 6, 7],
     );
   });
 
   test('snapshot defaults to candlestick main mode', () {
     expect(_fixture().snapshot().mainMode, ChartMainMode.candlestick);
+  });
+
+  test('snapshot accepts a host market clock and rejects negative values', () {
+    final fixture = _fixture();
+    final snapshot = RenderSnapshot<_Theme>(
+      data: fixture.data,
+      viewport: fixture.viewport,
+      layout: fixture.layout,
+      theme: const _Theme('dark'),
+      versions: const RenderSnapshotVersions(clock: 1),
+      latestPriceTime: 1700000000000,
+    );
+
+    expect(snapshot.latestPriceTime, 1700000000000);
+    expect(
+      () => RenderSnapshot<_Theme>(
+        data: fixture.data,
+        viewport: fixture.viewport,
+        layout: fixture.layout,
+        theme: const _Theme('dark'),
+        versions: const RenderSnapshotVersions(),
+        latestPriceTime: -1,
+      ),
+      throwsArgumentError,
+    );
   });
 }
 

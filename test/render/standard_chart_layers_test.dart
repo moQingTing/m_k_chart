@@ -30,6 +30,14 @@ void main() {
         RenderSnapshotSlice.theme,
       },
     );
+    expect(
+      stack.layer('marker').dependencies,
+      contains(RenderSnapshotSlice.clock),
+    );
+    expect(
+      stack.layer('grid').dependencies,
+      isNot(contains(RenderSnapshotSlice.clock)),
+    );
   });
 
   test('grid Layer paints background and deterministic layout lines', () async {
@@ -272,7 +280,7 @@ void main() {
     }
   });
 
-  test('marker keeps the legacy latest-price pill when latest candle is hidden',
+  test('marker keeps the latest-price label when latest candle is hidden',
       () async {
     final fixture = _fixture();
     final hiddenLatestViewport = fixture.viewport.copyWith(
@@ -291,10 +299,42 @@ void main() {
         pixels,
         fixture.width,
         Rect.fromLTRB(main.left, main.top, main.right, main.bottom),
-        fixture.style.mainLineColor,
+        fixture.style.axisTextColor,
       ),
       isTrue,
-      reason: '旧版在最新 K 线滑出右侧后仍绘制实时价虚线和价格胶囊。',
+      reason: '最新 K 线滑出右侧后仍绘制实时价虚线和双行价格标签。',
+    );
+  });
+
+  test('visible latest price uses a bordered two-line label', () async {
+    final fixture = _fixture();
+    final paddedViewport = fixture.viewport.copyWith(
+      trailingPaddingItems: 2,
+    );
+    final pixels = await _paint(
+      fixture.snapshotWithViewport(paddedViewport),
+      [ChartMarkerLayer<DefaultChartRenderStyle>(cache)],
+    );
+    final main = fixture.layout.mainPanel.bounds;
+
+    expect(
+      _hasColor(
+        pixels,
+        fixture.width,
+        Rect.fromLTRB(main.width * 0.65, main.top, main.right, main.bottom),
+        fixture.style.backgroundColor,
+      ),
+      isTrue,
+    );
+    expect(
+      _hasColor(
+        pixels,
+        fixture.width,
+        Rect.fromLTRB(main.width * 0.65, main.top, main.right, main.bottom),
+        fixture.style.axisTextColor,
+        tolerance: 80,
+      ),
+      isTrue,
     );
   });
 
