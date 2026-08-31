@@ -144,7 +144,7 @@ void main() {
       expect(controller.value.versionOf(StateSlice.history), 1);
     });
 
-    test('provides latest, time-location, and prepend-anchor commands', () {
+    test('provides latest, time-location, and viewport-anchor commands', () {
       final data = _StableData([
         for (var index = 0; index < 20; index++) _kline(index * 60000),
       ]);
@@ -177,6 +177,17 @@ void main() {
       expect(
         controller.value.viewport.visibleLeftDataPosition,
         beforePrepend.visibleLeftDataPosition + 5,
+      );
+
+      final beforeRealtime = controller.value.viewport;
+      controller.preserveViewportAfterRealtimeDataChange(
+        nextItemCount: 26,
+        appendedItemCount: 1,
+      );
+      expect(controller.value.viewport.itemCount, 26);
+      expect(
+        controller.value.viewport.visibleLeftDataPosition,
+        beforeRealtime.visibleLeftDataPosition,
       );
     });
 

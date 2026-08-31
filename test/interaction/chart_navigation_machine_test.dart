@@ -201,6 +201,99 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    test('follows the latest candle when realtime data is appended', () {
+      final before = _viewport(scrollOffsetItems: 0);
+      final after = ChartViewportNavigator.preserveAfterRealtimeDataChange(
+        before,
+        nextItemCount: 101,
+        appendedItemCount: 1,
+      );
+
+      expect(after.itemCount, 101);
+      expect(after.scrollOffsetItems, 0);
+      expect(
+        after.visibleLeftDataPosition,
+        before.visibleLeftDataPosition + 1,
+      );
+    });
+
+    test('keeps existing candle X while browsing history or future space', () {
+      for (final offset in [20.0, -8.0]) {
+        final before = ChartViewport(
+          itemCount: 100,
+          width: 80,
+          itemExtent: 8,
+          futurePaddingItems: 20,
+          scrollOffsetItems: offset,
+        );
+        final after = ChartViewportNavigator.preserveAfterRealtimeDataChange(
+          before,
+          nextItemCount: 101,
+          appendedItemCount: 1,
+        );
+
+        expect(after.scrollOffsetItems, offset + 1);
+        expect(
+          after.visibleLeftDataPosition,
+          before.visibleLeftDataPosition,
+        );
+      }
+    });
+
+    test('keeps replacement and rolling-window candle positions stable', () {
+      final before = _viewport(scrollOffsetItems: 20);
+      final replacement =
+          ChartViewportNavigator.preserveAfterRealtimeDataChange(
+        before,
+        nextItemCount: 100,
+        appendedItemCount: 0,
+      );
+      final rolling = ChartViewportNavigator.preserveAfterRealtimeDataChange(
+        before,
+        nextItemCount: 100,
+        appendedItemCount: 1,
+      );
+
+      expect(replacement, before);
+      expect(rolling.scrollOffsetItems, 21);
+      expect(
+        rolling.visibleLeftDataPosition,
+        before.visibleLeftDataPosition - 1,
+      );
+    });
+
+    test('can disable latest following and validates realtime counts', () {
+      final before = _viewport(scrollOffsetItems: 0);
+      final preserved = ChartViewportNavigator.preserveAfterRealtimeDataChange(
+        before,
+        nextItemCount: 101,
+        appendedItemCount: 1,
+        followLatest: false,
+      );
+
+      expect(preserved.scrollOffsetItems, 1);
+      expect(
+        preserved.visibleLeftDataPosition,
+        before.visibleLeftDataPosition,
+      );
+      expect(
+        () => ChartViewportNavigator.preserveAfterRealtimeDataChange(
+          before,
+          nextItemCount: -1,
+          appendedItemCount: 0,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ChartViewportNavigator.preserveAfterRealtimeDataChange(
+          before,
+          nextItemCount: 100,
+          appendedItemCount: -1,
+        ),
+        throwsArgumentError,
+      );
+    });
   });
 
   group('ChartHistoryPagingState', () {

@@ -114,6 +114,29 @@ void main() {
     final chartCanvas = find.byKey(const ValueKey('v2-chart-canvas'));
     expect(chartCanvas, findsOneWidget);
 
+    await tester.drag(find.byType(ListView), const Offset(0, 420));
+    await tester.pumpAndSettle();
+    final simulateUpdate = find.byKey(
+      const ValueKey('simulate-update-latest'),
+      skipOffstage: false,
+    );
+    await tester.ensureVisible(simulateUpdate);
+    await tester.pump();
+    await tester.tap(simulateUpdate);
+    await tester.pump();
+    expect(find.textContaining('已模拟更新最新 K 线'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey('simulate-append-latest'),
+        skipOffstage: false,
+      ),
+    );
+    await tester.pump();
+    expect(find.textContaining('已模拟新增 K 线'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
     await tester.ensureVisible(chartCanvas);
     await tester.pump();
     await tester.tapAt(tester.getTopLeft(chartCanvas) + const Offset(100, 80));

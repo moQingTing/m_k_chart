@@ -132,6 +132,45 @@ abstract final class ChartViewportNavigator {
       itemCount: viewport.itemCount + prependedItemCount,
     );
   }
+
+  /// Applies a realtime data-window change without unexpectedly moving the
+  /// candles that were already visible.
+  ///
+  /// [appendedItemCount] is the number of new slots added after the previous
+  /// newest candle. It also covers rolling windows where older items are
+  /// removed while newer items are appended. When the viewport is following
+  /// the latest candle, an append keeps that behavior. While the user is
+  /// viewing history or revealed future space, the scroll offset is advanced
+  /// by the appended count so existing candle centers retain their local X.
+  static ChartViewport preserveAfterRealtimeDataChange(
+    ChartViewport viewport, {
+    required int nextItemCount,
+    required int appendedItemCount,
+    bool followLatest = true,
+  }) {
+    if (nextItemCount < 0) {
+      throw ArgumentError.value(
+        nextItemCount,
+        'nextItemCount',
+        'Must not be negative.',
+      );
+    }
+    if (appendedItemCount < 0) {
+      throw ArgumentError.value(
+        appendedItemCount,
+        'appendedItemCount',
+        'Must not be negative.',
+      );
+    }
+    final shouldFollowLatest =
+        followLatest && viewport.isAtLatest && appendedItemCount > 0;
+    return viewport.copyWith(
+      itemCount: nextItemCount,
+      scrollOffsetItems: shouldFollowLatest
+          ? 0
+          : viewport.scrollOffsetItems + appendedItemCount,
+    );
+  }
 }
 
 void _requireFinite(double value, String name) {

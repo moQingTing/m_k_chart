@@ -179,6 +179,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _currentTime = DateTime.now().millisecondsSinceEpoch;
   var _scrollOffsetItems = 0.0;
   double? _itemExtent;
+  ChartViewport? _latestViewport;
+  var _simulatedTick = 0;
+  String? _simulationMessage;
   int? _selectedIndex;
   String? _selectedPanelId;
   double? _selectedPrice;
@@ -264,14 +267,19 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         limit: _candleLimit,
       );
       if (!mounted || generation != _loadGeneration) return;
-      setState(() {
-        _advanceRevision();
-        _data = _DemoData(
-            UnmodifiableListView(candles), KlineDataVersion(_revision));
-        _scrollOffsetItems = 0;
-        _itemExtent = null;
-        _clearSelection();
-      });
+      final oldCandles = _data.data;
+      final oldLatestIndex = oldCandles.isEmpty || candles.isEmpty
+          ? -1
+          : candles.indexWhere(
+              (candle) => candle.hasSameIdentity(oldCandles.last),
+            );
+      final preserveViewport = oldLatestIndex >= 0;
+      _applyDataWindow(
+        candles,
+        appendedItemCount:
+            preserveViewport ? candles.length - oldLatestIndex - 1 : 0,
+        preserveViewport: preserveViewport,
+      );
     } on Object catch (error) {
       if (!mounted || generation != _loadGeneration) return;
       setState(() => _loadError = '$error');
@@ -280,6 +288,113 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _applyDataWindow(
+    List<Kline> candles, {
+    required int appendedItemCount,
+    required bool preserveViewport,
+    String? simulationMessage,
+  }) {
+    final previousViewport = _latestViewport;
+    final nextViewport = preserveViewport && previousViewport != null
+        ? ChartViewportNavigator.preserveAfterRealtimeDataChange(
+            previousViewport,
+            nextItemCount: candles.length,
+            appendedItemCount: appendedItemCount,
+          )
+        : null;
+    setState(() {
+      _advanceRevision();
+      _data = _DemoData(
+        UnmodifiableListView(candles),
+        KlineDataVersion(_revision),
+      );
+      if (nextViewport != null) {
+        _scrollOffsetItems = nextViewport.scrollOffsetItems;
+        _itemExtent = nextViewport.itemExtent;
+        _latestViewport = nextViewport;
+      } else if (preserveViewport) {
+        if (_scrollOffsetItems != 0) {
+          _scrollOffsetItems += appendedItemCount;
+        }
+      } else {
+        _scrollOffsetItems = 0;
+        _itemExtent = null;
+        _latestViewport = null;
+      }
+      _simulationMessage = simulationMessage;
+      _viewportRevision++;
+      _clearSelection();
+    });
+  }
+
+  void _simulateUpdateLatest() {
+    if (_data.data.isEmpty) return;
+    final candles = _data.data.toList(growable: true);
+    final latest = candles.last;
+    _simulatedTick++;
+    final delta = math.max(latest.close.abs() * .001, .01);
+    final direction = _simulatedTick.isEven ? -1.0 : 1.0;
+    final close = math.max(0.0, latest.close + direction * delta);
+    candles[candles.length - 1] = latest.copyWith(
+      high: math.max(latest.high, math.max(latest.open, close) + delta * .4),
+      low: math.min(
+          latest.low, math.max(0, math.min(latest.open, close) - delta * .4)),
+      close: close,
+      baseVolume: latest.baseVolume + 12 + _simulatedTick,
+      quoteVolume: latest.quoteVolume + (12 + _simulatedTick) * close,
+      tradeCount: latest.tradeCount + 1,
+      isClosed: false,
+    );
+    _applyDataWindow(
+      candles,
+      appendedItemCount: 0,
+      preserveViewport: true,
+      simulationMessage: '已模拟更新最新 K 线（视口保持不动）',
+    );
+  }
+
+  void _simulateAppendLatest() {
+    if (_data.data.isEmpty) return;
+    final candles = _data.data.toList(growable: true);
+    final latest = candles.last;
+    final observedStep = candles.length < 2
+        ? 0
+        : latest.openTime - candles[candles.length - 2].openTime;
+    final step = observedStep > 0
+        ? observedStep
+        : (_interval.duration?.inMilliseconds ?? 60000);
+    _simulatedTick++;
+    final delta = math.max(latest.close.abs() * .001, .01);
+    final direction = _simulatedTick.isEven ? -1.0 : 1.0;
+    final open = latest.close;
+    final close = math.max(0.0, open + direction * delta);
+    candles[candles.length - 1] = latest.copyWith(isClosed: true);
+    candles.add(
+      Kline(
+        symbol: latest.symbol,
+        interval: latest.interval,
+        openTime: latest.openTime + step,
+        closeTime: latest.openTime + step * 2 - 1,
+        open: open,
+        high: math.max(open, close) + delta * .7,
+        low: math.max(0, math.min(open, close) - delta * .7),
+        close: close,
+        baseVolume: 15 + _simulatedTick.toDouble(),
+        quoteVolume: (15 + _simulatedTick) * close,
+        tradeCount: 1,
+        isClosed: false,
+        timeZoneOffset: latest.timeZoneOffset,
+        priceSource: latest.priceSource,
+      ),
+    );
+    _applyDataWindow(
+      candles,
+      appendedItemCount: 1,
+      preserveViewport: true,
+      simulationMessage: '已模拟新增 K 线（非最新视图保持原蜡烛位置）',
+    );
   }
 
   void _selectMode(ChartMainMode mode) {
@@ -816,6 +931,36 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            _ToolbarSection(
+              title: '模拟实时数据（用于验证视口）',
+              children: [
+                OutlinedButton.icon(
+                  key: const ValueKey('simulate-update-latest'),
+                  onPressed: _simulateUpdateLatest,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('模拟更新最新 K 线'),
+                ),
+                FilledButton.icon(
+                  key: const ValueKey('simulate-append-latest'),
+                  onPressed: _simulateAppendLatest,
+                  icon: const Icon(Icons.add_chart, size: 18),
+                  label: const Text('模拟新增 K 线'),
+                ),
+              ],
+            ),
+            if (_simulationMessage case final message?) ...[
+              const SizedBox(height: 6),
+              Text(
+                message,
+                key: const ValueKey('simulation-status'),
+                style: const TextStyle(
+                  color: Color(0xff0369a1),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Semantics(
               label: 'V2 图表 ${_interval.code} ${_modeLabel(_mode)}',
@@ -861,6 +1006,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       futurePaddingItems: futurePaddingItems,
                       scrollOffsetItems: _scrollOffsetItems,
                     );
+                    _latestViewport = viewport;
                     final baseSnapshot = RenderSnapshot<KChartTheme>(
                       data: _data,
                       viewport: viewport,

@@ -56,6 +56,25 @@ final class KChartController extends ChangeNotifier
     );
   }
 
+  /// Updates the viewport for a realtime append, latest-candle replacement,
+  /// or rolling-window refresh.
+  void preserveViewportAfterRealtimeDataChange({
+    required int nextItemCount,
+    required int appendedItemCount,
+    bool followLatest = true,
+  }) {
+    dispatch(
+      ChartViewportChanged(
+        ChartViewportNavigator.preserveAfterRealtimeDataChange(
+          _value.viewport,
+          nextItemCount: nextItemCount,
+          appendedItemCount: appendedItemCount,
+          followLatest: followLatest,
+        ),
+      ),
+    );
+  }
+
   bool requestHistoryIfNeeded({double thresholdItems = 2}) {
     _ensureActive();
     final next = _value.historyPaging.requestIfNeeded(
