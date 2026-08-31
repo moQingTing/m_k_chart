@@ -51,4 +51,11 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('default value formatting keeps exponential values intact', () {
+    final style = DefaultChartRenderStyle();
+
+    expect(style.formatMainValue(1e21), isNot(contains(',')));
+    expect(style.formatSecondaryValue(-1e21), isNot(contains(',')));
+  });
 }

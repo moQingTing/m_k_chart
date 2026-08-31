@@ -154,7 +154,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   late final IndicatorEngine _indicatorEngine;
   Timer? _clockTimer;
   final _instrumentController = TextEditingController(text: 'BTC-USDT');
-  final KChartTheme _theme = KChartTheme.light(
+  KChartTheme _theme = KChartTheme.light(
     upColor: const Color(0xff0b9b69),
     downColor: const Color(0xffd93d56),
   );
@@ -945,6 +945,74 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             ),
             const SizedBox(height: 12),
             _ToolbarSection(
+              title: '数值显示格式（主图与副图独立）',
+              children: [
+                DropdownButton<int>(
+                  key: const ValueKey('main-value-decimals'),
+                  value: _theme.mainValueDecimalPlaces,
+                  items: List.generate(
+                    7,
+                    (places) => DropdownMenuItem(
+                      value: places,
+                      child: Text('主图 $places 位小数'),
+                    ),
+                  ),
+                  onChanged: (places) {
+                    if (places == null) return;
+                    setState(() {
+                      _theme = _theme.copyWith(
+                        mainValueDecimalPlaces: places,
+                      );
+                      _advanceRevision();
+                    });
+                  },
+                ),
+                FilterChip(
+                  key: const ValueKey('main-value-thousands'),
+                  label: const Text('主图千分位'),
+                  selected: _theme.mainValueUseThousandsSeparator,
+                  onSelected: (enabled) => setState(() {
+                    _theme = _theme.copyWith(
+                      mainValueUseThousandsSeparator: enabled,
+                    );
+                    _advanceRevision();
+                  }),
+                ),
+                DropdownButton<int>(
+                  key: const ValueKey('secondary-value-decimals'),
+                  value: _theme.secondaryValueDecimalPlaces,
+                  items: List.generate(
+                    7,
+                    (places) => DropdownMenuItem(
+                      value: places,
+                      child: Text('副图 $places 位小数'),
+                    ),
+                  ),
+                  onChanged: (places) {
+                    if (places == null) return;
+                    setState(() {
+                      _theme = _theme.copyWith(
+                        secondaryValueDecimalPlaces: places,
+                      );
+                      _advanceRevision();
+                    });
+                  },
+                ),
+                FilterChip(
+                  key: const ValueKey('secondary-value-thousands'),
+                  label: const Text('副图千分位'),
+                  selected: _theme.secondaryValueUseThousandsSeparator,
+                  onSelected: (enabled) => setState(() {
+                    _theme = _theme.copyWith(
+                      secondaryValueUseThousandsSeparator: enabled,
+                    );
+                    _advanceRevision();
+                  }),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _ToolbarSection(
               title: '模拟实时数据（用于验证视口）',
               children: [
                 OutlinedButton.icon(
@@ -1112,6 +1180,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                                         panelId: panel.spec.id,
                                         dataIndex: indicatorLegendIndex,
                                       ),
+                                      valueFormatter:
+                                          panel.spec.kind == ChartPanelKind.main
+                                              ? _theme.formatMainValue
+                                              : _theme.formatSecondaryValue,
                                     ),
                                   ),
                                 ),
@@ -1136,6 +1208,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                                   child: _CrosshairDetails(
                                     candle: selectedCandle,
                                     selectedPrice: _selectedPrice,
+                                    selectedValueIsMain:
+                                        _selectedPanelId == 'main',
+                                    theme: _theme,
                                     timeZoneOffset: Duration(
                                       hours: _timeZoneOffsetHours,
                                     ),
@@ -1242,9 +1317,13 @@ class _SliderSetting extends StatelessWidget {
 }
 
 class _PanelIndicatorLegend extends StatelessWidget {
-  const _PanelIndicatorLegend({required this.entries});
+  const _PanelIndicatorLegend({
+    required this.entries,
+    required this.valueFormatter,
+  });
 
   final List<_IndicatorLegendEntry> entries;
+  final String Function(double value) valueFormatter;
 
   @override
   Widget build(BuildContext context) {
@@ -1256,7 +1335,8 @@ class _PanelIndicatorLegend extends StatelessWidget {
         children: [
           for (final entry in entries) ...[
             TextSpan(
-              text: '${entry.label}: ${_formatIndicatorValue(entry.value)}',
+              text: '${entry.label}: '
+                  '${entry.value == null ? '--' : valueFormatter(entry.value!)}',
               style: TextStyle(
                 color: entry.color,
                 fontSize: 9.5,
@@ -1359,11 +1439,15 @@ class _CrosshairDetails extends StatelessWidget {
   const _CrosshairDetails({
     required this.candle,
     required this.selectedPrice,
+    required this.selectedValueIsMain,
+    required this.theme,
     required this.timeZoneOffset,
   });
 
   final Kline candle;
   final double? selectedPrice;
+  final bool selectedValueIsMain;
+  final KChartTheme theme;
   final Duration timeZoneOffset;
 
   @override
@@ -1388,12 +1472,14 @@ class _CrosshairDetails extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w700)),
               Text('横坐标：${_formatTime(candle.openTime, timeZoneOffset)}'),
               if (selectedPrice != null)
-                Text('纵坐标：${selectedPrice!.toStringAsFixed(2)}'),
+                Text(
+                  '纵坐标：${selectedValueIsMain ? theme.formatMainValue(selectedPrice!) : theme.formatSecondaryValue(selectedPrice!)}',
+                ),
               Text(
-                  '开 ${_formatPrice(candle.open)}  高 ${_formatPrice(candle.high)}'),
+                  '开 ${theme.formatMainValue(candle.open)}  高 ${theme.formatMainValue(candle.high)}'),
               Text(
-                  '低 ${_formatPrice(candle.low)}  收 ${_formatPrice(candle.close)}'),
-              Text('成交量：${_formatVolume(candle.baseVolume)}'),
+                  '低 ${theme.formatMainValue(candle.low)}  收 ${theme.formatMainValue(candle.close)}'),
+              Text('成交量：${theme.formatSecondaryValue(candle.baseVolume)}'),
             ],
           ),
         ),
@@ -1418,29 +1504,6 @@ String _formatAxisTime(int epochMilliseconds, Duration timeZoneOffset) {
   String twoDigits(int value) => value.toString().padLeft(2, '0');
   return '${time.year}-${twoDigits(time.month)}-${twoDigits(time.day)} '
       '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
-}
-
-String _formatPrice(double value) => value.toStringAsFixed(2);
-
-String _formatIndicatorValue(double? value) {
-  if (value == null) return '--';
-  final absolute = value.abs();
-  final sign = value < 0 ? '-' : '';
-  if (absolute >= 1000000) {
-    return '$sign${(absolute / 1000000).toStringAsFixed(2)}M';
-  }
-  if (absolute >= 1000) {
-    return '$sign${(absolute / 1000).toStringAsFixed(2)}K';
-  }
-  if (absolute >= 100) return value.toStringAsFixed(2);
-  if (absolute >= 1) return value.toStringAsFixed(3);
-  return value.toStringAsFixed(4);
-}
-
-String _formatVolume(double value) {
-  if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(2)}M';
-  if (value >= 1000) return '${(value / 1000).toStringAsFixed(2)}K';
-  return value.toStringAsFixed(2);
 }
 
 class _DemoPainter extends CustomPainter {

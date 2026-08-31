@@ -250,6 +250,53 @@ void main() {
     );
   });
 
+  test('main and secondary panels route values to separate formatters',
+      () async {
+    final mainValues = <double>[];
+    final secondaryValues = <double>[];
+    final fixture = _fixture(
+      mainValueFormatter: (value, _) {
+        mainValues.add(value);
+        return 'M';
+      },
+      secondaryValueFormatter: (value, _) {
+        secondaryValues.add(value);
+        return 'S';
+      },
+    );
+
+    await _paint(
+      fixture.snapshot,
+      [
+        ChartAxisLayer<DefaultChartRenderStyle>(cache),
+        ChartMarkerLayer<DefaultChartRenderStyle>(cache),
+      ],
+    );
+
+    expect(mainValues, isNotEmpty);
+    expect(secondaryValues, isNotEmpty);
+    expect(mainValues, contains(fixture.data.data.last.close));
+
+    mainValues.clear();
+    secondaryValues.clear();
+    final secondaryPanel = fixture.layout.panel('volume').bounds;
+    await _paint(
+      fixture.snapshotWithSelection(
+        RenderSelectionSnapshot.visible(
+          localX: (secondaryPanel.left + secondaryPanel.right) / 2,
+          localY: (secondaryPanel.top + secondaryPanel.bottom) / 2,
+          dataIndex: 2,
+          price: 1234.567,
+          valueKind: RenderSelectionValueKind.close,
+        ),
+      ),
+      [ChartCrosshairLayer<DefaultChartRenderStyle>(cache)],
+    );
+
+    expect(mainValues, isEmpty);
+    expect(secondaryValues, contains(1234.567));
+  });
+
   test('marker, drawing and crosshair Layers paint isolated overlay colors',
       () async {
     final fixture = _fixture();
@@ -492,7 +539,10 @@ int _nonTransparentCount(
   return count;
 }
 
-_Fixture _fixture() {
+_Fixture _fixture({
+  String Function(double value, int decimalPlaces)? mainValueFormatter,
+  String Function(double value, int decimalPlaces)? secondaryValueFormatter,
+}) {
   final data = _StableData(
     UnmodifiableListView([
       _kline(0, 100, 104, 98, 103),
@@ -602,6 +652,8 @@ _Fixture _fixture() {
     crosshairColor: const Color(0xffeeeeee),
     drawingColor: const Color(0xffff00dd),
     indicatorPalette: const [Color(0xff00ddff)],
+    mainValueFormatter: mainValueFormatter,
+    secondaryValueFormatter: secondaryValueFormatter,
   );
   return _Fixture(data, layout, viewport, style, [main, secondary]);
 }

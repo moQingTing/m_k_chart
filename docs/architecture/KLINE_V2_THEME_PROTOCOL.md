@@ -2,7 +2,7 @@
 
 > 任务：P6-01  
 > 状态：已实现  
-> 日期：2026-08-26
+> 日期：2026-08-31
 
 ## 1. 正式入口
 
@@ -30,7 +30,25 @@ final theme = KChartTheme(
 
 `KChartTheme.light()` 提供浅色基线；无参数构造提供深色交易图基线。
 
-## 3. ChartColors 兼容适配
+## 3. 主图与副图数值格式
+
+主图和副图拥有完全独立的数值格式配置。两者默认保留两位小数并使用千分位分隔：
+
+```dart
+final theme = KChartTheme.light(
+  mainValueDecimalPlaces: 4,
+  mainValueUseThousandsSeparator: true,
+  secondaryValueDecimalPlaces: 1,
+  secondaryValueUseThousandsSeparator: false,
+  // 回调可分别替换默认格式；decimalPlaces 是上方对应配置值。
+  mainValueFormatter: (value, decimalPlaces) =>
+      value.toStringAsFixed(decimalPlaces),
+);
+```
+
+主图格式覆盖主图纵轴、最高/最低价、最新价、主图十字光标、指标图例和详情 OHLC；副图格式覆盖副图纵轴、十字光标、指标图例和详情成交量。自定义回调优先于千分位开关；通过 `copyWith(clearMainValueFormatter: true)` 或 `copyWith(clearSecondaryValueFormatter: true)` 可恢复对应区域的默认格式。
+
+## 4. ChartColors 兼容适配
 
 1.x 项目可在保留旧 Widget 的同时，将旧配色用于 V2 装配：
 
@@ -44,8 +62,9 @@ final theme = chartColors.toKChartTheme(chartStyle: chartStyle);
 
 由于 1.x `ChartStyle` 可变且允许非法尺寸，适配器会将非有限或非正的尺寸回退到 V2 默认值，并将无效宽度比例回退为 `1`。这保证现有应用可以逐步迁移，而不会把无效 legacy 状态传播进 V2 Renderer。
 
-## 4. API 和回归门禁
+## 5. API 和回归门禁
 
 - `tool/public_api_allowlist.txt` 明确审查新增的 `KChartTheme` 和 `ChartColorsThemeAdapter`；公开入口仍禁止导出 `src/` 或 `renderer/`。
-- `test/theme/k_chart_theme_test.dart` 覆盖集合不可变性、结构化相等、显式指标色优先级、legacy 映射和非法 legacy 尺寸归一化。
+- `test/theme/k_chart_theme_test.dart` 覆盖集合不可变性、结构化相等、主副图独立格式、格式回调清除、显式指标色优先级、legacy 映射和非法 legacy 尺寸归一化。
+- `test/render/standard_chart_layers_test.dart` 验证主图和副图绘制入口不会串用格式器。
 - `test/architecture/public_api_surface_test.dart` 防止公开表面无审查漂移。

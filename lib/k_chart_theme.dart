@@ -41,6 +41,12 @@ final class KChartTheme implements ChartRenderStyle {
     double candleWidthRatio = 0.75,
     double histogramWidthRatio = 0.8,
     double indicatorPointRadius = 2,
+    int mainValueDecimalPlaces = 2,
+    int secondaryValueDecimalPlaces = 2,
+    bool mainValueUseThousandsSeparator = true,
+    bool secondaryValueUseThousandsSeparator = true,
+    String Function(double value, int decimalPlaces)? mainValueFormatter,
+    String Function(double value, int decimalPlaces)? secondaryValueFormatter,
   }) {
     final palette = List<Color>.unmodifiable(indicatorPalette);
     final fillColors = List<Color>.unmodifiable(areaFillColors);
@@ -89,6 +95,14 @@ final class KChartTheme implements ChartRenderStyle {
         );
       }
     }
+    _validateDecimalPlaces(
+      mainValueDecimalPlaces,
+      'mainValueDecimalPlaces',
+    );
+    _validateDecimalPlaces(
+      secondaryValueDecimalPlaces,
+      'secondaryValueDecimalPlaces',
+    );
     return KChartTheme._(
       backgroundColor: backgroundColor,
       gridColor: gridColor,
@@ -111,6 +125,12 @@ final class KChartTheme implements ChartRenderStyle {
       candleWidthRatio: candleWidthRatio,
       histogramWidthRatio: histogramWidthRatio,
       indicatorPointRadius: indicatorPointRadius,
+      mainValueDecimalPlaces: mainValueDecimalPlaces,
+      secondaryValueDecimalPlaces: secondaryValueDecimalPlaces,
+      mainValueUseThousandsSeparator: mainValueUseThousandsSeparator,
+      secondaryValueUseThousandsSeparator: secondaryValueUseThousandsSeparator,
+      mainValueFormatter: mainValueFormatter,
+      secondaryValueFormatter: secondaryValueFormatter,
     );
   }
 
@@ -136,12 +156,24 @@ final class KChartTheme implements ChartRenderStyle {
     required this.candleWidthRatio,
     required this.histogramWidthRatio,
     required this.indicatorPointRadius,
+    required this.mainValueDecimalPlaces,
+    required this.secondaryValueDecimalPlaces,
+    required this.mainValueUseThousandsSeparator,
+    required this.secondaryValueUseThousandsSeparator,
+    required this.mainValueFormatter,
+    required this.secondaryValueFormatter,
   });
 
   /// A light baseline suitable for applications that do not supply a theme.
   factory KChartTheme.light({
     Color upColor = const Color(0xff0ecb81),
     Color downColor = const Color(0xfff6465d),
+    int mainValueDecimalPlaces = 2,
+    int secondaryValueDecimalPlaces = 2,
+    bool mainValueUseThousandsSeparator = true,
+    bool secondaryValueUseThousandsSeparator = true,
+    String Function(double value, int decimalPlaces)? mainValueFormatter,
+    String Function(double value, int decimalPlaces)? secondaryValueFormatter,
   }) =>
       KChartTheme(
         backgroundColor: const Color(0xffffffff),
@@ -152,6 +184,13 @@ final class KChartTheme implements ChartRenderStyle {
         markerColor: const Color(0xff6c7a86),
         crosshairColor: const Color(0xff6c7a86),
         drawingColor: const Color(0xff8a70d6),
+        mainValueDecimalPlaces: mainValueDecimalPlaces,
+        secondaryValueDecimalPlaces: secondaryValueDecimalPlaces,
+        mainValueUseThousandsSeparator: mainValueUseThousandsSeparator,
+        secondaryValueUseThousandsSeparator:
+            secondaryValueUseThousandsSeparator,
+        mainValueFormatter: mainValueFormatter,
+        secondaryValueFormatter: secondaryValueFormatter,
       );
 
   @override
@@ -200,6 +239,32 @@ final class KChartTheme implements ChartRenderStyle {
   @override
   final double indicatorPointRadius;
 
+  /// Number of decimal places used for main-chart values by default.
+  final int mainValueDecimalPlaces;
+
+  /// Number of decimal places used for secondary-chart values by default.
+  final int secondaryValueDecimalPlaces;
+
+  /// Whether default main-chart formatting inserts thousands separators.
+  final bool mainValueUseThousandsSeparator;
+
+  /// Whether default secondary-chart formatting inserts thousands separators.
+  final bool secondaryValueUseThousandsSeparator;
+
+  /// Optional formatter for all main-chart numeric values.
+  ///
+  /// The second argument is [mainValueDecimalPlaces]. When supplied, this
+  /// callback takes precedence over [mainValueUseThousandsSeparator].
+  final String Function(double value, int decimalPlaces)? mainValueFormatter;
+
+  /// Optional formatter for all secondary-chart numeric values.
+  ///
+  /// The second argument is [secondaryValueDecimalPlaces]. When supplied,
+  /// this callback takes precedence over
+  /// [secondaryValueUseThousandsSeparator].
+  final String Function(double value, int decimalPlaces)?
+      secondaryValueFormatter;
+
   KChartTheme copyWith({
     Color? backgroundColor,
     Color? gridColor,
@@ -222,6 +287,14 @@ final class KChartTheme implements ChartRenderStyle {
     double? candleWidthRatio,
     double? histogramWidthRatio,
     double? indicatorPointRadius,
+    int? mainValueDecimalPlaces,
+    int? secondaryValueDecimalPlaces,
+    bool? mainValueUseThousandsSeparator,
+    bool? secondaryValueUseThousandsSeparator,
+    String Function(double value, int decimalPlaces)? mainValueFormatter,
+    String Function(double value, int decimalPlaces)? secondaryValueFormatter,
+    bool clearMainValueFormatter = false,
+    bool clearSecondaryValueFormatter = false,
   }) =>
       KChartTheme(
         backgroundColor: backgroundColor ?? this.backgroundColor,
@@ -245,6 +318,21 @@ final class KChartTheme implements ChartRenderStyle {
         candleWidthRatio: candleWidthRatio ?? this.candleWidthRatio,
         histogramWidthRatio: histogramWidthRatio ?? this.histogramWidthRatio,
         indicatorPointRadius: indicatorPointRadius ?? this.indicatorPointRadius,
+        mainValueDecimalPlaces:
+            mainValueDecimalPlaces ?? this.mainValueDecimalPlaces,
+        secondaryValueDecimalPlaces:
+            secondaryValueDecimalPlaces ?? this.secondaryValueDecimalPlaces,
+        mainValueUseThousandsSeparator: mainValueUseThousandsSeparator ??
+            this.mainValueUseThousandsSeparator,
+        secondaryValueUseThousandsSeparator:
+            secondaryValueUseThousandsSeparator ??
+                this.secondaryValueUseThousandsSeparator,
+        mainValueFormatter: clearMainValueFormatter
+            ? null
+            : mainValueFormatter ?? this.mainValueFormatter,
+        secondaryValueFormatter: clearSecondaryValueFormatter
+            ? null
+            : secondaryValueFormatter ?? this.secondaryValueFormatter,
       );
 
   @override
@@ -252,6 +340,24 @@ final class KChartTheme implements ChartRenderStyle {
       indicatorColors['$instanceId:$seriesId'] ??
       indicatorPalette[
           _stableIndex(instanceId, seriesId, indicatorPalette.length)];
+
+  @override
+  String formatMainValue(double value) =>
+      mainValueFormatter?.call(value, mainValueDecimalPlaces) ??
+      formatChartValue(
+        value,
+        decimalPlaces: mainValueDecimalPlaces,
+        useThousandsSeparator: mainValueUseThousandsSeparator,
+      );
+
+  @override
+  String formatSecondaryValue(double value) =>
+      secondaryValueFormatter?.call(value, secondaryValueDecimalPlaces) ??
+      formatChartValue(
+        value,
+        decimalPlaces: secondaryValueDecimalPlaces,
+        useThousandsSeparator: secondaryValueUseThousandsSeparator,
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -276,7 +382,14 @@ final class KChartTheme implements ChartRenderStyle {
       axisFontSize == other.axisFontSize &&
       candleWidthRatio == other.candleWidthRatio &&
       histogramWidthRatio == other.histogramWidthRatio &&
-      indicatorPointRadius == other.indicatorPointRadius;
+      indicatorPointRadius == other.indicatorPointRadius &&
+      mainValueDecimalPlaces == other.mainValueDecimalPlaces &&
+      secondaryValueDecimalPlaces == other.secondaryValueDecimalPlaces &&
+      mainValueUseThousandsSeparator == other.mainValueUseThousandsSeparator &&
+      secondaryValueUseThousandsSeparator ==
+          other.secondaryValueUseThousandsSeparator &&
+      identical(mainValueFormatter, other.mainValueFormatter) &&
+      identical(secondaryValueFormatter, other.secondaryValueFormatter);
 
   @override
   int get hashCode => Object.hashAll([
@@ -305,7 +418,19 @@ final class KChartTheme implements ChartRenderStyle {
         candleWidthRatio,
         histogramWidthRatio,
         indicatorPointRadius,
+        mainValueDecimalPlaces,
+        secondaryValueDecimalPlaces,
+        mainValueUseThousandsSeparator,
+        secondaryValueUseThousandsSeparator,
+        mainValueFormatter,
+        secondaryValueFormatter,
       ]);
+}
+
+void _validateDecimalPlaces(int value, String name) {
+  if (value < 0 || value > 20) {
+    throw ArgumentError.value(value, name, 'Must be between 0 and 20.');
+  }
 }
 
 int _stableIndex(String instanceId, String seriesId, int length) {

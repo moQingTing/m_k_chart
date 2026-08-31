@@ -47,6 +47,59 @@ void main() {
     );
   });
 
+  test('KChartTheme formats main and secondary values independently', () {
+    final defaults = KChartTheme.light();
+    expect(defaults.formatMainValue(1234567.891), '1,234,567.89');
+    expect(defaults.formatSecondaryValue(-9876.5), '-9,876.50');
+
+    final configured = defaults.copyWith(
+      mainValueDecimalPlaces: 4,
+      mainValueUseThousandsSeparator: false,
+      secondaryValueDecimalPlaces: 0,
+      secondaryValueUseThousandsSeparator: true,
+    );
+    expect(configured.formatMainValue(1234.5), '1234.5000');
+    expect(configured.formatSecondaryValue(1234.5), '1,235');
+    expect(configured, isNot(defaults));
+  });
+
+  test('KChartTheme accepts separate custom value formatters', () {
+    String mainFormatter(double value, int decimalPlaces) =>
+        'main:$decimalPlaces:${value.toStringAsFixed(decimalPlaces)}';
+    String secondaryFormatter(double value, int decimalPlaces) =>
+        'secondary:$decimalPlaces:${value.toStringAsFixed(decimalPlaces)}';
+    final theme = KChartTheme(
+      mainValueDecimalPlaces: 3,
+      secondaryValueDecimalPlaces: 1,
+      mainValueFormatter: mainFormatter,
+      secondaryValueFormatter: secondaryFormatter,
+    );
+
+    expect(theme.formatMainValue(12.3456), 'main:3:12.346');
+    expect(theme.formatSecondaryValue(12.3456), 'secondary:1:12.3');
+    expect(theme.copyWith(), theme);
+
+    final defaults = theme.copyWith(
+      clearMainValueFormatter: true,
+      clearSecondaryValueFormatter: true,
+    );
+    expect(defaults.mainValueFormatter, isNull);
+    expect(defaults.secondaryValueFormatter, isNull);
+    expect(defaults.formatMainValue(1234.5), '1,234.500');
+    expect(defaults.formatSecondaryValue(1234.5), '1,234.5');
+  });
+
+  test('KChartTheme rejects unsupported decimal places', () {
+    expect(
+      () => KChartTheme(mainValueDecimalPlaces: -1),
+      throwsArgumentError,
+    );
+    expect(
+      () => KChartTheme(secondaryValueDecimalPlaces: 21),
+      throwsArgumentError,
+    );
+  });
+
   test('ChartColors adapter preserves legacy render colors and widths', () {
     final colors = ChartColors(
       isDarkMode: false,

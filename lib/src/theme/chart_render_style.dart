@@ -26,6 +26,8 @@ abstract interface class ChartRenderStyle {
   double get indicatorPointRadius;
 
   Color indicatorColor(String instanceId, String seriesId);
+  String formatMainValue(double value);
+  String formatSecondaryValue(double value);
 }
 
 /// Deterministic internal fixture style retained for V2 renderer tests.
@@ -61,6 +63,12 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
     double candleWidthRatio = 0.75,
     double histogramWidthRatio = 0.8,
     double indicatorPointRadius = 2,
+    int mainValueDecimalPlaces = 2,
+    int secondaryValueDecimalPlaces = 2,
+    bool mainValueUseThousandsSeparator = true,
+    bool secondaryValueUseThousandsSeparator = true,
+    String Function(double value, int decimalPlaces)? mainValueFormatter,
+    String Function(double value, int decimalPlaces)? secondaryValueFormatter,
   }) {
     final palette = List<Color>.unmodifiable(indicatorPalette);
     final fillColors = List<Color>.unmodifiable(areaFillColors);
@@ -100,6 +108,14 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
         );
       }
     }
+    _validateDecimalPlaces(
+      mainValueDecimalPlaces,
+      'mainValueDecimalPlaces',
+    );
+    _validateDecimalPlaces(
+      secondaryValueDecimalPlaces,
+      'secondaryValueDecimalPlaces',
+    );
     return DefaultChartRenderStyle._(
       backgroundColor: backgroundColor,
       gridColor: gridColor,
@@ -121,6 +137,12 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
       candleWidthRatio: candleWidthRatio,
       histogramWidthRatio: histogramWidthRatio,
       indicatorPointRadius: indicatorPointRadius,
+      mainValueDecimalPlaces: mainValueDecimalPlaces,
+      secondaryValueDecimalPlaces: secondaryValueDecimalPlaces,
+      mainValueUseThousandsSeparator: mainValueUseThousandsSeparator,
+      secondaryValueUseThousandsSeparator: secondaryValueUseThousandsSeparator,
+      mainValueFormatter: mainValueFormatter,
+      secondaryValueFormatter: secondaryValueFormatter,
     );
   }
 
@@ -145,6 +167,12 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
     required this.candleWidthRatio,
     required this.histogramWidthRatio,
     required this.indicatorPointRadius,
+    required this.mainValueDecimalPlaces,
+    required this.secondaryValueDecimalPlaces,
+    required this.mainValueUseThousandsSeparator,
+    required this.secondaryValueUseThousandsSeparator,
+    required this.mainValueFormatter,
+    required this.secondaryValueFormatter,
   });
 
   @override
@@ -186,6 +214,13 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
   final double histogramWidthRatio;
   @override
   final double indicatorPointRadius;
+  final int mainValueDecimalPlaces;
+  final int secondaryValueDecimalPlaces;
+  final bool mainValueUseThousandsSeparator;
+  final bool secondaryValueUseThousandsSeparator;
+  final String Function(double value, int decimalPlaces)? mainValueFormatter;
+  final String Function(double value, int decimalPlaces)?
+      secondaryValueFormatter;
 
   @override
   Color indicatorColor(String instanceId, String seriesId) {
@@ -194,5 +229,57 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
       hash = (hash * 31 + codeUnit) & 0x7fffffff;
     }
     return indicatorPalette[hash % indicatorPalette.length];
+  }
+
+  @override
+  String formatMainValue(double value) =>
+      mainValueFormatter?.call(value, mainValueDecimalPlaces) ??
+      formatChartValue(
+        value,
+        decimalPlaces: mainValueDecimalPlaces,
+        useThousandsSeparator: mainValueUseThousandsSeparator,
+      );
+
+  @override
+  String formatSecondaryValue(double value) =>
+      secondaryValueFormatter?.call(value, secondaryValueDecimalPlaces) ??
+      formatChartValue(
+        value,
+        decimalPlaces: secondaryValueDecimalPlaces,
+        useThousandsSeparator: secondaryValueUseThousandsSeparator,
+      );
+}
+
+String formatChartValue(
+  double value, {
+  required int decimalPlaces,
+  required bool useThousandsSeparator,
+}) {
+  if (!value.isFinite) {
+    return value.toString();
+  }
+  final fixed = value.toStringAsFixed(decimalPlaces);
+  if (!useThousandsSeparator || fixed.contains('e') || fixed.contains('E')) {
+    return fixed;
+  }
+  final isNegative = fixed.startsWith('-');
+  final unsigned = isNegative ? fixed.substring(1) : fixed;
+  final decimalIndex = unsigned.indexOf('.');
+  final integerPart =
+      decimalIndex < 0 ? unsigned : unsigned.substring(0, decimalIndex);
+  final fractionPart = decimalIndex < 0 ? '' : unsigned.substring(decimalIndex);
+  final buffer = StringBuffer();
+  for (var index = 0; index < integerPart.length; index++) {
+    if (index > 0 && (integerPart.length - index) % 3 == 0) {
+      buffer.write(',');
+    }
+    buffer.write(integerPart[index]);
+  }
+  return '${isNegative ? '-' : ''}$buffer$fractionPart';
+}
+
+void _validateDecimalPlaces(int value, String name) {
+  if (value < 0 || value > 20) {
+    throw ArgumentError.value(value, name, 'Must be between 0 and 20.');
   }
 }

@@ -101,6 +101,31 @@ void main() {
       find.byKey(const ValueKey('main-time-axis-height-setting')),
       findsOneWidget,
     );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('main-value-decimals')),
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final mainDecimals = tester.widget<DropdownButton<int>>(
+      find.byKey(const ValueKey('main-value-decimals')),
+    );
+    mainDecimals.onChanged!(4);
+    await tester.pump();
+    expect(
+      tester
+          .widget<DropdownButton<int>>(
+            find.byKey(const ValueKey('main-value-decimals')),
+          )
+          .value,
+      4,
+    );
+    final secondaryThousands = find.byKey(
+      const ValueKey('secondary-value-thousands'),
+    );
+    expect(tester.widget<FilterChip>(secondaryThousands).selected, isTrue);
+    await tester.tap(secondaryThousands);
+    await tester.pump();
+    expect(tester.widget<FilterChip>(secondaryThousands).selected, isFalse);
     await tester.drag(find.byType(ListView), const Offset(0, -1400));
     await tester.pump();
     expect(

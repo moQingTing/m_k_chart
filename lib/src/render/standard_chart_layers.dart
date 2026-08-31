@@ -223,7 +223,9 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
         final value = range.max - (range.max - range.min) * ratio;
         _drawText(
           canvas: context.canvas,
-          text: _formatNumber(value),
+          text: panel.spec.kind == ChartPanelKind.main
+              ? theme.formatMainValue(value)
+              : theme.formatSecondaryValue(value),
           color: theme.axisTextColor,
           fontSize: theme.axisFontSize,
           x: panel.bounds.right - 3,
@@ -311,7 +313,7 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
         );
         _drawText(
           canvas: context.canvas,
-          text: '${point.$3} ${_formatNumber(point.$2)}',
+          text: '${point.$3} ${snapshot.theme.formatMainValue(point.$2)}',
           color: snapshot.theme.markerColor,
           fontSize: snapshot.theme.axisFontSize,
           x: x < midpoint ? x + 5 : x - 5,
@@ -383,7 +385,9 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
       }
       _drawText(
         canvas: context.canvas,
-        text: _formatNumber(selection.price!),
+        text: selectedPanel?.spec.kind == ChartPanelKind.secondary
+            ? context.snapshot.theme.formatSecondaryValue(selection.price!)
+            : context.snapshot.theme.formatMainValue(selection.price!),
         color: context.snapshot.theme.crosshairColor,
         fontSize: context.snapshot.theme.axisFontSize,
         x: (selectedPanel?.bounds.right ?? bounds.right) - 3,
@@ -888,7 +892,7 @@ _LatestPriceLayout _resolveLatestPriceLayout<TTheme extends ChartRenderStyle>({
   const lineGap = 1.0;
   const triangleHeight = 8.0;
   const triangleWidth = 4.0;
-  final priceText = _formatLatestPrice(latestPrice);
+  final priceText = theme.formatMainValue(latestPrice);
   final fontSize = theme.axisFontSize + 2;
   final pricePainter = cache.textPainter(
     text: priceText,
@@ -1135,21 +1139,6 @@ void _drawLatestPriceDashedHorizontalLine({
   }
 }
 
-String _formatLatestPrice(double value) {
-  final fixed = value.toStringAsFixed(2);
-  final parts = fixed.split('.');
-  final sign = parts.first.startsWith('-') ? '-' : '';
-  final digits = sign.isEmpty ? parts.first : parts.first.substring(1);
-  final grouped = StringBuffer();
-  for (var index = 0; index < digits.length; index++) {
-    if (index > 0 && (digits.length - index) % 3 == 0) {
-      grouped.write(',');
-    }
-    grouped.write(digits[index]);
-  }
-  return '$sign$grouped.${parts[1]}';
-}
-
 void _drawText({
   required Canvas canvas,
   required String text,
@@ -1173,17 +1162,6 @@ void _drawText({
       y - painter.height * verticalAnchor,
     ),
   );
-}
-
-String _formatNumber(double value) {
-  final absolute = value.abs();
-  if (absolute >= 1000) {
-    return value.toStringAsFixed(0);
-  }
-  if (absolute >= 1) {
-    return value.toStringAsFixed(2);
-  }
-  return value.toStringAsFixed(4);
 }
 
 String _formatTime(int epochMilliseconds, Duration timeZoneOffset) {

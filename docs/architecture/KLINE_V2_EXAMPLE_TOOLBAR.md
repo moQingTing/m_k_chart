@@ -2,7 +2,7 @@
 
 > 任务：P6-03、P6-04
 > 状态：已实现  
-> 日期：2026-08-26
+> 日期：2026-08-31
 
 ## 1. 运行入口
 
@@ -21,6 +21,7 @@ legacy `ExamplePage` 和现有网络数据示例仍保留在 `example/lib/main.d
 | Secondary indicators | VOL、MACD、KDJ、RSI、WR、OBV、ATR、CCI、DMI、ROC、Stoch RSI | 可以任意组合；默认 VOL + MACD |
 | Secondary layout | 合并为一个面板、分面板排序、72～180 px 最小高度 | 允许副图指标叠加，或按用户顺序拥有独立面板 |
 | Panel legends | 当前主图和副图指标 | 在每个面板左上角的透明专用标题区显示当前序列值；计算参数会传入 `IndicatorConfig` |
+| Value format | 主图/副图 0～6 位小数、千分位开关 | 两个区域独立更新纵轴、指标图例、最新价与坐标详情；默认均为两位小数和千分位 |
 | Viewport | 20～300 根可见 K 线 | 将可见根数换算成 viewport 的 item extent |
 
 界面采用高对比浅色主题，标题和操作文案均为中文。指标缩写沿用交易软件的行业通用写法。图表每个面板的左上角均预留透明标题区，显示与线条同色的 `系列名称: 当前值` 图例；默认使用当前视图最后一根 K 线，点击或长按后切换为所选 K 线的数值。主图与首个副图之间另预留时间轴区域，展示当前视图的起止时间。
@@ -47,6 +48,7 @@ legacy `ExamplePage` 和现有网络数据示例仍保留在 `example/lib/main.d
 - 切换至 `5m` 后 ChoiceChip 状态同步；
 - Hollow、OHLC、Heikin-Ashi、Line、Area 全部可切换且各自成为唯一选中项；
 - 主图增加 BOLL、副图增加 RSI、再切换为单副图叠加后，真实 Renderer 可以完成绘制。
+- 主图小数位与副图千分位开关可以分别修改，且状态互不影响。
 - 点击图表后出现十字光标详情，且包含横坐标与纵坐标；左右拖动后选择状态清除。
 
 P6-02 Golden 继续冻结所有实际主图模式的像素输出；P6-03/P6-04 覆盖 Example 的装配与交互。
