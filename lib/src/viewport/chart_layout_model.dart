@@ -28,8 +28,9 @@ final class ChartPanelSpec {
   final double weight;
   final double minHeight;
 
-  /// Reserved height above the drawable panel, for overlays such as legends.
-  /// It is excluded from indicator, candle, and grid rendering.
+  /// Reserved height at the top of the panel grid, for overlays such as
+  /// legends. It is excluded from indicator and candle rendering, while the
+  /// grid keeps it as a dedicated first row.
   final double headerHeight;
 
   /// Number of vertical intervals. The generated horizontal line count is
@@ -97,11 +98,24 @@ final class ChartPanelLayout {
 
   final ChartPanelSpec spec;
 
-  /// Reserved non-drawing header directly above [bounds].
+  /// Reserved non-drawing header at the top of this panel's grid.
   final ChartLayoutRect headerBounds;
 
   /// Full candle or indicator drawing area.
   final ChartLayoutRect bounds;
+
+  /// Complete visual grid area, including the reserved [headerBounds].
+  ///
+  /// Candles and indicators remain clipped to [bounds], so legend text in the
+  /// header cannot be covered by chart data.
+  ChartLayoutRect get gridBounds => headerBounds.height == 0
+      ? bounds
+      : ChartLayoutRect._(
+          left: headerBounds.left,
+          top: headerBounds.top,
+          right: headerBounds.right,
+          bottom: bounds.bottom,
+        );
 
   @override
   bool operator ==(Object other) =>

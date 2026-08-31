@@ -64,14 +64,22 @@ void main() {
     final main = fixture.layout.mainPanel;
     final timeAxis = fixture.layout.mainTimeAxisBounds;
     expect(
-      _pixel(
+      _hasColor(
         pixels,
         fixture.width,
-        fixture.layout.gridColumnXs[1].round(),
-        (main.headerBounds.top + main.headerBounds.height / 2).round(),
+        Rect.fromCenter(
+          center: Offset(
+            fixture.layout.gridColumnXs[1],
+            main.headerBounds.top + main.headerBounds.height / 2,
+          ),
+          width: 3,
+          height: 3,
+        ),
+        fixture.style.gridColor,
+        tolerance: 140,
       ),
-      fixture.style.backgroundColor,
-      reason: '主图指标参数区域不应绘制纵向网格。',
+      isTrue,
+      reason: '主图指标参数区域应作为网格内的专用首行。',
     );
     expect(
       _pixel(
@@ -111,6 +119,30 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  test('data layers keep reserved legend rows clear', () async {
+    final fixture = _fixture();
+    final pixels = await _paint(
+      fixture.snapshot,
+      [
+        ChartMainLayer<DefaultChartRenderStyle>(cache),
+        ChartSecondaryLayer<DefaultChartRenderStyle>(cache),
+      ],
+    );
+
+    for (final panel in fixture.layout.panels) {
+      final header = panel.headerBounds;
+      expect(
+        _nonTransparentCount(
+          pixels,
+          fixture.width,
+          Rect.fromLTRB(header.left, header.top, header.right, header.bottom),
+        ),
+        0,
+        reason: '${panel.spec.id} 参数行不得被 K 线或指标数据覆盖。',
+      );
+    }
   });
 
   test('main Layer renders distinct candle, line and area modes', () async {

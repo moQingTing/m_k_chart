@@ -491,10 +491,18 @@ Picture _recordGridPicture<TTheme extends ChartRenderStyle>(
     ..strokeWidth = theme.gridStrokeWidth
     ..style = PaintingStyle.stroke;
   for (final panel in layout.panels) {
+    final gridBounds = panel.gridBounds;
     for (final x in layout.gridColumnXs) {
       canvas.drawLine(
-        Offset(x, panel.bounds.top),
-        Offset(x, panel.bounds.bottom),
+        Offset(x, gridBounds.top),
+        Offset(x, gridBounds.bottom),
+        paint,
+      );
+    }
+    if (panel.headerBounds.height > 0) {
+      canvas.drawLine(
+        Offset(gridBounds.left, gridBounds.top),
+        Offset(gridBounds.right, gridBounds.top),
         paint,
       );
     }

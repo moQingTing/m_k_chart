@@ -65,6 +65,9 @@ void main() {
 
       expect(layout.mainPanel.headerBounds.top, 10);
       expect(layout.mainPanel.headerBounds.bottom, 34);
+      expect(layout.mainPanel.gridBounds.top, 10);
+      expect(
+          layout.mainPanel.gridBounds.bottom, layout.mainPanel.bounds.bottom);
       expect(layout.mainPanel.bounds.top, 34);
       expect(layout.mainPanel.bounds.bottom, 220);
       expect(layout.mainPanel.bounds.height, 186);
