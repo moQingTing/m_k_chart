@@ -146,7 +146,14 @@ void main() {
     expect(find.textContaining('纵坐标：'), findsOneWidget);
 
     await tester.drag(chartCanvas, const Offset(90, 0));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('crosshair-details')), findsNothing);
+
+    final latestPriceReturn = find.byKey(const ValueKey('latest-price-return'));
+    expect(latestPriceReturn, findsOneWidget);
+    await tester.tap(latestPriceReturn);
     await tester.pump();
+    expect(latestPriceReturn, findsNothing);
     expect(find.byKey(const ValueKey('crosshair-details')), findsNothing);
 
     final center = tester.getCenter(chartCanvas);

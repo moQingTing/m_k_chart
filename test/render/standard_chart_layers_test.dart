@@ -292,8 +292,14 @@ void main() {
       [ChartMarkerLayer<DefaultChartRenderStyle>(cache)],
     );
     final main = fixture.layout.mainPanel.bounds;
+    final hitRegion = latestPriceMarkerHitRegionFor(
+      fixture.snapshotWithViewport(hiddenLatestViewport),
+      cache,
+    )!;
 
     expect(hiddenLatestViewport.visibleRange.contains(5), isFalse);
+    expect(hitRegion.showsChevron, isTrue);
+    expect(hitRegion.contains(hitRegion.bounds.center), isTrue);
     expect(
       _hasColor(
         pixels,
@@ -316,7 +322,16 @@ void main() {
       [ChartMarkerLayer<DefaultChartRenderStyle>(cache)],
     );
     final main = fixture.layout.mainPanel.bounds;
+    final spaciousViewport = paddedViewport.copyWith(
+      futurePaddingItems: 5,
+      scrollOffsetItems: -5,
+    );
+    final hitRegion = latestPriceMarkerHitRegionFor(
+      fixture.snapshotWithViewport(spaciousViewport),
+      cache,
+    )!;
 
+    expect(hitRegion.showsChevron, isFalse);
     expect(
       _hasColor(
         pixels,

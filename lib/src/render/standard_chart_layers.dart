@@ -13,6 +13,36 @@ import 'render_layer.dart';
 import 'render_repaint.dart';
 import 'render_snapshot.dart';
 
+/// Hit-test geometry for the latest-price label painted by the marker layer.
+final class ChartLatestPriceMarkerHitRegion {
+  const ChartLatestPriceMarkerHitRegion({
+    required this.bounds,
+    required this.showsChevron,
+  });
+
+  final Rect bounds;
+  final bool showsChevron;
+
+  bool contains(Offset position) => bounds.contains(position);
+}
+
+/// Resolves the exact label bounds used by [ChartMarkerLayer].
+///
+/// A host can use the returned chevron region as a "return to latest" target
+/// without duplicating marker measurement or positioning rules.
+ChartLatestPriceMarkerHitRegion?
+    latestPriceMarkerHitRegionFor<TTheme extends ChartRenderStyle>(
+  RenderSnapshot<TTheme> snapshot,
+  ChartRenderCache cache,
+) {
+  if (snapshot.data.data.isEmpty) return null;
+  final layout = _latestPriceLayoutForSnapshot(snapshot, cache);
+  return ChartLatestPriceMarkerHitRegion(
+    bounds: layout.labelBounds,
+    showsChevron: layout.showChevron,
+  );
+}
+
 final class ChartGridLayer<TTheme extends ChartRenderStyle>
     extends ChartRenderLayer<TTheme> {
   ChartGridLayer(this.cache)
@@ -293,19 +323,10 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
       }
     }
 
-    final latestIndex = snapshot.data.data.length - 1;
-    final latest = cache.candlesFor(snapshot).candles[latestIndex];
-    final localX = xTransform.indexToLocalX(latestIndex);
     _drawLatestPrice(
       canvas: context.canvas,
-      panel: panel.bounds,
-      latestX: localX,
-      latestPrice: latest.close,
-      countdownText: snapshot.latestPriceCountdownText,
-      priceTransform: transform,
-      mainMode: snapshot.mainMode,
+      layout: _latestPriceLayoutForSnapshot(snapshot, cache),
       theme: snapshot.theme,
-      cache: cache,
     );
   }
 }
@@ -827,8 +848,32 @@ PaintingStyle _histogramPaintingStyle({
   return hollow ? PaintingStyle.stroke : PaintingStyle.fill;
 }
 
-void _drawLatestPrice<TTheme extends ChartRenderStyle>({
-  required Canvas canvas,
+_LatestPriceLayout
+    _latestPriceLayoutForSnapshot<TTheme extends ChartRenderStyle>(
+  RenderSnapshot<TTheme> snapshot,
+  ChartRenderCache cache,
+) {
+  final panel = snapshot.layout.mainPanel.bounds;
+  final latestIndex = snapshot.data.data.length - 1;
+  final latest = cache.candlesFor(snapshot).candles[latestIndex];
+  final latestX =
+      cache.windowFor(snapshot).xTransform.indexToLocalX(latestIndex);
+  final priceTransform = cache
+      .panelRangeFor(snapshot, snapshot.layout.mainPanel.spec.id)
+      .transform(panel);
+  return _resolveLatestPriceLayout(
+    panel: panel,
+    latestX: latestX,
+    latestPrice: latest.close,
+    countdownText: snapshot.latestPriceCountdownText,
+    priceTransform: priceTransform,
+    mainMode: snapshot.mainMode,
+    theme: snapshot.theme,
+    cache: cache,
+  );
+}
+
+_LatestPriceLayout _resolveLatestPriceLayout<TTheme extends ChartRenderStyle>({
   required ChartLayoutRect panel,
   required double latestX,
   required double latestPrice,
@@ -866,10 +911,6 @@ void _drawLatestPrice<TTheme extends ChartRenderStyle>({
           : latestX + ChartViewport.defaultItemExtent / 2;
   final candleClearance = lineStartX - latestX;
   final availableLabelWidth = remainingRight - candleClearance;
-  final linePaint = Paint()
-    ..color = theme.axisTextColor
-    ..strokeWidth = 0.6
-    ..style = PaintingStyle.stroke;
   var y = priceTransform.priceToLocalY(latestPrice);
 
   // The legacy renderer selected this branch from the text width, then fitted
@@ -882,29 +923,24 @@ void _drawLatestPrice<TTheme extends ChartRenderStyle>({
     );
     final visibleLabelWidth = contentWidth + visibleHorizontalPadding * 2;
     final labelLeft = panel.right - visibleLabelWidth;
-    _drawLatestPriceDashedHorizontalLine(
-      canvas: canvas,
-      startX: lineStartX,
-      length: labelLeft - lineStartX,
-      y: y,
-      paint: linePaint,
-    );
-    _drawLatestPriceLabel(
-      canvas: canvas,
-      panel: panel,
-      left: labelLeft,
-      centerY: y,
-      width: visibleLabelWidth,
-      height: labelHeight,
+    return _LatestPriceLayout(
+      labelBounds: _latestPriceLabelBounds(
+        panel: panel,
+        left: labelLeft,
+        centerY: y,
+        width: visibleLabelWidth,
+        height: labelHeight,
+      ),
+      lineStartX: lineStartX,
+      lineLength: labelLeft - lineStartX,
+      lineY: y,
       horizontalPadding: visibleHorizontalPadding,
       verticalPadding: verticalPadding,
       lineGap: lineGap,
       pricePainter: pricePainter,
       timePainter: timePainter,
-      theme: theme,
       showChevron: false,
     );
-    return;
   }
 
   final visibleLatestPrice = latestPrice.clamp(
@@ -912,45 +948,83 @@ void _drawLatestPrice<TTheme extends ChartRenderStyle>({
     priceTransform.maxPrice,
   );
   y = priceTransform.priceToLocalY(visibleLatestPrice);
-  _drawLatestPriceDashedHorizontalLine(
-    canvas: canvas,
-    startX: panel.left,
-    length: panel.width,
-    y: y,
-    paint: linePaint,
-  );
-
   final hiddenLabelWidth = baseLabelWidth + triangleWidth + 5;
   final left = math.max(
     panel.left,
     panel.right - hiddenLabelWidth * 2.25,
   );
-  _drawLatestPriceLabel(
-    canvas: canvas,
-    panel: panel,
-    left: left,
-    centerY: y,
-    width: hiddenLabelWidth,
-    height: labelHeight,
+  return _LatestPriceLayout(
+    labelBounds: _latestPriceLabelBounds(
+      panel: panel,
+      left: left,
+      centerY: y,
+      width: hiddenLabelWidth,
+      height: labelHeight,
+    ),
+    lineStartX: panel.left,
+    lineLength: panel.width,
+    lineY: y,
     horizontalPadding: horizontalPadding,
     verticalPadding: verticalPadding,
     lineGap: lineGap,
     pricePainter: pricePainter,
     timePainter: timePainter,
-    theme: theme,
     showChevron: true,
     chevronWidth: triangleWidth,
     chevronHeight: triangleHeight,
   );
 }
 
-void _drawLatestPriceLabel<TTheme extends ChartRenderStyle>({
-  required Canvas canvas,
+Rect _latestPriceLabelBounds({
   required ChartLayoutRect panel,
   required double left,
   required double centerY,
   required double width,
   required double height,
+}) {
+  final top = (centerY - height / 2)
+      .clamp(
+        panel.top + 1,
+        panel.bottom - height - 1,
+      )
+      .toDouble();
+  return Rect.fromLTWH(left, top, width, height);
+}
+
+void _drawLatestPrice<TTheme extends ChartRenderStyle>({
+  required Canvas canvas,
+  required _LatestPriceLayout layout,
+  required TTheme theme,
+}) {
+  final linePaint = Paint()
+    ..color = theme.axisTextColor
+    ..strokeWidth = 0.6
+    ..style = PaintingStyle.stroke;
+  _drawLatestPriceDashedHorizontalLine(
+    canvas: canvas,
+    startX: layout.lineStartX,
+    length: layout.lineLength,
+    y: layout.lineY,
+    paint: linePaint,
+  );
+  _drawLatestPriceLabel(
+    canvas: canvas,
+    bounds: layout.labelBounds,
+    horizontalPadding: layout.horizontalPadding,
+    verticalPadding: layout.verticalPadding,
+    lineGap: layout.lineGap,
+    pricePainter: layout.pricePainter,
+    timePainter: layout.timePainter,
+    theme: theme,
+    showChevron: layout.showChevron,
+    chevronWidth: layout.chevronWidth,
+    chevronHeight: layout.chevronHeight,
+  );
+}
+
+void _drawLatestPriceLabel<TTheme extends ChartRenderStyle>({
+  required Canvas canvas,
+  required Rect bounds,
   required double horizontalPadding,
   required double verticalPadding,
   required double lineGap,
@@ -961,17 +1035,11 @@ void _drawLatestPriceLabel<TTheme extends ChartRenderStyle>({
   double chevronWidth = 0,
   double chevronHeight = 0,
 }) {
-  final top = (centerY - height / 2)
-      .clamp(
-        panel.top + 1,
-        panel.bottom - height - 1,
-      )
-      .toDouble();
   final rect = RRect.fromLTRBR(
-    left,
-    top,
-    left + width,
-    top + height,
+    bounds.left,
+    bounds.top,
+    bounds.right,
+    bounds.bottom,
     const Radius.circular(5),
   );
   canvas
@@ -984,24 +1052,25 @@ void _drawLatestPriceLabel<TTheme extends ChartRenderStyle>({
         ..style = PaintingStyle.stroke,
     );
   final contentRightPadding = showChevron ? chevronWidth + 5 : 0;
-  final contentWidth = width - horizontalPadding * 2 - contentRightPadding;
+  final contentWidth =
+      bounds.width - horizontalPadding * 2 - contentRightPadding;
   pricePainter.paint(
     canvas,
     Offset(
-      left + horizontalPadding + (contentWidth - pricePainter.width) / 2,
-      top + verticalPadding,
+      bounds.left + horizontalPadding + (contentWidth - pricePainter.width) / 2,
+      bounds.top + verticalPadding,
     ),
   );
   timePainter.paint(
     canvas,
     Offset(
-      left + horizontalPadding + (contentWidth - timePainter.width) / 2,
-      top + verticalPadding + pricePainter.height + lineGap,
+      bounds.left + horizontalPadding + (contentWidth - timePainter.width) / 2,
+      bounds.top + verticalPadding + pricePainter.height + lineGap,
     ),
   );
   if (!showChevron) return;
-  final chevronX = left + width - horizontalPadding - chevronWidth;
-  final chevronY = top + (height - chevronHeight) / 2;
+  final chevronX = bounds.right - horizontalPadding - chevronWidth;
+  final chevronY = bounds.top + (bounds.height - chevronHeight) / 2;
   final chevron = Path()
     ..moveTo(chevronX, chevronY)
     ..lineTo(chevronX + chevronWidth, chevronY + chevronHeight / 2)
@@ -1013,6 +1082,36 @@ void _drawLatestPriceLabel<TTheme extends ChartRenderStyle>({
       ..strokeWidth = 1.2
       ..style = PaintingStyle.stroke,
   );
+}
+
+final class _LatestPriceLayout {
+  const _LatestPriceLayout({
+    required this.labelBounds,
+    required this.lineStartX,
+    required this.lineLength,
+    required this.lineY,
+    required this.horizontalPadding,
+    required this.verticalPadding,
+    required this.lineGap,
+    required this.pricePainter,
+    required this.timePainter,
+    required this.showChevron,
+    this.chevronWidth = 0,
+    this.chevronHeight = 0,
+  });
+
+  final Rect labelBounds;
+  final double lineStartX;
+  final double lineLength;
+  final double lineY;
+  final double horizontalPadding;
+  final double verticalPadding;
+  final double lineGap;
+  final TextPainter pricePainter;
+  final TextPainter timePainter;
+  final bool showChevron;
+  final double chevronWidth;
+  final double chevronHeight;
 }
 
 void _drawLatestPriceDashedHorizontalLine({

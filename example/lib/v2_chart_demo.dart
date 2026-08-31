@@ -462,6 +462,18 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     }
   }
 
+  void _returnToLatest(ChartViewport viewport) {
+    _navigationMachine.cancelInertia();
+    final latest = ChartViewportNavigator.toLatest(viewport);
+    setState(() {
+      _scrollOffsetItems = latest.scrollOffsetItems;
+      _itemExtent = latest.itemExtent;
+      _latestViewport = latest;
+      _viewportRevision++;
+      _clearSelection();
+    });
+  }
+
   void _selectChartPosition(
     Offset localPosition,
     RenderSnapshot<KChartTheme> snapshot,
@@ -1055,6 +1067,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                         : null;
                     final indicatorLegendIndex =
                         _indicatorLegendIndex(viewport);
+                    final latestPriceHitRegion = latestPriceMarkerHitRegionFor(
+                      baseSnapshot,
+                      _pipeline.cache,
+                    );
                     return ChartGestureRegion(
                       machine: _interactionMachine,
                       navigationMachine: _navigationMachine,
@@ -1063,7 +1079,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                           _handleChartIntent(intent, baseSnapshot),
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTapDown: (details) => _selectChartPosition(
+                        onTapUp: (details) => _selectChartPosition(
                             details.localPosition, baseSnapshot),
                         child: Stack(
                           children: [
@@ -1123,6 +1139,23 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                                     timeZoneOffset: Duration(
                                       hours: _timeZoneOffsetHours,
                                     ),
+                                  ),
+                                ),
+                              ),
+                            if (latestPriceHitRegion case final region?
+                                when region.showsChevron)
+                              Positioned.fromRect(
+                                rect: region.bounds,
+                                child: Semantics(
+                                  button: true,
+                                  label: '返回最新 K 线',
+                                  child: GestureDetector(
+                                    key: const ValueKey(
+                                      'latest-price-return',
+                                    ),
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () => _returnToLatest(viewport),
+                                    child: const SizedBox.expand(),
                                   ),
                                 ),
                               ),
