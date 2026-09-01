@@ -13,6 +13,7 @@ final class ChartPanelSpec {
     this.minHeight = 120,
     this.headerHeight = 0,
     this.gridRows = 4,
+    this.showHorizontalGrid = true,
   }) : kind = ChartPanelKind.main;
 
   const ChartPanelSpec.secondary({
@@ -21,6 +22,7 @@ final class ChartPanelSpec {
     this.minHeight = 60,
     this.headerHeight = 0,
     this.gridRows = 2,
+    this.showHorizontalGrid = true,
   }) : kind = ChartPanelKind.secondary;
 
   final String id;
@@ -37,6 +39,10 @@ final class ChartPanelSpec {
   /// [gridRows] + 1, including both panel edges.
   final int gridRows;
 
+  /// Whether the panel draws horizontal grid lines. Vertical data-anchored
+  /// grid lines remain available for every panel.
+  final bool showHorizontalGrid;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -46,11 +52,19 @@ final class ChartPanelSpec {
           weight == other.weight &&
           minHeight == other.minHeight &&
           headerHeight == other.headerHeight &&
-          gridRows == other.gridRows;
+          gridRows == other.gridRows &&
+          showHorizontalGrid == other.showHorizontalGrid;
 
   @override
-  int get hashCode =>
-      Object.hash(id, kind, weight, minHeight, headerHeight, gridRows);
+  int get hashCode => Object.hash(
+        id,
+        kind,
+        weight,
+        minHeight,
+        headerHeight,
+        gridRows,
+        showHorizontalGrid,
+      );
 }
 
 /// A rectangle in chart-local logical pixels.

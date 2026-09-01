@@ -157,6 +157,12 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   KChartTheme _theme = KChartTheme.light(
     upColor: const Color(0xff0b9b69),
     downColor: const Color(0xffd93d56),
+  ).copyWith(
+    gridStrokeWidth: 0.5,
+    dataStrokeWidth: 0.8,
+    mainLineStrokeWidth: 1,
+    indicatorStrokeWidth: 1,
+    overlayStrokeWidth: 0.8,
   );
   final Set<String> _mainIndicators = {'ma'};
   final List<String> _secondaryIndicators = ['vol', 'macd'];
@@ -700,7 +706,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     id: 'secondary-overlay',
                     minHeight: _secondaryPanelHeight,
                     headerHeight: _secondaryIndicatorHeaderHeight,
-                    gridRows: 3)
+                    gridRows: 1,
+                    showHorizontalGrid: false)
               ]
             : [
                 for (final id in _secondaryIndicators)
@@ -708,7 +715,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     id: _secondaryPanelId(id),
                     minHeight: _secondaryPanelHeight,
                     headerHeight: _secondaryIndicatorHeaderHeight,
-                    gridRows: 3,
+                    gridRows: 1,
+                    showHorizontalGrid: false,
                   ),
               ];
     final chartHeight = math.max(
@@ -1084,10 +1092,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       mainTimeAxisHeight:
                           secondaryPanels.isEmpty ? 0 : _mainTimeAxisHeight,
                       panelSpacing: _panelSpacing,
+                      gridColumns: 2,
                       mainPanel: ChartPanelSpec.main(
                         minHeight: 220,
                         headerHeight: _mainIndicatorHeaderHeight,
-                        gridRows: 5,
+                        gridRows: 1,
                       ),
                       secondaryPanels: secondaryPanels,
                     );

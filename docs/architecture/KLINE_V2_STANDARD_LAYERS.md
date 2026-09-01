@@ -37,7 +37,7 @@ P6-01 的完整 `KChartTheme` 将实现/扩展该接口，并补齐蜡烛变体�
 
 ## 3. 值域与坐标
 
-- 每个 Layer 只遍历 `ChartViewport.visibleRange`；纵向网格同样按全局数据槽位锚定并经 X Transform 投影，平移或缩放时与蜡烛、指标同步移动，不保留固定像素网格窗口；
+- 每个 Layer 只遍历 `ChartViewport.visibleRange`；纵向网格同样按全局数据槽位锚定并经 X Transform 投影，平移或缩放时与蜡烛、指标同步移动，不保留固定像素网格窗口；每个 panel 可通过 `showHorizontalGrid` 独立关闭横向网格，保留纵向数据列；
 - X 使用 `ChartXTransform.indexToLocalX`，时间轴在每个可见数据锚定网格列绘制实际 openTime；标签不在固定屏幕列重新采样，因此与网格、蜡烛作为同一时间序列平移，不假设固定周期；
 - `candlestick` 主图值域合并 Kline high/low 与 main 指标中 `includeInRange=true` 的 Series；`line`/`area` 只使用 close 值域；
 - 副图按 panel 汇总 Series，并遵守 Descriptor 的 `includeZeroInRange`；

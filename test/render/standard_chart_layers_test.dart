@@ -134,6 +134,26 @@ void main() {
     );
   });
 
+  test('grid Layer can omit horizontal lines for a secondary panel', () async {
+    final fixture = _fixture(secondaryHorizontalGrid: false);
+    final pixels = await _paint(
+      fixture.snapshot,
+      [ChartGridLayer<DefaultChartRenderStyle>(cache)],
+    );
+    final secondary = fixture.layout.panel('volume');
+
+    expect(
+      _pixel(
+        pixels,
+        fixture.width,
+        90,
+        (secondary.bounds.top + secondary.bounds.height / 2).round(),
+      ),
+      fixture.style.backgroundColor,
+      reason: '副图关闭横向网格后，内容区域不应绘制水平分隔线。',
+    );
+  });
+
   test('main Layer paints both rising and falling candle bodies', () async {
     final fixture = _fixture();
     final pixels = await _paint(
@@ -630,6 +650,7 @@ int _nonTransparentCount(
 _Fixture _fixture({
   String Function(double value, int decimalPlaces)? mainValueFormatter,
   String Function(double value, int decimalPlaces)? secondaryValueFormatter,
+  bool secondaryHorizontalGrid = true,
 }) {
   final data = _StableData(
     UnmodifiableListView([
@@ -653,12 +674,13 @@ _Fixture _fixture({
       headerHeight: 10,
       gridRows: 2,
     ),
-    secondaryPanels: const [
+    secondaryPanels: [
       ChartPanelSpec.secondary(
         id: 'volume',
         minHeight: 60,
         headerHeight: 10,
         gridRows: 2,
+        showHorizontalGrid: secondaryHorizontalGrid,
       ),
     ],
   );

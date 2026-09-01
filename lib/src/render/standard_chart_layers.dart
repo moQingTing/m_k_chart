@@ -551,19 +551,21 @@ Picture _recordGridPicture<TTheme extends ChartRenderStyle>(
         paint,
       );
     }
-    if (panel.headerBounds.height > 0) {
-      canvas.drawLine(
-        Offset(gridBounds.left, gridBounds.top),
-        Offset(gridBounds.right, gridBounds.top),
-        paint,
-      );
-    }
-    for (final y in layout.gridRowYsFor(panel.spec.id)) {
-      canvas.drawLine(
-        Offset(panel.bounds.left, y),
-        Offset(panel.bounds.right, y),
-        paint,
-      );
+    if (panel.spec.showHorizontalGrid) {
+      if (panel.headerBounds.height > 0) {
+        canvas.drawLine(
+          Offset(gridBounds.left, gridBounds.top),
+          Offset(gridBounds.right, gridBounds.top),
+          paint,
+        );
+      }
+      for (final y in layout.gridRowYsFor(panel.spec.id)) {
+        canvas.drawLine(
+          Offset(panel.bounds.left, y),
+          Offset(panel.bounds.right, y),
+          paint,
+        );
+      }
     }
   }
   return recorder.endRecording();
