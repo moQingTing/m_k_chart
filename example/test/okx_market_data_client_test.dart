@@ -66,4 +66,37 @@ void main() {
       throwsStateError,
     );
   });
+
+  test('maps the official OKX 24-hour ticker schema', () async {
+    final client = OkxMarketDataClient(
+      get: (uri) async {
+        expect(uri.path, '/api/v5/market/ticker');
+        expect(uri.queryParameters, {'instId': 'BTC-USDT'});
+        return OkxHttpResponse(
+          statusCode: 200,
+          body: jsonEncode({
+            'code': '0',
+            'data': [
+              {
+                'instId': 'BTC-USDT',
+                'last': '65000.5',
+                'open24h': '64000',
+                'high24h': '66000',
+                'low24h': '63000',
+                'vol24h': '123.4',
+                'volCcy24h': '8000000',
+              },
+            ],
+          }),
+        );
+      },
+    );
+
+    final ticker = await client.ticker(instId: 'BTC-USDT');
+
+    expect(ticker.last, 65000.5);
+    expect(ticker.change24h, 1000.5);
+    expect(ticker.changePercent24h, closeTo(1.56328125, 0.000001));
+    expect(ticker.quoteVolume24h, 8000000);
+  });
 }

@@ -56,6 +56,34 @@ class OkxMarketDataClient {
     }
     return List.unmodifiable(values);
   }
+
+  /// Loads the public 24-hour ticker used by the example's market summary.
+  ///
+  /// This remains an unauthenticated read-only request and intentionally does
+  /// not expose any account, order, or trading capability.
+  Future<OkxTicker> ticker({required String instId}) async {
+    if (!RegExp(r'^[A-Z0-9]+-[A-Z0-9]+(?:-[A-Z]+)?$').hasMatch(instId)) {
+      throw ArgumentError.value(instId, 'instId', 'Invalid OKX instrument id.');
+    }
+    final response = await _get(
+      Uri.https('www.okx.com', '/api/v5/market/ticker', {'instId': instId}),
+    ).timeout(const Duration(seconds: 12));
+    if (response.statusCode != 200) {
+      throw StateError('OKX HTTP ${response.statusCode}.');
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic> || decoded['code'] != '0') {
+      final message = decoded is Map ? decoded['msg'] : null;
+      throw StateError(
+        'OKX request failed${message == null ? '' : ': $message'}',
+      );
+    }
+    final rows = decoded['data'];
+    if (rows is! List || rows.isEmpty) {
+      throw const FormatException('OKX ticker data must contain one row.');
+    }
+    return _parseTicker(rows.first, instId: instId);
+  }
 }
 
 /// Injected in tests to keep parsing and HTTP behaviour independently tested.
@@ -66,6 +94,31 @@ final class OkxHttpResponse {
 
   final int statusCode;
   final String body;
+}
+
+/// Immutable subset of the OKX public ticker payload rendered by the demo.
+final class OkxTicker {
+  const OkxTicker({
+    required this.instId,
+    required this.last,
+    required this.open24h,
+    required this.high24h,
+    required this.low24h,
+    required this.baseVolume24h,
+    required this.quoteVolume24h,
+  });
+
+  final String instId;
+  final double last;
+  final double open24h;
+  final double high24h;
+  final double low24h;
+  final double baseVolume24h;
+  final double quoteVolume24h;
+
+  double get change24h => last - open24h;
+
+  double get changePercent24h => open24h == 0 ? 0 : change24h / open24h * 100;
 }
 
 Future<OkxHttpResponse> _defaultGet(Uri uri) async {
@@ -111,6 +164,33 @@ Kline _parseCandle(
     quoteVolume: quoteVolume,
     tradeCount: 0,
     isClosed: row[8].toString() == '1',
+  );
+}
+
+OkxTicker _parseTicker(Object? row, {required String instId}) {
+  if (row is! Map) {
+    throw const FormatException('OKX ticker must be an object.');
+  }
+  double number(String key) {
+    final raw = row[key];
+    if (raw == null) {
+      throw FormatException('OKX ticker is missing $key.');
+    }
+    final value = double.tryParse(raw.toString());
+    if (value == null || !value.isFinite) {
+      throw FormatException('OKX ticker has an invalid $key.');
+    }
+    return value;
+  }
+
+  return OkxTicker(
+    instId: instId,
+    last: number('last'),
+    open24h: number('open24h'),
+    high24h: number('high24h'),
+    low24h: number('low24h'),
+    baseVolume24h: number('vol24h'),
+    quoteVolume24h: number('volCcy24h'),
   );
 }
 

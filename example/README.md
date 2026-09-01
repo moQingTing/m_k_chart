@@ -29,7 +29,10 @@ This is an example Flutter application demonstrating how to use the `m_k_chart` 
   Secondary indicators can be independently ordered and sized or overlaid in
   a single panel. The light, Chinese-language UI also supports horizontal
   chart panning plus tap/long-press crosshair details for time, price, OHLC,
-  and volume.
+  and volume. A real OKX 24-hour ticker summary is displayed above the chart;
+  when that endpoint is unavailable, the summary falls back to the loaded
+  candle window. The top-right full-screen button opens an immersive
+  landscape chart Demo and restores the device orientation on exit.
 
 - **K-line Chart**: Shows how to use `KChartWidget` with:
   - MA (Moving Average) indicators

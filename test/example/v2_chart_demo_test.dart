@@ -14,6 +14,18 @@ void main() {
 
     expect(find.byKey(const ValueKey('period-1m')), findsOneWidget);
     expect(find.byKey(const ValueKey('mode-candlestick')), findsOneWidget);
+    expect(find.byKey(const ValueKey('market-summary')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('market-summary-last-price')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('open-fullscreen-demo')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('close-fullscreen-demo')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('close-fullscreen-demo')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('open-fullscreen-demo')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('period-5m')));
     await tester.pump();

@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:m_k_chart/m_k_chart.dart';
 import 'package:m_k_chart/renderer/legacy_chart_viewport.dart';
 import 'package:m_k_chart/v2_example_support.dart';
@@ -15,9 +16,14 @@ import 'okx_market_data_client.dart';
 /// the latest successful public response replaces them. Set [loadOnStart] to
 /// false in widget tests or an entirely offline host.
 class V2TradingChartDemo extends StatefulWidget {
-  const V2TradingChartDemo({super.key, this.loadOnStart = true});
+  const V2TradingChartDemo({
+    super.key,
+    this.loadOnStart = true,
+    this.fullscreen = false,
+  });
 
   final bool loadOnStart;
+  final bool fullscreen;
 
   @override
   State<V2TradingChartDemo> createState() => _V2TradingChartDemoState();
@@ -195,11 +201,23 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _loadGeneration = 0;
   var _isLoading = false;
   String? _loadError;
+  OkxTicker? _ticker;
   late _DemoData _data;
 
   @override
   void initState() {
     super.initState();
+    if (widget.fullscreen) {
+      unawaited(
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
+      );
+      unawaited(
+        SystemChrome.setPreferredOrientations(const [
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]),
+      );
+    }
     _pipeline = StandardChartRenderPipeline<KChartTheme>();
     _interactionMachine = ChartInteractionMachine();
     _navigationMachine = ChartNavigationMachine();
@@ -223,6 +241,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    if (widget.fullscreen) {
+      unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
+      unawaited(
+          SystemChrome.setPreferredOrientations(DeviceOrientation.values));
+    }
     _instrumentController.dispose();
     _pipeline.dispose();
     super.dispose();
@@ -256,22 +279,45 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     setState(() {
       _instrumentId = instrument;
       _instrumentController.text = instrument;
+      _ticker = null;
     });
     _loadCandles();
   }
 
+  Future<void> _openFullscreenDemo() => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => V2TradingChartDemo(
+            loadOnStart: widget.loadOnStart,
+            fullscreen: true,
+          ),
+        ),
+      );
+
+  Future<OkxTicker?> _loadTickerSafely(String instrumentId) async {
+    try {
+      return await _marketData.ticker(instId: instrumentId);
+    } on Object {
+      // A ticker failure must never hide valid candles. The summary falls back
+      // to the loaded K-line range until the next successful refresh.
+      return null;
+    }
+  }
+
   Future<void> _loadCandles() async {
     final generation = ++_loadGeneration;
+    final instrumentId = _instrumentId;
+    final tickerFuture = _loadTickerSafely(instrumentId);
     setState(() {
       _isLoading = true;
       _loadError = null;
     });
     try {
       final candles = await _marketData.candles(
-        instId: _instrumentId,
+        instId: instrumentId,
         interval: _interval,
         limit: _candleLimit,
       );
+      final ticker = await tickerFuture;
       if (!mounted || generation != _loadGeneration) return;
       final oldCandles = _data.data;
       final oldLatestIndex = oldCandles.isEmpty || candles.isEmpty
@@ -285,6 +331,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         appendedItemCount:
             preserveViewport ? candles.length - oldLatestIndex - 1 : 0,
         preserveViewport: preserveViewport,
+        ticker: ticker,
       );
     } on Object catch (error) {
       if (!mounted || generation != _loadGeneration) return;
@@ -301,6 +348,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     required int appendedItemCount,
     required bool preserveViewport,
     String? simulationMessage,
+    OkxTicker? ticker,
   }) {
     final previousViewport = _latestViewport;
     final nextViewport = preserveViewport && previousViewport != null
@@ -330,6 +378,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         _latestViewport = null;
       }
       _simulationMessage = simulationMessage;
+      _ticker = ticker ?? _ticker;
       _viewportRevision++;
       _clearSelection();
     });
@@ -729,23 +778,41 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
           16,
     );
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('V2 交易图表'),
-        backgroundColor: const Color(0xff075985),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            tooltip: '刷新 OKX 行情',
-            onPressed: _isLoading ? null : _loadCandles,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
+      appBar: widget.fullscreen
+          ? null
+          : AppBar(
+              title: const Text('V2 交易图表'),
+              backgroundColor: const Color(0xff075985),
+              foregroundColor: Colors.white,
+              actions: [
+                IconButton(
+                  key: const ValueKey('open-fullscreen-demo'),
+                  tooltip: '横屏全屏图表',
+                  onPressed: _openFullscreenDemo,
+                  icon: const Icon(Icons.fullscreen),
+                ),
+                IconButton(
+                  tooltip: '刷新 OKX 行情',
+                  onPressed: _isLoading ? null : _loadCandles,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
       backgroundColor: const Color(0xfff8fafc),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (widget.fullscreen)
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  key: const ValueKey('close-fullscreen-demo'),
+                  tooltip: '退出全屏',
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.fullscreen_exit),
+                ),
+              ),
             Text(
               '$_instrumentId · ${_interval.code}',
               style: const TextStyle(
@@ -754,6 +821,14 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                   fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
+            _MarketSummary(
+              key: const ValueKey('market-summary'),
+              instrumentId: _instrumentId,
+              ticker: _ticker,
+              candles: _data.data,
+              priceFormatter: _theme.formatMainValue,
+            ),
+            const SizedBox(height: 8),
             Text(
               _isLoading
                   ? '正在加载 OKX 行情…'
@@ -1356,6 +1431,158 @@ class _ToolbarSection extends StatelessWidget {
       );
 }
 
+/// Compact, real-data-first 24-hour summary for the trading-chart example.
+///
+/// OKX ticker values take priority. When the public ticker endpoint is
+/// temporarily unavailable, the same fields are derived from the visible
+/// candle window so the Demo remains useful offline.
+class _MarketSummary extends StatelessWidget {
+  const _MarketSummary({
+    super.key,
+    required this.instrumentId,
+    required this.ticker,
+    required this.candles,
+    required this.priceFormatter,
+  });
+
+  final String instrumentId;
+  final OkxTicker? ticker;
+  final List<Kline> candles;
+  final String Function(double value) priceFormatter;
+
+  @override
+  Widget build(BuildContext context) {
+    if (candles.isEmpty) return const SizedBox.shrink();
+    final fallbackHigh = candles.fold<double>(
+      candles.first.high,
+      (value, candle) => math.max(value, candle.high),
+    );
+    final fallbackLow = candles.fold<double>(
+      candles.first.low,
+      (value, candle) => math.min(value, candle.low),
+    );
+    final fallbackBaseVolume = candles.fold<double>(
+      0,
+      (value, candle) => value + candle.baseVolume,
+    );
+    final fallbackQuoteVolume = candles.fold<double>(
+      0,
+      (value, candle) => value + candle.quoteVolume,
+    );
+    final source = ticker;
+    final latest = source?.last ?? candles.last.close;
+    final opening = source?.open24h ?? candles.first.open;
+    final high = source?.high24h ?? fallbackHigh;
+    final low = source?.low24h ?? fallbackLow;
+    final baseVolume = source?.baseVolume24h ?? fallbackBaseVolume;
+    final quoteVolume = source?.quoteVolume24h ?? fallbackQuoteVolume;
+    final change = latest - opening;
+    final changePercent = opening == 0 ? 0 : change / opening * 100;
+    final positive = change >= 0;
+    final changeColor =
+        positive ? const Color(0xff059669) : const Color(0xffdc2626);
+    final quote = instrumentId.split('-').last;
+
+    return Semantics(
+      label: '24 小时行情摘要',
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xffe2e8f0)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  priceFormatter(latest),
+                  key: const ValueKey('market-summary-last-price'),
+                  style: TextStyle(
+                    color: changeColor,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${positive ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
+                  style: TextStyle(
+                    color: changeColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  source == null ? 'K 线估算' : 'OKX 24h',
+                  style:
+                      const TextStyle(color: Color(0xff64748b), fontSize: 11),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 18,
+              runSpacing: 6,
+              children: [
+                _MarketSummaryMetric('24h 涨跌',
+                    '${positive ? '+' : ''}${priceFormatter(change)}'),
+                _MarketSummaryMetric('24h 最高', priceFormatter(high)),
+                _MarketSummaryMetric('24h 最低', priceFormatter(low)),
+                _MarketSummaryMetric('成交量', _compactMarketValue(baseVolume)),
+                _MarketSummaryMetric(
+                    '成交额', '${_compactMarketValue(quoteVolume)} $quote'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MarketSummaryMetric extends StatelessWidget {
+  const _MarketSummaryMetric(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => RichText(
+        text: TextSpan(
+          style: const TextStyle(fontSize: 12, color: Color(0xff64748b)),
+          children: [
+            TextSpan(text: '$label '),
+            TextSpan(
+              text: value,
+              style: const TextStyle(
+                color: Color(0xff0f172a),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+String _compactMarketValue(double value) {
+  final absolute = value.abs();
+  if (absolute >= 1000000000) {
+    return '${(value / 1000000000).toStringAsFixed(2)}B';
+  }
+  if (absolute >= 1000000) {
+    return '${(value / 1000000).toStringAsFixed(2)}M';
+  }
+  if (absolute >= 1000) {
+    return '${(value / 1000).toStringAsFixed(2)}K';
+  }
+  return value.toStringAsFixed(2);
+}
+
 class _SliderSetting extends StatelessWidget {
   const _SliderSetting(
       {super.key,
@@ -1702,16 +1929,6 @@ String _formatCrosshairSelectionTime(
     return date;
   }
   return '$date ${twoDigits(time.hour)}:${twoDigits(time.minute)}';
-}
-
-String _formatTime(int epochMilliseconds, Duration timeZoneOffset) {
-  final time = DateTime.fromMillisecondsSinceEpoch(
-    epochMilliseconds + timeZoneOffset.inMilliseconds,
-    isUtc: true,
-  );
-  String twoDigits(int value) => value.toString().padLeft(2, '0');
-  return '${time.year}-${twoDigits(time.month)}-${twoDigits(time.day)} '
-      '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
 }
 
 String _formatAxisTime(int epochMilliseconds, Duration timeZoneOffset) {
