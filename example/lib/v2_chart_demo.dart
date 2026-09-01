@@ -799,20 +799,23 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               ],
             ),
       backgroundColor: const Color(0xfff8fafc),
+      floatingActionButton: widget.fullscreen
+          ? FloatingActionButton.small(
+              key: const ValueKey('close-fullscreen-demo'),
+              tooltip: '退出全屏',
+              backgroundColor: const Color(0xcc0f172a),
+              foregroundColor: Colors.white,
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Icon(Icons.fullscreen_exit),
+            )
+          : null,
       body: SafeArea(
         child: ListView(
+          key: PageStorageKey(
+            widget.fullscreen ? 'v2-chart-fullscreen' : 'v2-chart-standard',
+          ),
           padding: const EdgeInsets.all(16),
           children: [
-            if (widget.fullscreen)
-              Align(
-                alignment: Alignment.centerRight,
-                child: IconButton(
-                  key: const ValueKey('close-fullscreen-demo'),
-                  tooltip: '退出全屏',
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.fullscreen_exit),
-                ),
-              ),
             Text(
               '$_instrumentId · ${_interval.code}',
               style: const TextStyle(
@@ -837,319 +840,324 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       : '已使用离线数据 · $_loadError',
               style: const TextStyle(color: Color(0xff475569)),
             ),
-            const SizedBox(height: 16),
-            _ToolbarSection(
-              title: '交易对与数据范围',
-              children: [
-                SizedBox(
-                  width: 210,
-                  child: TextField(
-                    key: const ValueKey('instrument-input'),
-                    controller: _instrumentController,
-                    textCapitalization: TextCapitalization.characters,
-                    style: const TextStyle(color: Color(0xff0f172a)),
-                    decoration: const InputDecoration(
-                        labelText: 'OKX 交易对',
-                        hintText: 'BTC-USDT',
-                        isDense: true),
-                    onSubmitted: (_) => _submitInstrument(),
-                  ),
-                ),
-                OutlinedButton(
-                  key: const ValueKey('load-instrument'),
-                  onPressed: _isLoading ? null : _submitInstrument,
-                  child: const Text('加载'),
-                ),
-                DropdownButton<int>(
-                  key: const ValueKey('candle-limit'),
-                  value: _candleLimit,
-                  dropdownColor: Colors.white,
-                  items: const [100, 180, 300]
-                      .map((limit) => DropdownMenuItem(
-                          value: limit, child: Text('$limit 根 K 线')))
-                      .toList(growable: false),
-                  onChanged: (limit) {
-                    if (limit != null) _selectCandleLimit(limit);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _ToolbarSection(
-              title: '周期',
-              children: [
-                for (final interval in _intervals)
-                  ChoiceChip(
-                    key: ValueKey('period-${interval.code}'),
-                    label: Text(interval.code),
-                    selected: interval == _interval,
-                    onSelected: (_) => _selectInterval(interval),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _ToolbarSection(
-              title: '主图类型',
-              children: [
-                for (final mode in _modes)
-                  ChoiceChip(
-                    key: ValueKey('mode-${mode.name}'),
-                    label: Text(_modeLabel(mode)),
-                    selected: mode == _mode,
-                    onSelected: (_) => _selectMode(mode),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _ToolbarSection(
-              title: '主图叠加指标',
-              children: [
-                for (final option in _indicators.where((item) => item.isMain))
-                  FilterChip(
-                    key: ValueKey('main-indicator-${option.id}'),
-                    label: Text(option.label),
-                    selected: _mainIndicators.contains(option.id),
-                    onSelected: (enabled) =>
-                        _toggleMainIndicator(option.id, enabled),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _ToolbarSection(
-              title: '副图指标',
-              children: [
-                for (final option in _indicators.where((item) => !item.isMain))
-                  FilterChip(
-                    key: ValueKey('secondary-indicator-${option.id}'),
-                    label: Text(option.label),
-                    selected: _secondaryIndicators.contains(option.id),
-                    onSelected: (enabled) =>
-                        _toggleSecondaryIndicator(option.id, enabled),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('将选中的副图指标叠加到同一面板',
-                  style: TextStyle(color: Color(0xff0f172a))),
-              subtitle: const Text('关闭后，每个指标都拥有可调整高度的独立面板。',
-                  style: TextStyle(color: Color(0xff475569))),
-              value: _overlaySecondaryIndicators,
-              onChanged: (value) => setState(() {
-                _overlaySecondaryIndicators = value;
-                _advanceRevision();
-              }),
-            ),
-            if (!_overlaySecondaryIndicators &&
-                _secondaryIndicators.length > 1) ...[
-              const SizedBox(height: 4),
-              const Text('副图面板顺序',
-                  style: TextStyle(
-                      color: Color(0xff0f172a), fontWeight: FontWeight.w600)),
-              for (var index = 0; index < _secondaryIndicators.length; index++)
-                _PanelOrderRow(
-                  label: _indicator(_secondaryIndicators[index]).label,
-                  canMoveUp: index > 0,
-                  canMoveDown: index < _secondaryIndicators.length - 1,
-                  onMoveUp: () =>
-                      _moveSecondaryIndicator(_secondaryIndicators[index], -1),
-                  onMoveDown: () =>
-                      _moveSecondaryIndicator(_secondaryIndicators[index], 1),
-                ),
-            ],
-            const SizedBox(height: 12),
-            _SliderSetting(
-              key: const ValueKey('visible-candles-setting'),
-              label: '可见 K 线数量',
-              value: _visibleCandles.toDouble(),
-              min: 20,
-              max: 300,
-              divisions: 28,
-              valueLabel: '$_visibleCandles',
-              onChanged: (value) => setState(() {
-                _visibleCandles = value.round();
-                _itemExtent = null;
-                _advanceRevision();
-              }),
-            ),
-            _SliderSetting(
-              key: const ValueKey('secondary-panel-height-setting'),
-              label: '副图面板最小高度',
-              value: _secondaryPanelHeight,
-              min: 72,
-              max: 180,
-              divisions: 9,
-              valueLabel: '${_secondaryPanelHeight.round()} px',
-              onChanged: (value) => setState(() {
-                _secondaryPanelHeight = value;
-                _advanceRevision();
-              }),
-            ),
-            _SliderSetting(
-              key: const ValueKey('main-header-height-setting'),
-              label: '主图指标参数区域高度',
-              value: _mainIndicatorHeaderHeight,
-              min: 0,
-              max: 40,
-              divisions: 20,
-              valueLabel: '${_mainIndicatorHeaderHeight.round()} px',
-              onChanged: (value) => setState(() {
-                _mainIndicatorHeaderHeight = value;
-                _advanceRevision();
-              }),
-            ),
-            _SliderSetting(
-              key: const ValueKey('secondary-header-height-setting'),
-              label: '副图指标参数区域高度',
-              value: _secondaryIndicatorHeaderHeight,
-              min: 0,
-              max: 40,
-              divisions: 20,
-              valueLabel: '${_secondaryIndicatorHeaderHeight.round()} px',
-              onChanged: (value) => setState(() {
-                _secondaryIndicatorHeaderHeight = value;
-                _advanceRevision();
-              }),
-            ),
-            _SliderSetting(
-              key: const ValueKey('main-time-axis-height-setting'),
-              label: '主图与副图之间的时间区域高度',
-              value: _mainTimeAxisHeight,
-              min: 0,
-              max: 40,
-              divisions: 20,
-              valueLabel: '${_mainTimeAxisHeight.round()} px',
-              onChanged: (value) => setState(() {
-                _mainTimeAxisHeight = value;
-                _advanceRevision();
-              }),
-            ),
-            _ToolbarSection(
-              title: '时间显示时区',
-              children: [
-                DropdownButton<int>(
-                  key: const ValueKey('time-zone-offset'),
-                  value: _timeZoneOffsetHours,
-                  items: const [-8, 0, 8, 9]
-                      .map(
-                        (hours) => DropdownMenuItem(
-                          value: hours,
-                          child: Text(
-                            hours == 0
-                                ? 'UTC'
-                                : 'UTC${hours > 0 ? '+' : ''}$hours',
-                          ),
-                        ),
-                      )
-                      .toList(growable: false),
-                  onChanged: (hours) {
-                    if (hours == null) return;
-                    setState(() {
-                      _timeZoneOffsetHours = hours;
-                      _advanceRevision();
-                    });
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _ToolbarSection(
-              title: '数值显示格式（主图与副图独立）',
-              children: [
-                DropdownButton<int>(
-                  key: const ValueKey('main-value-decimals'),
-                  value: _theme.mainValueDecimalPlaces,
-                  items: List.generate(
-                    7,
-                    (places) => DropdownMenuItem(
-                      value: places,
-                      child: Text('主图 $places 位小数'),
+            if (!widget.fullscreen) ...[
+              const SizedBox(height: 16),
+              _ToolbarSection(
+                title: '交易对与数据范围',
+                children: [
+                  SizedBox(
+                    width: 210,
+                    child: TextField(
+                      key: const ValueKey('instrument-input'),
+                      controller: _instrumentController,
+                      textCapitalization: TextCapitalization.characters,
+                      style: const TextStyle(color: Color(0xff0f172a)),
+                      decoration: const InputDecoration(
+                          labelText: 'OKX 交易对',
+                          hintText: 'BTC-USDT',
+                          isDense: true),
+                      onSubmitted: (_) => _submitInstrument(),
                     ),
                   ),
-                  onChanged: (places) {
-                    if (places == null) return;
-                    setState(() {
-                      _theme = _theme.copyWith(
-                        mainValueDecimalPlaces: places,
-                      );
-                      _advanceRevision();
-                    });
-                  },
-                ),
-                FilterChip(
-                  key: const ValueKey('main-value-thousands'),
-                  label: const Text('主图千分位'),
-                  selected: _theme.mainValueUseThousandsSeparator,
-                  onSelected: (enabled) => setState(() {
-                    _theme = _theme.copyWith(
-                      mainValueUseThousandsSeparator: enabled,
-                    );
-                    _advanceRevision();
-                  }),
-                ),
-                DropdownButton<int>(
-                  key: const ValueKey('secondary-value-decimals'),
-                  value: _theme.secondaryValueDecimalPlaces,
-                  items: List.generate(
-                    7,
-                    (places) => DropdownMenuItem(
-                      value: places,
-                      child: Text('副图 $places 位小数'),
-                    ),
+                  OutlinedButton(
+                    key: const ValueKey('load-instrument'),
+                    onPressed: _isLoading ? null : _submitInstrument,
+                    child: const Text('加载'),
                   ),
-                  onChanged: (places) {
-                    if (places == null) return;
-                    setState(() {
-                      _theme = _theme.copyWith(
-                        secondaryValueDecimalPlaces: places,
-                      );
-                      _advanceRevision();
-                    });
-                  },
-                ),
-                FilterChip(
-                  key: const ValueKey('secondary-value-thousands'),
-                  label: const Text('副图千分位'),
-                  selected: _theme.secondaryValueUseThousandsSeparator,
-                  onSelected: (enabled) => setState(() {
-                    _theme = _theme.copyWith(
-                      secondaryValueUseThousandsSeparator: enabled,
-                    );
-                    _advanceRevision();
-                  }),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _ToolbarSection(
-              title: '模拟实时数据（用于验证视口）',
-              children: [
-                OutlinedButton.icon(
-                  key: const ValueKey('simulate-update-latest'),
-                  onPressed: _simulateUpdateLatest,
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('模拟更新最新 K 线'),
-                ),
-                FilledButton.icon(
-                  key: const ValueKey('simulate-append-latest'),
-                  onPressed: _simulateAppendLatest,
-                  icon: const Icon(Icons.add_chart, size: 18),
-                  label: const Text('模拟新增 K 线'),
-                ),
-              ],
-            ),
-            if (_simulationMessage case final message?) ...[
-              const SizedBox(height: 6),
-              Text(
-                message,
-                key: const ValueKey('simulation-status'),
-                style: const TextStyle(
-                  color: Color(0xff0369a1),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+                  DropdownButton<int>(
+                    key: const ValueKey('candle-limit'),
+                    value: _candleLimit,
+                    dropdownColor: Colors.white,
+                    items: const [100, 180, 300]
+                        .map((limit) => DropdownMenuItem(
+                            value: limit, child: Text('$limit 根 K 线')))
+                        .toList(growable: false),
+                    onChanged: (limit) {
+                      if (limit != null) _selectCandleLimit(limit);
+                    },
+                  ),
+                ],
               ),
+              const SizedBox(height: 12),
+              _ToolbarSection(
+                title: '周期',
+                children: [
+                  for (final interval in _intervals)
+                    ChoiceChip(
+                      key: ValueKey('period-${interval.code}'),
+                      label: Text(interval.code),
+                      selected: interval == _interval,
+                      onSelected: (_) => _selectInterval(interval),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ToolbarSection(
+                title: '主图类型',
+                children: [
+                  for (final mode in _modes)
+                    ChoiceChip(
+                      key: ValueKey('mode-${mode.name}'),
+                      label: Text(_modeLabel(mode)),
+                      selected: mode == _mode,
+                      onSelected: (_) => _selectMode(mode),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ToolbarSection(
+                title: '主图叠加指标',
+                children: [
+                  for (final option in _indicators.where((item) => item.isMain))
+                    FilterChip(
+                      key: ValueKey('main-indicator-${option.id}'),
+                      label: Text(option.label),
+                      selected: _mainIndicators.contains(option.id),
+                      onSelected: (enabled) =>
+                          _toggleMainIndicator(option.id, enabled),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ToolbarSection(
+                title: '副图指标',
+                children: [
+                  for (final option
+                      in _indicators.where((item) => !item.isMain))
+                    FilterChip(
+                      key: ValueKey('secondary-indicator-${option.id}'),
+                      label: Text(option.label),
+                      selected: _secondaryIndicators.contains(option.id),
+                      onSelected: (enabled) =>
+                          _toggleSecondaryIndicator(option.id, enabled),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('将选中的副图指标叠加到同一面板',
+                    style: TextStyle(color: Color(0xff0f172a))),
+                subtitle: const Text('关闭后，每个指标都拥有可调整高度的独立面板。',
+                    style: TextStyle(color: Color(0xff475569))),
+                value: _overlaySecondaryIndicators,
+                onChanged: (value) => setState(() {
+                  _overlaySecondaryIndicators = value;
+                  _advanceRevision();
+                }),
+              ),
+              if (!_overlaySecondaryIndicators &&
+                  _secondaryIndicators.length > 1) ...[
+                const SizedBox(height: 4),
+                const Text('副图面板顺序',
+                    style: TextStyle(
+                        color: Color(0xff0f172a), fontWeight: FontWeight.w600)),
+                for (var index = 0;
+                    index < _secondaryIndicators.length;
+                    index++)
+                  _PanelOrderRow(
+                    label: _indicator(_secondaryIndicators[index]).label,
+                    canMoveUp: index > 0,
+                    canMoveDown: index < _secondaryIndicators.length - 1,
+                    onMoveUp: () => _moveSecondaryIndicator(
+                        _secondaryIndicators[index], -1),
+                    onMoveDown: () =>
+                        _moveSecondaryIndicator(_secondaryIndicators[index], 1),
+                  ),
+              ],
+              const SizedBox(height: 12),
+              _SliderSetting(
+                key: const ValueKey('visible-candles-setting'),
+                label: '可见 K 线数量',
+                value: _visibleCandles.toDouble(),
+                min: 20,
+                max: 300,
+                divisions: 28,
+                valueLabel: '$_visibleCandles',
+                onChanged: (value) => setState(() {
+                  _visibleCandles = value.round();
+                  _itemExtent = null;
+                  _advanceRevision();
+                }),
+              ),
+              _SliderSetting(
+                key: const ValueKey('secondary-panel-height-setting'),
+                label: '副图面板最小高度',
+                value: _secondaryPanelHeight,
+                min: 72,
+                max: 180,
+                divisions: 9,
+                valueLabel: '${_secondaryPanelHeight.round()} px',
+                onChanged: (value) => setState(() {
+                  _secondaryPanelHeight = value;
+                  _advanceRevision();
+                }),
+              ),
+              _SliderSetting(
+                key: const ValueKey('main-header-height-setting'),
+                label: '主图指标参数区域高度',
+                value: _mainIndicatorHeaderHeight,
+                min: 0,
+                max: 40,
+                divisions: 20,
+                valueLabel: '${_mainIndicatorHeaderHeight.round()} px',
+                onChanged: (value) => setState(() {
+                  _mainIndicatorHeaderHeight = value;
+                  _advanceRevision();
+                }),
+              ),
+              _SliderSetting(
+                key: const ValueKey('secondary-header-height-setting'),
+                label: '副图指标参数区域高度',
+                value: _secondaryIndicatorHeaderHeight,
+                min: 0,
+                max: 40,
+                divisions: 20,
+                valueLabel: '${_secondaryIndicatorHeaderHeight.round()} px',
+                onChanged: (value) => setState(() {
+                  _secondaryIndicatorHeaderHeight = value;
+                  _advanceRevision();
+                }),
+              ),
+              _SliderSetting(
+                key: const ValueKey('main-time-axis-height-setting'),
+                label: '主图与副图之间的时间区域高度',
+                value: _mainTimeAxisHeight,
+                min: 0,
+                max: 40,
+                divisions: 20,
+                valueLabel: '${_mainTimeAxisHeight.round()} px',
+                onChanged: (value) => setState(() {
+                  _mainTimeAxisHeight = value;
+                  _advanceRevision();
+                }),
+              ),
+              _ToolbarSection(
+                title: '时间显示时区',
+                children: [
+                  DropdownButton<int>(
+                    key: const ValueKey('time-zone-offset'),
+                    value: _timeZoneOffsetHours,
+                    items: const [-8, 0, 8, 9]
+                        .map(
+                          (hours) => DropdownMenuItem(
+                            value: hours,
+                            child: Text(
+                              hours == 0
+                                  ? 'UTC'
+                                  : 'UTC${hours > 0 ? '+' : ''}$hours',
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (hours) {
+                      if (hours == null) return;
+                      setState(() {
+                        _timeZoneOffsetHours = hours;
+                        _advanceRevision();
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ToolbarSection(
+                title: '数值显示格式（主图与副图独立）',
+                children: [
+                  DropdownButton<int>(
+                    key: const ValueKey('main-value-decimals'),
+                    value: _theme.mainValueDecimalPlaces,
+                    items: List.generate(
+                      7,
+                      (places) => DropdownMenuItem(
+                        value: places,
+                        child: Text('主图 $places 位小数'),
+                      ),
+                    ),
+                    onChanged: (places) {
+                      if (places == null) return;
+                      setState(() {
+                        _theme = _theme.copyWith(
+                          mainValueDecimalPlaces: places,
+                        );
+                        _advanceRevision();
+                      });
+                    },
+                  ),
+                  FilterChip(
+                    key: const ValueKey('main-value-thousands'),
+                    label: const Text('主图千分位'),
+                    selected: _theme.mainValueUseThousandsSeparator,
+                    onSelected: (enabled) => setState(() {
+                      _theme = _theme.copyWith(
+                        mainValueUseThousandsSeparator: enabled,
+                      );
+                      _advanceRevision();
+                    }),
+                  ),
+                  DropdownButton<int>(
+                    key: const ValueKey('secondary-value-decimals'),
+                    value: _theme.secondaryValueDecimalPlaces,
+                    items: List.generate(
+                      7,
+                      (places) => DropdownMenuItem(
+                        value: places,
+                        child: Text('副图 $places 位小数'),
+                      ),
+                    ),
+                    onChanged: (places) {
+                      if (places == null) return;
+                      setState(() {
+                        _theme = _theme.copyWith(
+                          secondaryValueDecimalPlaces: places,
+                        );
+                        _advanceRevision();
+                      });
+                    },
+                  ),
+                  FilterChip(
+                    key: const ValueKey('secondary-value-thousands'),
+                    label: const Text('副图千分位'),
+                    selected: _theme.secondaryValueUseThousandsSeparator,
+                    onSelected: (enabled) => setState(() {
+                      _theme = _theme.copyWith(
+                        secondaryValueUseThousandsSeparator: enabled,
+                      );
+                      _advanceRevision();
+                    }),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ToolbarSection(
+                title: '模拟实时数据（用于验证视口）',
+                children: [
+                  OutlinedButton.icon(
+                    key: const ValueKey('simulate-update-latest'),
+                    onPressed: _simulateUpdateLatest,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('模拟更新最新 K 线'),
+                  ),
+                  FilledButton.icon(
+                    key: const ValueKey('simulate-append-latest'),
+                    onPressed: _simulateAppendLatest,
+                    icon: const Icon(Icons.add_chart, size: 18),
+                    label: const Text('模拟新增 K 线'),
+                  ),
+                ],
+              ),
+              if (_simulationMessage case final message?) ...[
+                const SizedBox(height: 6),
+                Text(
+                  message,
+                  key: const ValueKey('simulation-status'),
+                  style: const TextStyle(
+                    color: Color(0xff0369a1),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ],
             const SizedBox(height: 16),
             Semantics(
