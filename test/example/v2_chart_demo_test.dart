@@ -164,11 +164,26 @@ void main() {
 
     await tester.ensureVisible(chartCanvas);
     await tester.pump();
-    await tester.tapAt(tester.getTopLeft(chartCanvas) + const Offset(100, 80));
+    final chartTopLeft = tester.getTopLeft(chartCanvas);
+    final chartSize = tester.getSize(chartCanvas);
+    await tester.tapAt(chartTopLeft + const Offset(100, 80));
     await tester.pump();
     expect(find.byKey(const ValueKey('crosshair-details')), findsOneWidget);
     expect(find.text('时间'), findsOneWidget);
     expect(find.text('命中值'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('crosshair-details'))).dx,
+      greaterThan(chartTopLeft.dx + chartSize.width / 2),
+    );
+
+    await tester.tapAt(
+      chartTopLeft + Offset(chartSize.width * 0.7, 80),
+    );
+    await tester.pump();
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('crosshair-details'))).dx,
+      lessThan(chartTopLeft.dx + chartSize.width / 2),
+    );
 
     await tester.drag(chartCanvas, const Offset(90, 0));
     await tester.pumpAndSettle();

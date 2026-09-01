@@ -1144,6 +1144,15 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       baseSnapshot,
                       _pipeline.cache,
                     );
+                    final mainPanelBounds = layout.panel('main').bounds;
+                    final detailsOnRight = snapshot.selection.localX <
+                        (mainPanelBounds.left + mainPanelBounds.right) / 2;
+                    final detailsLeft = detailsOnRight
+                        ? mainPanelBounds.right -
+                            _CrosshairDetails.width -
+                            _CrosshairDetails.horizontalInset
+                        : mainPanelBounds.left +
+                            _CrosshairDetails.horizontalInset;
                     return ChartGestureRegion(
                       machine: _interactionMachine,
                       navigationMachine: _navigationMachine,
@@ -1207,8 +1216,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                               ),
                             if (selectedCandle != null)
                               Positioned(
-                                left: 12,
-                                top: layout.panel('main').bounds.top + 8,
+                                key: const ValueKey(
+                                  'crosshair-details-position',
+                                ),
+                                left: detailsLeft,
+                                top: mainPanelBounds.top + 8,
                                 child: IgnorePointer(
                                   child: _CrosshairDetails(
                                     candle: selectedCandle,
@@ -1442,6 +1454,9 @@ class _PanelOrderRow extends StatelessWidget {
 }
 
 class _CrosshairDetails extends StatelessWidget {
+  static const width = 144.0;
+  static const horizontalInset = 8.0;
+
   const _CrosshairDetails({
     required this.candle,
     required this.previousCandle,
@@ -1475,7 +1490,7 @@ class _CrosshairDetails extends StatelessWidget {
             : theme.formatSecondaryValue(selectedPrice!);
     return Container(
       key: const ValueKey('crosshair-details'),
-      width: 144,
+      width: width,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
         color: theme.crosshairDetailBackgroundColor,
