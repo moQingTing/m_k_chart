@@ -1096,7 +1096,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       mainPanel: ChartPanelSpec.main(
                         minHeight: 220,
                         headerHeight: _mainIndicatorHeaderHeight,
-                        gridRows: 2,
+                        gridRows: 4,
                       ),
                       secondaryPanels: secondaryPanels,
                     );
