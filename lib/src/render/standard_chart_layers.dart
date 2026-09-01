@@ -49,6 +49,8 @@ final class ChartGridLayer<TTheme extends ChartRenderStyle>
       : super(
           id: 'grid',
           dependencies: const {
+            RenderSnapshotSlice.data,
+            RenderSnapshotSlice.viewport,
             RenderSnapshotSlice.layout,
             RenderSnapshotSlice.theme,
           },
@@ -59,14 +61,19 @@ final class ChartGridLayer<TTheme extends ChartRenderStyle>
   @override
   void paint(RenderLayerContext<TTheme> context) {
     final snapshot = context.snapshot;
+    final window = cache.windowFor(snapshot);
     final picture = cache.picture(
       (
         'grid',
+        snapshot.data.version,
+        snapshot.versions.data,
+        snapshot.versions.viewport,
         snapshot.versions.layout,
         snapshot.versions.theme,
         snapshot.layout,
+        snapshot.viewport,
       ),
-      () => _recordGridPicture(snapshot),
+      () => _recordGridPicture(snapshot, window),
     );
     context.canvas.drawPicture(picture);
   }
@@ -244,7 +251,8 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
       return;
     }
     final xTransform = cache.windowFor(snapshot).xTransform;
-    for (final x in layout.gridColumnXs) {
+    final gridColumnXs = _scrollingGridColumnXs(snapshot, xTransform);
+    for (final x in gridColumnXs) {
       final time = xTransform.localXToTime(x - layout.drawingBounds.left);
       _drawText(
         canvas: context.canvas,
@@ -253,9 +261,9 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
         fontSize: theme.axisFontSize,
         x: x,
         y: layout.timeAxisBounds.top + 2,
-        horizontalAnchor: x == layout.gridColumnXs.first
+        horizontalAnchor: x <= layout.drawingBounds.left
             ? 0
-            : x == layout.gridColumnXs.last
+            : x >= layout.drawingBounds.right
                 ? 1
                 : 0.5,
         cache: cache,
@@ -519,6 +527,7 @@ final class StandardChartRenderPipeline<TTheme extends ChartRenderStyle> {
 
 Picture _recordGridPicture<TTheme extends ChartRenderStyle>(
   RenderSnapshot<TTheme> snapshot,
+  ChartVisibleWindow window,
 ) {
   final recorder = PictureRecorder();
   final canvas = Canvas(recorder);
@@ -532,9 +541,10 @@ Picture _recordGridPicture<TTheme extends ChartRenderStyle>(
     ..color = theme.gridColor
     ..strokeWidth = theme.gridStrokeWidth
     ..style = PaintingStyle.stroke;
+  final gridColumnXs = _scrollingGridColumnXs(snapshot, window.xTransform);
   for (final panel in layout.panels) {
     final gridBounds = panel.gridBounds;
-    for (final x in layout.gridColumnXs) {
+    for (final x in gridColumnXs) {
       canvas.drawLine(
         Offset(x, gridBounds.top),
         Offset(x, gridBounds.bottom),
@@ -557,6 +567,40 @@ Picture _recordGridPicture<TTheme extends ChartRenderStyle>(
     }
   }
   return recorder.endRecording();
+}
+
+/// Resolves vertical grid lines from globally anchored data slots.
+///
+/// The horizontal row grid remains panel-relative because its price range is
+/// recomputed for every viewport. Vertical lines, however, must share the X
+/// transform with candles and indicators so a pan or zoom moves the grid with
+/// the chart instead of leaving a stationary window behind.
+List<double> _scrollingGridColumnXs<TTheme extends Object>(
+  RenderSnapshot<TTheme> snapshot,
+  ChartXTransform xTransform,
+) {
+  if (snapshot.data.data.isEmpty) {
+    return snapshot.layout.gridColumnXs;
+  }
+  final layout = snapshot.layout;
+  final viewport = snapshot.viewport;
+  final stepItems = math.max(
+    1,
+    (viewport.visibleItemCapacity / layout.gridColumns).round(),
+  );
+  final firstAnchor =
+      (viewport.visibleLeftDataPosition / stepItems).floor() * stepItems;
+  final result = <double>[];
+  for (var dataPosition = firstAnchor;
+      dataPosition <= viewport.visibleRightDataPosition + stepItems;
+      dataPosition += stepItems) {
+    final x = xTransform.dataPositionToLocalX(dataPosition.toDouble()) +
+        layout.drawingBounds.left;
+    if (x >= layout.drawingBounds.left && x <= layout.drawingBounds.right) {
+      result.add(x);
+    }
+  }
+  return result;
 }
 
 Path _buildLinePath({

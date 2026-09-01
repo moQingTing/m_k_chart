@@ -71,7 +71,10 @@ void main() {
         selection: RenderSelectionSnapshot.visible(localX: 50, localY: 60),
       ),
     );
-    expect(viewport.repaintedLayerIds, ['main', 'secondary', 'axis', 'marker']);
+    expect(
+      viewport.repaintedLayerIds,
+      ['grid', 'main', 'secondary', 'axis', 'marker'],
+    );
 
     final data = _paint(
       pipeline,
@@ -87,7 +90,7 @@ void main() {
     );
     expect(
       data.repaintedLayerIds,
-      ['main', 'secondary', 'axis', 'marker', 'drawing'],
+      ['grid', 'main', 'secondary', 'axis', 'marker', 'drawing'],
     );
 
     final layout = _paint(
@@ -143,7 +146,7 @@ void main() {
     );
 
     expect(pipeline.repaintStats.frameCount, 9);
-    expect(pipeline.repaintStats.repaintCount('grid'), 3);
+    expect(pipeline.repaintStats.repaintCount('grid'), 5);
     expect(pipeline.repaintStats.repaintCount('main'), 5);
     expect(pipeline.repaintStats.repaintCount('marker'), 6);
     expect(pipeline.repaintStats.repaintCount('crosshair'), 4);

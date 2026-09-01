@@ -641,12 +641,16 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     ChartLayoutModel layout,
     ChartViewport viewport,
   ) {
-    if (_data.data.isEmpty || layout.gridColumnXs.length < 3) return const [];
+    if (_data.data.isEmpty) return const [];
     final xTransform = ChartXTransform(viewport: viewport, data: _data);
-    final internalColumns = layout.gridColumnXs.sublist(
-      1,
-      layout.gridColumnXs.length - 1,
-    );
+    final internalColumns = _scrollingGridColumnXs(
+      layout: layout,
+      viewport: viewport,
+      xTransform: xTransform,
+    )
+        .where((x) =>
+            x > layout.drawingBounds.left && x < layout.drawingBounds.right)
+        .toList(growable: false);
     final selectedColumns = internalColumns.length <= 2
         ? internalColumns
         : [internalColumns.first, internalColumns.last];
@@ -661,6 +665,30 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
           ),
         ),
     ];
+  }
+
+  List<double> _scrollingGridColumnXs({
+    required ChartLayoutModel layout,
+    required ChartViewport viewport,
+    required ChartXTransform xTransform,
+  }) {
+    final stepItems = math.max(
+      1,
+      (viewport.visibleItemCapacity / layout.gridColumns).round(),
+    );
+    final firstAnchor =
+        (viewport.visibleLeftDataPosition / stepItems).floor() * stepItems;
+    final result = <double>[];
+    for (var dataPosition = firstAnchor;
+        dataPosition <= viewport.visibleRightDataPosition + stepItems;
+        dataPosition += stepItems) {
+      final x = xTransform.dataPositionToLocalX(dataPosition.toDouble()) +
+          layout.drawingBounds.left;
+      if (x >= layout.drawingBounds.left && x <= layout.drawingBounds.right) {
+        result.add(x);
+      }
+    }
+    return result;
   }
 
   @override

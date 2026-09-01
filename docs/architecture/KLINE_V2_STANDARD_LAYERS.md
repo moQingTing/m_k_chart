@@ -12,7 +12,7 @@
 
 | 顺序 | Layer ID | 输出 | 依赖切片 |
 | ---: | --- | --- | --- |
-| 1 | `grid` | 背景、全宽列网格、逐 panel 行网格 | layout、theme |
+| 1 | `grid` | 背景、数据槽位锚定的列网格、逐 panel 行网格 | data、viewport、layout、theme |
 | 2 | `main` | 蜡烛/分时/面积主图 | data、viewport、layout、theme |
 | 3 | `secondary` | 副图 line/histogram/points 指标 | data、viewport、layout、theme |
 | 4 | `axis` | panel 数值标签、实际 openTime 标签 | data、viewport、layout、theme |
@@ -37,7 +37,7 @@ P6-01 的完整 `KChartTheme` 将实现/扩展该接口，并补齐蜡烛变体�
 
 ## 3. 值域与坐标
 
-- 每个 Layer 只遍历 `ChartViewport.visibleRange`；
+- 每个 Layer 只遍历 `ChartViewport.visibleRange`；纵向网格同样按全局数据槽位锚定并经 X Transform 投影，平移或缩放时与蜡烛、指标同步移动，不保留固定像素网格窗口；
 - X 使用 `ChartXTransform.indexToLocalX`，时间轴使用实际 openTime 往返，不假设固定周期；
 - `candlestick` 主图值域合并 Kline high/low 与 main 指标中 `includeInRange=true` 的 Series；`line`/`area` 只使用 close 值域；
 - 副图按 panel 汇总 Series，并遵守 Descriptor 的 `includeZeroInRange`；

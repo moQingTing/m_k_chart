@@ -36,7 +36,12 @@ void main() {
     );
     expect(
       stack.layer('grid').dependencies,
-      isNot(contains(RenderSnapshotSlice.clock)),
+      {
+        RenderSnapshotSlice.data,
+        RenderSnapshotSlice.viewport,
+        RenderSnapshotSlice.layout,
+        RenderSnapshotSlice.theme,
+      },
     );
   });
 
@@ -90,6 +95,42 @@ void main() {
       ),
       fixture.style.backgroundColor,
       reason: '主图时间区域不应绘制纵向网格。',
+    );
+  });
+
+  test('grid Layer anchors vertical lines to data slots while panning',
+      () async {
+    final fixture = _fixture();
+    final viewport = fixture.viewport.copyWith(
+      itemExtent: 40,
+      scrollOffsetItems: 1,
+    );
+    final pixels = await _paint(
+      fixture.snapshotWithViewport(viewport),
+      [ChartGridLayer<DefaultChartRenderStyle>(cache)],
+    );
+    final headerY = fixture.layout.mainPanel.headerBounds.top +
+        fixture.layout.mainPanel.headerBounds.height / 2;
+
+    expect(
+      _hasColor(
+        pixels,
+        fixture.width,
+        Rect.fromCenter(
+          center: Offset(140, headerY),
+          width: 3,
+          height: 3,
+        ),
+        fixture.style.gridColor,
+        tolerance: 140,
+      ),
+      isTrue,
+      reason: '数据槽位锚定的网格应随 viewport 平移到新的 X 坐标。',
+    );
+    expect(
+      _pixel(pixels, fixture.width, 120, headerY.round()),
+      fixture.style.backgroundColor,
+      reason: '旧的固定布局列不能在平移后继续保留。',
     );
   });
 
