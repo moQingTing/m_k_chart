@@ -12,6 +12,11 @@ abstract interface class ChartRenderStyle {
   Color get downColor;
   Color get markerColor;
   Color get crosshairColor;
+  Color get crosshairLabelBackgroundColor;
+  Color get crosshairLabelTextColor;
+  Color get crosshairDetailBackgroundColor;
+  Color get crosshairDetailTextColor;
+  Color get crosshairDetailBorderColor;
   Color get drawingColor;
   Color get mainLineColor;
   List<Color> get areaFillColors;
@@ -20,6 +25,11 @@ abstract interface class ChartRenderStyle {
   double get mainLineStrokeWidth;
   double get indicatorStrokeWidth;
   double get overlayStrokeWidth;
+  double get crosshairDashLength;
+  double get crosshairDashGap;
+  double get crosshairPointRadius;
+  double get crosshairLabelHorizontalPadding;
+  double get crosshairLabelVerticalPadding;
   double get axisFontSize;
   double get candleWidthRatio;
   double get histogramWidthRatio;
@@ -40,6 +50,11 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
     Color downColor = const Color(0xfff6465d),
     Color markerColor = const Color(0xfff0b90b),
     Color crosshairColor = const Color(0xffb7bdc6),
+    Color crosshairLabelBackgroundColor = const Color(0xff000000),
+    Color crosshairLabelTextColor = const Color(0xffffffff),
+    Color crosshairDetailBackgroundColor = const Color(0xf2ffffff),
+    Color crosshairDetailTextColor = const Color(0xff0f172a),
+    Color crosshairDetailBorderColor = const Color(0xff94a3b8),
     Color drawingColor = const Color(0xff8a70d6),
     Color mainLineColor = const Color(0xff38e5cc),
     Iterable<Color> areaFillColors = const [
@@ -63,6 +78,11 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
     double candleWidthRatio = 0.75,
     double histogramWidthRatio = 0.8,
     double indicatorPointRadius = 2,
+    double crosshairDashLength = 5,
+    double crosshairDashGap = 4,
+    double crosshairPointRadius = 3,
+    double crosshairLabelHorizontalPadding = 6,
+    double crosshairLabelVerticalPadding = 3,
     int mainValueDecimalPlaces = 2,
     int secondaryValueDecimalPlaces = 2,
     bool mainValueUseThousandsSeparator = true,
@@ -86,6 +106,11 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
       'overlayStrokeWidth': overlayStrokeWidth,
       'axisFontSize': axisFontSize,
       'indicatorPointRadius': indicatorPointRadius,
+      'crosshairDashLength': crosshairDashLength,
+      'crosshairDashGap': crosshairDashGap,
+      'crosshairPointRadius': crosshairPointRadius,
+      'crosshairLabelHorizontalPadding': crosshairLabelHorizontalPadding,
+      'crosshairLabelVerticalPadding': crosshairLabelVerticalPadding,
     };
     for (final entry in widths.entries) {
       if (!entry.value.isFinite || entry.value <= 0) {
@@ -124,6 +149,11 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
       downColor: downColor,
       markerColor: markerColor,
       crosshairColor: crosshairColor,
+      crosshairLabelBackgroundColor: crosshairLabelBackgroundColor,
+      crosshairLabelTextColor: crosshairLabelTextColor,
+      crosshairDetailBackgroundColor: crosshairDetailBackgroundColor,
+      crosshairDetailTextColor: crosshairDetailTextColor,
+      crosshairDetailBorderColor: crosshairDetailBorderColor,
       drawingColor: drawingColor,
       mainLineColor: mainLineColor,
       areaFillColors: fillColors,
@@ -133,6 +163,11 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
       mainLineStrokeWidth: mainLineStrokeWidth,
       indicatorStrokeWidth: indicatorStrokeWidth,
       overlayStrokeWidth: overlayStrokeWidth,
+      crosshairDashLength: crosshairDashLength,
+      crosshairDashGap: crosshairDashGap,
+      crosshairPointRadius: crosshairPointRadius,
+      crosshairLabelHorizontalPadding: crosshairLabelHorizontalPadding,
+      crosshairLabelVerticalPadding: crosshairLabelVerticalPadding,
       axisFontSize: axisFontSize,
       candleWidthRatio: candleWidthRatio,
       histogramWidthRatio: histogramWidthRatio,
@@ -154,6 +189,11 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
     required this.downColor,
     required this.markerColor,
     required this.crosshairColor,
+    required this.crosshairLabelBackgroundColor,
+    required this.crosshairLabelTextColor,
+    required this.crosshairDetailBackgroundColor,
+    required this.crosshairDetailTextColor,
+    required this.crosshairDetailBorderColor,
     required this.drawingColor,
     required this.mainLineColor,
     required this.areaFillColors,
@@ -163,6 +203,11 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
     required this.mainLineStrokeWidth,
     required this.indicatorStrokeWidth,
     required this.overlayStrokeWidth,
+    required this.crosshairDashLength,
+    required this.crosshairDashGap,
+    required this.crosshairPointRadius,
+    required this.crosshairLabelHorizontalPadding,
+    required this.crosshairLabelVerticalPadding,
     required this.axisFontSize,
     required this.candleWidthRatio,
     required this.histogramWidthRatio,
@@ -190,6 +235,16 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
   @override
   final Color crosshairColor;
   @override
+  final Color crosshairLabelBackgroundColor;
+  @override
+  final Color crosshairLabelTextColor;
+  @override
+  final Color crosshairDetailBackgroundColor;
+  @override
+  final Color crosshairDetailTextColor;
+  @override
+  final Color crosshairDetailBorderColor;
+  @override
   final Color drawingColor;
   @override
   final Color mainLineColor;
@@ -206,6 +261,16 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
   final double indicatorStrokeWidth;
   @override
   final double overlayStrokeWidth;
+  @override
+  final double crosshairDashLength;
+  @override
+  final double crosshairDashGap;
+  @override
+  final double crosshairPointRadius;
+  @override
+  final double crosshairLabelHorizontalPadding;
+  @override
+  final double crosshairLabelVerticalPadding;
   @override
   final double axisFontSize;
   @override

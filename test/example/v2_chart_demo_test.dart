@@ -167,8 +167,8 @@ void main() {
     await tester.tapAt(tester.getTopLeft(chartCanvas) + const Offset(100, 80));
     await tester.pump();
     expect(find.byKey(const ValueKey('crosshair-details')), findsOneWidget);
-    expect(find.textContaining('横坐标：'), findsOneWidget);
-    expect(find.textContaining('纵坐标：'), findsOneWidget);
+    expect(find.text('时间'), findsOneWidget);
+    expect(find.text('命中值'), findsOneWidget);
 
     await tester.drag(chartCanvas, const Offset(90, 0));
     await tester.pumpAndSettle();

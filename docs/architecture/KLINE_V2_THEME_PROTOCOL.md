@@ -48,7 +48,27 @@ final theme = KChartTheme.light(
 
 主图格式覆盖主图纵轴、最高/最低价、最新价、主图十字光标、指标图例和详情 OHLC；副图格式覆盖副图纵轴、十字光标、指标图例和详情成交量。自定义回调优先于千分位开关；通过 `copyWith(clearMainValueFormatter: true)` 或 `copyWith(clearSecondaryValueFormatter: true)` 可恢复对应区域的默认格式。
 
-## 4. ChartColors 兼容适配
+## 4. 十字光标样式
+
+点击或长按选择时，`KChartTheme` 默认绘制黑底白字的时间与数值标签、虚线十字线和实心交点；这与详情卡样式独立，方便应用保留浅色详情面板或改成深色面板。
+
+```dart
+final theme = KChartTheme.light(
+  crosshairColor: const Color(0xff111111),
+  crosshairDashLength: 5,
+  crosshairDashGap: 4,
+  crosshairPointRadius: 3,
+  crosshairLabelBackgroundColor: const Color(0xff000000),
+  crosshairLabelTextColor: const Color(0xffffffff),
+  crosshairDetailBackgroundColor: const Color(0xf2ffffff),
+  crosshairDetailTextColor: const Color(0xff0f172a),
+  crosshairDetailBorderColor: const Color(0xff94a3b8),
+);
+```
+
+纵坐标标签会自动采用被命中主图或副图的数值格式；横坐标以实际 K 线的 openTime 为准，显示在主图与首个副图之间的无网格时间带中。
+
+## 5. ChartColors 兼容适配
 
 1.x 项目可在保留旧 Widget 的同时，将旧配色用于 V2 装配：
 
@@ -62,7 +82,7 @@ final theme = chartColors.toKChartTheme(chartStyle: chartStyle);
 
 由于 1.x `ChartStyle` 可变且允许非法尺寸，适配器会将非有限或非正的尺寸回退到 V2 默认值，并将无效宽度比例回退为 `1`。这保证现有应用可以逐步迁移，而不会把无效 legacy 状态传播进 V2 Renderer。
 
-## 5. API 和回归门禁
+## 6. API 和回归门禁
 
 - `tool/public_api_allowlist.txt` 明确审查新增的 `KChartTheme` 和 `ChartColorsThemeAdapter`；公开入口仍禁止导出 `src/` 或 `renderer/`。
 - `test/theme/k_chart_theme_test.dart` 覆盖集合不可变性、结构化相等、主副图独立格式、格式回调清除、显式指标色优先级、legacy 映射和非法 legacy 尺寸归一化。

@@ -100,6 +100,26 @@ void main() {
     );
   });
 
+  test('KChartTheme exposes configurable crosshair labels and details', () {
+    final theme = KChartTheme.light(
+      crosshairLabelBackgroundColor: const Color(0xff112233),
+      crosshairLabelTextColor: const Color(0xffddeeff),
+      crosshairDashLength: 7,
+      crosshairDashGap: 2,
+      crosshairPointRadius: 4,
+    );
+
+    expect(theme.crosshairLabelBackgroundColor, const Color(0xff112233));
+    expect(theme.crosshairLabelTextColor, const Color(0xffddeeff));
+    expect(theme.crosshairDashLength, 7);
+    expect(theme.crosshairDashGap, 2);
+    expect(theme.crosshairPointRadius, 4);
+    expect(
+      theme.copyWith(crosshairDetailTextColor: const Color(0xff123456)),
+      isNot(theme),
+    );
+  });
+
   test('ChartColors adapter preserves legacy render colors and widths', () {
     final colors = ChartColors(
       isDarkMode: false,

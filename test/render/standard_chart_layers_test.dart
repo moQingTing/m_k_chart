@@ -357,6 +357,21 @@ void main() {
         reason: 'Missing overlay color $color',
       );
     }
+    expect(
+      _hasColor(
+        pixels,
+        fixture.width,
+        Rect.fromLTRB(
+          fixture.layout.mainTimeAxisBounds.left,
+          fixture.layout.mainTimeAxisBounds.top,
+          fixture.layout.mainTimeAxisBounds.right,
+          fixture.layout.mainTimeAxisBounds.bottom,
+        ),
+        fixture.style.crosshairLabelTextColor,
+      ),
+      isTrue,
+      reason: '十字光标的时间标签必须绘制在主图与副图之间的时间区域。',
+    );
   });
 
   test('marker keeps the latest-price label when latest candle is hidden',

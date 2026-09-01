@@ -61,7 +61,8 @@ Layer 不按指标 definitionId 使用 switch：
 ## 5. Overlay 与绘图
 
 - Marker 从可见 Kline 派生最高/最低点；最新 Kline 可见时绘制最新价；
-- Crosshair 只在 visible selection 位于 drawing bounds 内绘制，hidden/越界状态无 Canvas 输出；
+- Crosshair 只在 visible selection 位于 drawing bounds 内绘制，hidden/越界状态无 Canvas 输出；显示时绘制贯穿图表的竖向虚线、仅贯穿命中 panel 的横向虚线，以及命中点的实心圆；
+- Crosshair 的纵坐标标签使用命中 panel 的格式器（主图或副图），横坐标从实际 K 线 openTime 格式化后绘制在主图和首个副图之间的时间带；标签的背景、文字、内边距、虚线节奏和命中点半径均由 `ChartRenderStyle` 提供；
 - `RenderLineDrawing` 在 Snapshot 装配时校验非空唯一 ID 与有限 local 坐标，公开集合不可写；
 - Drawing Layer 只读取 Snapshot 并裁剪到 drawing bounds。P7 将 local 投影替换/扩展为时间、价格锚点与命中状态。
 

@@ -17,6 +17,11 @@ final class KChartTheme implements ChartRenderStyle {
     Color downColor = const Color(0xfff6465d),
     Color markerColor = const Color(0xfff0b90b),
     Color crosshairColor = const Color(0xffb7bdc6),
+    Color crosshairLabelBackgroundColor = const Color(0xff000000),
+    Color crosshairLabelTextColor = const Color(0xffffffff),
+    Color crosshairDetailBackgroundColor = const Color(0xf2ffffff),
+    Color crosshairDetailTextColor = const Color(0xff0f172a),
+    Color crosshairDetailBorderColor = const Color(0xff94a3b8),
     Color drawingColor = const Color(0xff8a70d6),
     Color mainLineColor = const Color(0xff38e5cc),
     Iterable<Color> areaFillColors = const [
@@ -41,6 +46,11 @@ final class KChartTheme implements ChartRenderStyle {
     double candleWidthRatio = 0.75,
     double histogramWidthRatio = 0.8,
     double indicatorPointRadius = 2,
+    double crosshairDashLength = 5,
+    double crosshairDashGap = 4,
+    double crosshairPointRadius = 3,
+    double crosshairLabelHorizontalPadding = 6,
+    double crosshairLabelVerticalPadding = 3,
     int mainValueDecimalPlaces = 2,
     int secondaryValueDecimalPlaces = 2,
     bool mainValueUseThousandsSeparator = true,
@@ -65,6 +75,11 @@ final class KChartTheme implements ChartRenderStyle {
       'overlayStrokeWidth': overlayStrokeWidth,
       'axisFontSize': axisFontSize,
       'indicatorPointRadius': indicatorPointRadius,
+      'crosshairDashLength': crosshairDashLength,
+      'crosshairDashGap': crosshairDashGap,
+      'crosshairPointRadius': crosshairPointRadius,
+      'crosshairLabelHorizontalPadding': crosshairLabelHorizontalPadding,
+      'crosshairLabelVerticalPadding': crosshairLabelVerticalPadding,
     }.entries) {
       if (!entry.value.isFinite || entry.value <= 0) {
         throw ArgumentError.value(
@@ -111,6 +126,11 @@ final class KChartTheme implements ChartRenderStyle {
       downColor: downColor,
       markerColor: markerColor,
       crosshairColor: crosshairColor,
+      crosshairLabelBackgroundColor: crosshairLabelBackgroundColor,
+      crosshairLabelTextColor: crosshairLabelTextColor,
+      crosshairDetailBackgroundColor: crosshairDetailBackgroundColor,
+      crosshairDetailTextColor: crosshairDetailTextColor,
+      crosshairDetailBorderColor: crosshairDetailBorderColor,
       drawingColor: drawingColor,
       mainLineColor: mainLineColor,
       areaFillColors: fillColors,
@@ -121,6 +141,11 @@ final class KChartTheme implements ChartRenderStyle {
       mainLineStrokeWidth: mainLineStrokeWidth,
       indicatorStrokeWidth: indicatorStrokeWidth,
       overlayStrokeWidth: overlayStrokeWidth,
+      crosshairDashLength: crosshairDashLength,
+      crosshairDashGap: crosshairDashGap,
+      crosshairPointRadius: crosshairPointRadius,
+      crosshairLabelHorizontalPadding: crosshairLabelHorizontalPadding,
+      crosshairLabelVerticalPadding: crosshairLabelVerticalPadding,
       axisFontSize: axisFontSize,
       candleWidthRatio: candleWidthRatio,
       histogramWidthRatio: histogramWidthRatio,
@@ -142,6 +167,11 @@ final class KChartTheme implements ChartRenderStyle {
     required this.downColor,
     required this.markerColor,
     required this.crosshairColor,
+    required this.crosshairLabelBackgroundColor,
+    required this.crosshairLabelTextColor,
+    required this.crosshairDetailBackgroundColor,
+    required this.crosshairDetailTextColor,
+    required this.crosshairDetailBorderColor,
     required this.drawingColor,
     required this.mainLineColor,
     required this.areaFillColors,
@@ -152,6 +182,11 @@ final class KChartTheme implements ChartRenderStyle {
     required this.mainLineStrokeWidth,
     required this.indicatorStrokeWidth,
     required this.overlayStrokeWidth,
+    required this.crosshairDashLength,
+    required this.crosshairDashGap,
+    required this.crosshairPointRadius,
+    required this.crosshairLabelHorizontalPadding,
+    required this.crosshairLabelVerticalPadding,
     required this.axisFontSize,
     required this.candleWidthRatio,
     required this.histogramWidthRatio,
@@ -168,6 +203,17 @@ final class KChartTheme implements ChartRenderStyle {
   factory KChartTheme.light({
     Color upColor = const Color(0xff0ecb81),
     Color downColor = const Color(0xfff6465d),
+    Color crosshairColor = const Color(0xff111111),
+    Color crosshairLabelBackgroundColor = const Color(0xff000000),
+    Color crosshairLabelTextColor = const Color(0xffffffff),
+    Color crosshairDetailBackgroundColor = const Color(0xf2ffffff),
+    Color crosshairDetailTextColor = const Color(0xff0f172a),
+    Color crosshairDetailBorderColor = const Color(0xff94a3b8),
+    double crosshairDashLength = 5,
+    double crosshairDashGap = 4,
+    double crosshairPointRadius = 3,
+    double crosshairLabelHorizontalPadding = 6,
+    double crosshairLabelVerticalPadding = 3,
     int mainValueDecimalPlaces = 2,
     int secondaryValueDecimalPlaces = 2,
     bool mainValueUseThousandsSeparator = true,
@@ -182,7 +228,12 @@ final class KChartTheme implements ChartRenderStyle {
         upColor: upColor,
         downColor: downColor,
         markerColor: const Color(0xff6c7a86),
-        crosshairColor: const Color(0xff6c7a86),
+        crosshairColor: crosshairColor,
+        crosshairLabelBackgroundColor: crosshairLabelBackgroundColor,
+        crosshairLabelTextColor: crosshairLabelTextColor,
+        crosshairDetailBackgroundColor: crosshairDetailBackgroundColor,
+        crosshairDetailTextColor: crosshairDetailTextColor,
+        crosshairDetailBorderColor: crosshairDetailBorderColor,
         drawingColor: const Color(0xff8a70d6),
         mainValueDecimalPlaces: mainValueDecimalPlaces,
         secondaryValueDecimalPlaces: secondaryValueDecimalPlaces,
@@ -191,6 +242,11 @@ final class KChartTheme implements ChartRenderStyle {
             secondaryValueUseThousandsSeparator,
         mainValueFormatter: mainValueFormatter,
         secondaryValueFormatter: secondaryValueFormatter,
+        crosshairDashLength: crosshairDashLength,
+        crosshairDashGap: crosshairDashGap,
+        crosshairPointRadius: crosshairPointRadius,
+        crosshairLabelHorizontalPadding: crosshairLabelHorizontalPadding,
+        crosshairLabelVerticalPadding: crosshairLabelVerticalPadding,
       );
 
   @override
@@ -207,6 +263,16 @@ final class KChartTheme implements ChartRenderStyle {
   final Color markerColor;
   @override
   final Color crosshairColor;
+  @override
+  final Color crosshairLabelBackgroundColor;
+  @override
+  final Color crosshairLabelTextColor;
+  @override
+  final Color crosshairDetailBackgroundColor;
+  @override
+  final Color crosshairDetailTextColor;
+  @override
+  final Color crosshairDetailBorderColor;
   @override
   final Color drawingColor;
   @override
@@ -230,6 +296,16 @@ final class KChartTheme implements ChartRenderStyle {
   final double indicatorStrokeWidth;
   @override
   final double overlayStrokeWidth;
+  @override
+  final double crosshairDashLength;
+  @override
+  final double crosshairDashGap;
+  @override
+  final double crosshairPointRadius;
+  @override
+  final double crosshairLabelHorizontalPadding;
+  @override
+  final double crosshairLabelVerticalPadding;
   @override
   final double axisFontSize;
   @override
@@ -273,6 +349,11 @@ final class KChartTheme implements ChartRenderStyle {
     Color? downColor,
     Color? markerColor,
     Color? crosshairColor,
+    Color? crosshairLabelBackgroundColor,
+    Color? crosshairLabelTextColor,
+    Color? crosshairDetailBackgroundColor,
+    Color? crosshairDetailTextColor,
+    Color? crosshairDetailBorderColor,
     Color? drawingColor,
     Color? mainLineColor,
     Iterable<Color>? areaFillColors,
@@ -283,6 +364,11 @@ final class KChartTheme implements ChartRenderStyle {
     double? mainLineStrokeWidth,
     double? indicatorStrokeWidth,
     double? overlayStrokeWidth,
+    double? crosshairDashLength,
+    double? crosshairDashGap,
+    double? crosshairPointRadius,
+    double? crosshairLabelHorizontalPadding,
+    double? crosshairLabelVerticalPadding,
     double? axisFontSize,
     double? candleWidthRatio,
     double? histogramWidthRatio,
@@ -304,6 +390,16 @@ final class KChartTheme implements ChartRenderStyle {
         downColor: downColor ?? this.downColor,
         markerColor: markerColor ?? this.markerColor,
         crosshairColor: crosshairColor ?? this.crosshairColor,
+        crosshairLabelBackgroundColor:
+            crosshairLabelBackgroundColor ?? this.crosshairLabelBackgroundColor,
+        crosshairLabelTextColor:
+            crosshairLabelTextColor ?? this.crosshairLabelTextColor,
+        crosshairDetailBackgroundColor: crosshairDetailBackgroundColor ??
+            this.crosshairDetailBackgroundColor,
+        crosshairDetailTextColor:
+            crosshairDetailTextColor ?? this.crosshairDetailTextColor,
+        crosshairDetailBorderColor:
+            crosshairDetailBorderColor ?? this.crosshairDetailBorderColor,
         drawingColor: drawingColor ?? this.drawingColor,
         mainLineColor: mainLineColor ?? this.mainLineColor,
         areaFillColors: areaFillColors ?? this.areaFillColors,
@@ -314,6 +410,13 @@ final class KChartTheme implements ChartRenderStyle {
         mainLineStrokeWidth: mainLineStrokeWidth ?? this.mainLineStrokeWidth,
         indicatorStrokeWidth: indicatorStrokeWidth ?? this.indicatorStrokeWidth,
         overlayStrokeWidth: overlayStrokeWidth ?? this.overlayStrokeWidth,
+        crosshairDashLength: crosshairDashLength ?? this.crosshairDashLength,
+        crosshairDashGap: crosshairDashGap ?? this.crosshairDashGap,
+        crosshairPointRadius: crosshairPointRadius ?? this.crosshairPointRadius,
+        crosshairLabelHorizontalPadding: crosshairLabelHorizontalPadding ??
+            this.crosshairLabelHorizontalPadding,
+        crosshairLabelVerticalPadding:
+            crosshairLabelVerticalPadding ?? this.crosshairLabelVerticalPadding,
         axisFontSize: axisFontSize ?? this.axisFontSize,
         candleWidthRatio: candleWidthRatio ?? this.candleWidthRatio,
         histogramWidthRatio: histogramWidthRatio ?? this.histogramWidthRatio,
@@ -369,6 +472,11 @@ final class KChartTheme implements ChartRenderStyle {
       downColor == other.downColor &&
       markerColor == other.markerColor &&
       crosshairColor == other.crosshairColor &&
+      crosshairLabelBackgroundColor == other.crosshairLabelBackgroundColor &&
+      crosshairLabelTextColor == other.crosshairLabelTextColor &&
+      crosshairDetailBackgroundColor == other.crosshairDetailBackgroundColor &&
+      crosshairDetailTextColor == other.crosshairDetailTextColor &&
+      crosshairDetailBorderColor == other.crosshairDetailBorderColor &&
       drawingColor == other.drawingColor &&
       mainLineColor == other.mainLineColor &&
       _sameList(areaFillColors, other.areaFillColors) &&
@@ -379,6 +487,12 @@ final class KChartTheme implements ChartRenderStyle {
       mainLineStrokeWidth == other.mainLineStrokeWidth &&
       indicatorStrokeWidth == other.indicatorStrokeWidth &&
       overlayStrokeWidth == other.overlayStrokeWidth &&
+      crosshairDashLength == other.crosshairDashLength &&
+      crosshairDashGap == other.crosshairDashGap &&
+      crosshairPointRadius == other.crosshairPointRadius &&
+      crosshairLabelHorizontalPadding ==
+          other.crosshairLabelHorizontalPadding &&
+      crosshairLabelVerticalPadding == other.crosshairLabelVerticalPadding &&
       axisFontSize == other.axisFontSize &&
       candleWidthRatio == other.candleWidthRatio &&
       histogramWidthRatio == other.histogramWidthRatio &&
@@ -400,6 +514,11 @@ final class KChartTheme implements ChartRenderStyle {
         downColor,
         markerColor,
         crosshairColor,
+        crosshairLabelBackgroundColor,
+        crosshairLabelTextColor,
+        crosshairDetailBackgroundColor,
+        crosshairDetailTextColor,
+        crosshairDetailBorderColor,
         drawingColor,
         mainLineColor,
         Object.hashAll(areaFillColors),
@@ -414,6 +533,11 @@ final class KChartTheme implements ChartRenderStyle {
         mainLineStrokeWidth,
         indicatorStrokeWidth,
         overlayStrokeWidth,
+        crosshairDashLength,
+        crosshairDashGap,
+        crosshairPointRadius,
+        crosshairLabelHorizontalPadding,
+        crosshairLabelVerticalPadding,
         axisFontSize,
         candleWidthRatio,
         histogramWidthRatio,

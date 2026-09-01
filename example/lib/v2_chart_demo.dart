@@ -1133,6 +1133,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                             selectedIndex < _data.data.length
                         ? _data.data[selectedIndex]
                         : null;
+                    final previousSelectedCandle = selectedIndex != null &&
+                            selectedIndex > 0 &&
+                            selectedIndex - 1 < _data.data.length
+                        ? _data.data[selectedIndex - 1]
+                        : null;
                     final indicatorLegendIndex =
                         _indicatorLegendIndex(viewport);
                     final latestPriceHitRegion = latestPriceMarkerHitRegionFor(
@@ -1207,6 +1212,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                                 child: IgnorePointer(
                                   child: _CrosshairDetails(
                                     candle: selectedCandle,
+                                    previousCandle: previousSelectedCandle,
                                     selectedPrice: _selectedPrice,
                                     selectedValueIsMain:
                                         _selectedPanelId == 'main',
@@ -1438,6 +1444,7 @@ class _PanelOrderRow extends StatelessWidget {
 class _CrosshairDetails extends StatelessWidget {
   const _CrosshairDetails({
     required this.candle,
+    required this.previousCandle,
     required this.selectedPrice,
     required this.selectedValueIsMain,
     required this.theme,
@@ -1445,45 +1452,108 @@ class _CrosshairDetails extends StatelessWidget {
   });
 
   final Kline candle;
+  final Kline? previousCandle;
   final double? selectedPrice;
   final bool selectedValueIsMain;
   final KChartTheme theme;
   final Duration timeZoneOffset;
 
   @override
-  Widget build(BuildContext context) => Container(
-        key: const ValueKey('crosshair-details'),
-        width: 214,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: const Color(0xf2ffffff),
-          border: Border.all(color: const Color(0xff94a3b8)),
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: const [
-            BoxShadow(color: Color(0x1f0f172a), blurRadius: 8),
+  Widget build(BuildContext context) {
+    final referenceClose = previousCandle?.close ?? candle.open;
+    final change = candle.close - referenceClose;
+    final changePercent =
+        referenceClose == 0 ? 0.0 : change / referenceClose * 100;
+    final amplitude = referenceClose == 0
+        ? 0.0
+        : (candle.high - candle.low) / referenceClose * 100;
+    final changeColor = change >= 0 ? theme.upColor : theme.downColor;
+    final selectedValue = selectedPrice == null
+        ? null
+        : selectedValueIsMain
+            ? theme.formatMainValue(selectedPrice!)
+            : theme.formatSecondaryValue(selectedPrice!);
+    return Container(
+      key: const ValueKey('crosshair-details'),
+      width: 144,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      decoration: BoxDecoration(
+        color: theme.crosshairDetailBackgroundColor,
+        border: Border.all(color: theme.crosshairDetailBorderColor),
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: const [
+          BoxShadow(color: Color(0x1f0f172a), blurRadius: 8),
+        ],
+      ),
+      child: DefaultTextStyle(
+        style: TextStyle(
+          color: theme.crosshairDetailTextColor,
+          fontSize: 11,
+          height: 1.42,
+        ),
+        child: Column(
+          children: [
+            _DetailRow('时间', _formatDetailTime(candle, timeZoneOffset)),
+            _DetailRow('开', theme.formatMainValue(candle.open)),
+            _DetailRow('高', theme.formatMainValue(candle.high)),
+            _DetailRow('低', theme.formatMainValue(candle.low)),
+            _DetailRow('收', theme.formatMainValue(candle.close)),
+            _DetailRow(
+              '涨跌',
+              '${change >= 0 ? '+' : ''}${theme.formatMainValue(change)}',
+              valueColor: changeColor,
+            ),
+            _DetailRow(
+              '涨跌幅',
+              '${changePercent >= 0 ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
+              valueColor: changeColor,
+            ),
+            _DetailRow('振幅', '${amplitude.toStringAsFixed(2)}%'),
+            _DetailRow('量', theme.formatSecondaryValue(candle.baseVolume)),
+            _DetailRow('额', theme.formatSecondaryValue(candle.quoteVolume)),
+            if (selectedValue != null) _DetailRow('命中值', selectedValue),
           ],
         ),
-        child: DefaultTextStyle(
-          style: const TextStyle(color: Color(0xff0f172a), fontSize: 11),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('K 线详情',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-              Text('横坐标：${_formatTime(candle.openTime, timeZoneOffset)}'),
-              if (selectedPrice != null)
-                Text(
-                  '纵坐标：${selectedValueIsMain ? theme.formatMainValue(selectedPrice!) : theme.formatSecondaryValue(selectedPrice!)}',
-                ),
-              Text(
-                  '开 ${theme.formatMainValue(candle.open)}  高 ${theme.formatMainValue(candle.high)}'),
-              Text(
-                  '低 ${theme.formatMainValue(candle.low)}  收 ${theme.formatMainValue(candle.close)}'),
-              Text('成交量：${theme.formatSecondaryValue(candle.baseVolume)}'),
-            ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow(this.label, this.value, {this.valueColor});
+
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          SizedBox(width: 38, child: Text(label)),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(color: valueColor),
+            ),
           ),
-        ),
+        ],
       );
+}
+
+String _formatDetailTime(Kline candle, Duration timeZoneOffset) {
+  final time = DateTime.fromMillisecondsSinceEpoch(
+    candle.openTime + timeZoneOffset.inMilliseconds,
+    isUtc: true,
+  );
+  String twoDigits(int value) => value.toString().padLeft(2, '0');
+  if (candle.interval.code.endsWith('d') ||
+      candle.interval.code.endsWith('w') ||
+      candle.interval.code.endsWith('M')) {
+    return '${twoDigits(time.month)}-${twoDigits(time.day)}';
+  }
+  return '${twoDigits(time.month)}-${twoDigits(time.day)} '
+      '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
 }
 
 String _formatTime(int epochMilliseconds, Duration timeZoneOffset) {

@@ -358,45 +358,87 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
     if (!bounds.contains(x: selection.localX, y: selection.localY)) {
       return;
     }
+    ChartPanelLayout? selectedPanel;
+    for (final panel in layout.panels) {
+      if (panel.bounds.contains(
+        x: selection.localX,
+        y: selection.localY,
+      )) {
+        selectedPanel = panel;
+        break;
+      }
+    }
     final paint = Paint()
       ..color = context.snapshot.theme.crosshairColor
       ..strokeWidth = context.snapshot.theme.overlayStrokeWidth
       ..style = PaintingStyle.stroke;
-    context.canvas.drawLine(
-      Offset(selection.localX, bounds.top),
-      Offset(selection.localX, bounds.bottom),
-      paint,
+    _drawDashedLine(
+      canvas: context.canvas,
+      start: Offset(selection.localX, bounds.top),
+      end: Offset(selection.localX, bounds.bottom),
+      paint: paint,
+      dashLength: context.snapshot.theme.crosshairDashLength,
+      dashGap: context.snapshot.theme.crosshairDashGap,
     );
-    context.canvas.drawLine(
-      Offset(bounds.left, selection.localY),
-      Offset(bounds.right, selection.localY),
-      paint,
+    final horizontalBounds = selectedPanel?.bounds;
+    _drawDashedLine(
+      canvas: context.canvas,
+      start: Offset(horizontalBounds?.left ?? bounds.left, selection.localY),
+      end: Offset(horizontalBounds?.right ?? bounds.right, selection.localY),
+      paint: paint,
+      dashLength: context.snapshot.theme.crosshairDashLength,
+      dashGap: context.snapshot.theme.crosshairDashGap,
+    );
+    context.canvas.drawCircle(
+      Offset(selection.localX, selection.localY),
+      context.snapshot.theme.crosshairPointRadius,
+      Paint()
+        ..color = context.snapshot.theme.crosshairColor
+        ..style = PaintingStyle.fill,
     );
     if (selection.price != null) {
-      ChartPanelLayout? selectedPanel;
-      for (final panel in layout.panels) {
-        if (panel.bounds.contains(
-          x: selection.localX,
-          y: selection.localY,
-        )) {
-          selectedPanel = panel;
-          break;
-        }
-      }
-      _drawText(
+      final labelBounds = selectedPanel?.bounds ?? bounds;
+      _drawCrosshairLabel(
         canvas: context.canvas,
         text: selectedPanel?.spec.kind == ChartPanelKind.secondary
             ? context.snapshot.theme.formatSecondaryValue(selection.price!)
             : context.snapshot.theme.formatMainValue(selection.price!),
-        color: context.snapshot.theme.crosshairColor,
+        bounds: labelBounds,
         fontSize: context.snapshot.theme.axisFontSize,
-        x: (selectedPanel?.bounds.right ?? bounds.right) - 3,
+        x: labelBounds.right,
         y: selection.localY,
         horizontalAnchor: 1,
         verticalAnchor: 0.5,
         cache: cache,
+        theme: context.snapshot.theme,
       );
     }
+    final selectedIndex = selection.dataIndex;
+    if (selectedIndex == null ||
+        selectedIndex >= context.snapshot.data.data.length) {
+      return;
+    }
+    final timeBounds = layout.mainTimeAxisBounds.height > 0
+        ? layout.mainTimeAxisBounds
+        : layout.timeAxisBounds;
+    if (timeBounds.height <= 0) return;
+    final candle = context.snapshot.data.data[selectedIndex];
+    _drawCrosshairLabel(
+      canvas: context.canvas,
+      text: _formatCrosshairTime(
+        candle.openTime,
+        candle.interval.code,
+        context.snapshot.timeZoneOffset,
+      ),
+      bounds: timeBounds,
+      fontSize: context.snapshot.theme.axisFontSize,
+      x: selection.localX,
+      y: timeBounds.top + timeBounds.height / 2,
+      horizontalAnchor: 0.5,
+      verticalAnchor: 0.5,
+      cache: cache,
+      theme: context.snapshot.theme,
+    );
   }
 }
 
@@ -1147,6 +1189,63 @@ void _drawLatestPriceDashedHorizontalLine({
   }
 }
 
+void _drawDashedLine({
+  required Canvas canvas,
+  required Offset start,
+  required Offset end,
+  required Paint paint,
+  required double dashLength,
+  required double dashGap,
+}) {
+  final delta = end - start;
+  final length = delta.distance;
+  if (length == 0) return;
+  final direction = delta / length;
+  for (var offset = 0.0; offset < length; offset += dashLength + dashGap) {
+    canvas.drawLine(
+      start + direction * offset,
+      start + direction * math.min(offset + dashLength, length),
+      paint,
+    );
+  }
+}
+
+void _drawCrosshairLabel<TTheme extends ChartRenderStyle>({
+  required Canvas canvas,
+  required String text,
+  required ChartLayoutRect bounds,
+  required double fontSize,
+  required double x,
+  required double y,
+  required double horizontalAnchor,
+  required double verticalAnchor,
+  required ChartRenderCache cache,
+  required TTheme theme,
+}) {
+  final painter = cache.textPainter(
+    text: text,
+    color: theme.crosshairLabelTextColor,
+    fontSize: fontSize,
+  );
+  final width = painter.width + theme.crosshairLabelHorizontalPadding * 2;
+  final height = painter.height + theme.crosshairLabelVerticalPadding * 2;
+  final unclampedLeft = x - width * horizontalAnchor;
+  final unclampedTop = y - height * verticalAnchor;
+  final maxLeft = math.max(bounds.left, bounds.right - width);
+  final maxTop = math.max(bounds.top, bounds.bottom - height);
+  final left = unclampedLeft.clamp(bounds.left, maxLeft).toDouble();
+  final top = unclampedTop.clamp(bounds.top, maxTop).toDouble();
+  final rect = Rect.fromLTWH(left, top, width, height);
+  canvas.drawRect(rect, Paint()..color = theme.crosshairLabelBackgroundColor);
+  painter.paint(
+    canvas,
+    Offset(
+      rect.left + theme.crosshairLabelHorizontalPadding,
+      rect.top + theme.crosshairLabelVerticalPadding,
+    ),
+  );
+}
+
 void _drawText({
   required Canvas canvas,
   required String text,
@@ -1178,6 +1277,27 @@ String _formatTime(int epochMilliseconds, Duration timeZoneOffset) {
     isUtc: true,
   );
   return '${date.hour.toString().padLeft(2, '0')}:'
+      '${date.minute.toString().padLeft(2, '0')}';
+}
+
+String _formatCrosshairTime(
+  int epochMilliseconds,
+  String intervalCode,
+  Duration timeZoneOffset,
+) {
+  final date = DateTime.fromMillisecondsSinceEpoch(
+    epochMilliseconds + timeZoneOffset.inMilliseconds,
+    isUtc: true,
+  );
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  if (intervalCode.endsWith('d') ||
+      intervalCode.endsWith('w') ||
+      intervalCode.endsWith('M')) {
+    return '${date.year}-$month-$day';
+  }
+  return '${date.year}-$month-$day '
+      '${date.hour.toString().padLeft(2, '0')}:'
       '${date.minute.toString().padLeft(2, '0')}';
 }
 
