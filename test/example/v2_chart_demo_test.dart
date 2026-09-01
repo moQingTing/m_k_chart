@@ -169,6 +169,7 @@ void main() {
     await tester.tapAt(chartTopLeft + const Offset(100, 80));
     await tester.pump();
     expect(find.byKey(const ValueKey('crosshair-details')), findsOneWidget);
+    expect(find.byKey(const ValueKey('crosshair-time-label')), findsOneWidget);
     expect(find.text('时间'), findsOneWidget);
     expect(find.text('命中值'), findsOneWidget);
     expect(

@@ -1214,6 +1214,27 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                                   ),
                                 ),
                               ),
+                            if (selectedCandle != null &&
+                                layout.secondaryPanels.isNotEmpty)
+                              Positioned(
+                                left: layout.mainTimeAxisBounds.left,
+                                width: layout.mainTimeAxisBounds.width,
+                                top: layout.mainTimeAxisBounds.top,
+                                height: layout.mainTimeAxisBounds.height,
+                                child: IgnorePointer(
+                                  child: _SelectedCrosshairTimeLabel(
+                                    localX: snapshot.selection.localX -
+                                        layout.mainTimeAxisBounds.left,
+                                    text: _formatCrosshairSelectionTime(
+                                      selectedCandle,
+                                      Duration(
+                                        hours: _timeZoneOffsetHours,
+                                      ),
+                                    ),
+                                    theme: _theme,
+                                  ),
+                                ),
+                              ),
                             if (selectedCandle != null)
                               Positioned(
                                 key: const ValueKey(
@@ -1414,6 +1435,59 @@ class _IntermediateTimeAxis extends StatelessWidget {
       );
 }
 
+class _SelectedCrosshairTimeLabel extends StatelessWidget {
+  const _SelectedCrosshairTimeLabel({
+    required this.localX,
+    required this.text,
+    required this.theme,
+  });
+
+  final double localX;
+  final String text;
+  final KChartTheme theme;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final textStyle = TextStyle(
+            color: theme.crosshairLabelTextColor,
+            fontSize: theme.axisFontSize,
+          );
+          final painter = TextPainter(
+            text: TextSpan(text: text, style: textStyle),
+            textDirection: TextDirection.ltr,
+            maxLines: 1,
+          )..layout();
+          final labelWidth =
+              painter.width + theme.crosshairLabelHorizontalPadding * 2;
+          final maxLeft = math.max(0, constraints.maxWidth - labelWidth);
+          final left = (localX - labelWidth / 2).clamp(0, maxLeft).toDouble();
+          return Stack(
+            children: [
+              Positioned(
+                left: left,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  widthFactor: 1,
+                  heightFactor: 1,
+                  child: Container(
+                    key: const ValueKey('crosshair-time-label'),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: theme.crosshairLabelHorizontalPadding,
+                      vertical: theme.crosshairLabelVerticalPadding,
+                    ),
+                    color: theme.crosshairLabelBackgroundColor,
+                    child: Text(text, maxLines: 1, style: textStyle),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+}
+
 final class _TimeAxisLabel {
   const _TimeAxisLabel({required this.localX, required this.text});
 
@@ -1569,6 +1643,24 @@ String _formatDetailTime(Kline candle, Duration timeZoneOffset) {
   }
   return '${twoDigits(time.month)}-${twoDigits(time.day)} '
       '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
+}
+
+String _formatCrosshairSelectionTime(
+  Kline candle,
+  Duration timeZoneOffset,
+) {
+  final time = DateTime.fromMillisecondsSinceEpoch(
+    candle.openTime + timeZoneOffset.inMilliseconds,
+    isUtc: true,
+  );
+  String twoDigits(int value) => value.toString().padLeft(2, '0');
+  final date = '${time.year}-${twoDigits(time.month)}-${twoDigits(time.day)}';
+  if (candle.interval.code.endsWith('d') ||
+      candle.interval.code.endsWith('w') ||
+      candle.interval.code.endsWith('M')) {
+    return date;
+  }
+  return '$date ${twoDigits(time.hour)}:${twoDigits(time.minute)}';
 }
 
 String _formatTime(int epochMilliseconds, Duration timeZoneOffset) {
