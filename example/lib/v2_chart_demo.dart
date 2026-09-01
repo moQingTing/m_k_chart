@@ -643,26 +643,25 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   ) {
     if (_data.data.isEmpty) return const [];
     final xTransform = ChartXTransform(viewport: viewport, data: _data);
-    final internalColumns = _scrollingGridColumnXs(
+    final gridColumns = _scrollingGridColumnXs(
       layout: layout,
       viewport: viewport,
       xTransform: xTransform,
-    )
-        .where((x) =>
-            x > layout.drawingBounds.left && x < layout.drawingBounds.right)
-        .toList(growable: false);
-    final selectedColumns = internalColumns.length <= 2
-        ? internalColumns
-        : [internalColumns.first, internalColumns.last];
+    );
     final timeZoneOffset = Duration(hours: _timeZoneOffsetHours);
     return [
-      for (final chartX in selectedColumns)
+      for (final chartX in gridColumns)
         _TimeAxisLabel(
           localX: chartX - layout.mainTimeAxisBounds.left,
           text: _formatAxisTime(
             xTransform.localXToTime(chartX - layout.drawingBounds.left),
             timeZoneOffset,
           ),
+          horizontalAnchor: chartX <= layout.drawingBounds.left
+              ? 0
+              : chartX >= layout.drawingBounds.right
+                  ? 1
+                  : 0.5,
         ),
     ];
   }
@@ -1445,7 +1444,7 @@ class _IntermediateTimeAxis extends StatelessWidget {
               top: 0,
               bottom: 0,
               child: FractionalTranslation(
-                translation: const Offset(-0.5, 0),
+                translation: Offset(-label.horizontalAnchor, 0),
                 child: Align(
                   alignment: Alignment.center,
                   child: Text(
@@ -1517,10 +1516,15 @@ class _SelectedCrosshairTimeLabel extends StatelessWidget {
 }
 
 final class _TimeAxisLabel {
-  const _TimeAxisLabel({required this.localX, required this.text});
+  const _TimeAxisLabel({
+    required this.localX,
+    required this.text,
+    required this.horizontalAnchor,
+  });
 
   final double localX;
   final String text;
+  final double horizontalAnchor;
 }
 
 class _PanelOrderRow extends StatelessWidget {
