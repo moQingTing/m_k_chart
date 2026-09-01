@@ -244,7 +244,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     if (widget.fullscreen) {
       unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
       unawaited(
-          SystemChrome.setPreferredOrientations(DeviceOrientation.values));
+        SystemChrome.setPreferredOrientations(const [
+          DeviceOrientation.portraitUp,
+        ]),
+      );
     }
     _instrumentController.dispose();
     _pipeline.dispose();
