@@ -7,6 +7,7 @@ export:entity/info_window_entity.dart
 export:entity/k_line_entity.dart
 export:k_chart_widget.dart
 export:k_chart_theme.dart
+export:k_chart_user_config.dart
 export:utils/data_util.dart
 export:utils/date_format_util.dart
 export:utils/number_util.dart
@@ -25,6 +26,8 @@ symbol:InfoWindowEntity
 symbol:KChartWidget
 symbol:KChartWidgetState
 symbol:KChartTheme
+symbol:KChartIndicatorPreference
+symbol:KChartUserConfig
 symbol:KLineEntity
 symbol:MainState
 symbol:MainStateEx

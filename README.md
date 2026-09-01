@@ -187,6 +187,28 @@ class _KLineChartPageState extends State<KLineChartPage> {
 
 ## 主要API
 
+### KChartUserConfig
+
+V2 用户配置采用版本化 JSON 值对象，由宿主自行选择持久化方式：
+
+```dart
+final config = KChartUserConfig(
+  intervalCode: '15m',
+  mainMode: 'candlestick',
+  mainIndicators: [
+    KChartIndicatorPreference(
+      instanceId: 'ema-fast',
+      definitionId: 'legacy.ema',
+      parameters: {'period': 7},
+    ),
+  ],
+);
+
+final restored = KChartUserConfig.fromJson(config.toJson());
+```
+
+详见 [V2 用户配置序列化协议](docs/architecture/KLINE_V2_USER_CONFIG_PROTOCOL.md)。
+
 ### KChartWidget
 
 K线图表主组件。

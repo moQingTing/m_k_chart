@@ -45,4 +45,4 @@ allowlist 的变化属于 API 变更，必须关联任务、迁移说明和版�
 
 因此当前 `lib/src/controller` 仍为内部契约。待数据模型、Controller 用户操作和 Widget facade 完整后，再一次性审核其稳定公共子集。
 
-`KChartTheme` 是上述规则已批准的例外：它只暴露不可变颜色、尺寸和指标调色板值，不泄露其内部绘制接口或任意 Renderer 类型。具体迁移约束见 `KLINE_V2_THEME_PROTOCOL.md`。
+`KChartTheme` 与 `KChartUserConfig` 是上述规则已批准的例外：前者只暴露不可变颜色、尺寸和指标调色板值；后者只暴露 JSON 安全的用户偏好与版本迁移，不泄露内部绘制接口、任意 Renderer 类型或持久化实现。具体约束见 `KLINE_V2_THEME_PROTOCOL.md` 与 `KLINE_V2_USER_CONFIG_PROTOCOL.md`。
