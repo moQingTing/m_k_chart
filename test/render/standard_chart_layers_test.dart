@@ -134,7 +134,7 @@ void main() {
     );
   });
 
-  test('grid Layer can omit horizontal lines for a secondary panel', () async {
+  test('grid Layer can omit secondary internal horizontal lines', () async {
     final fixture = _fixture(secondaryHorizontalGrid: false);
     final pixels = await _paint(
       fixture.snapshot,
@@ -151,6 +151,36 @@ void main() {
       ),
       fixture.style.backgroundColor,
       reason: '副图关闭横向网格后，内容区域不应绘制水平分隔线。',
+    );
+    expect(
+      _hasColor(
+        pixels,
+        fixture.width,
+        Rect.fromCenter(
+          center: Offset(90, secondary.gridBounds.top),
+          width: 3,
+          height: 3,
+        ),
+        fixture.style.gridColor,
+        tolerance: 140,
+      ),
+      isTrue,
+      reason: '副图关闭内部横线后仍应保留上边界。',
+    );
+    expect(
+      _hasColor(
+        pixels,
+        fixture.width,
+        Rect.fromCenter(
+          center: Offset(90, secondary.gridBounds.bottom),
+          width: 3,
+          height: 3,
+        ),
+        fixture.style.gridColor,
+        tolerance: 140,
+      ),
+      isTrue,
+      reason: '副图关闭内部横线后仍应保留下边界。',
     );
   });
 

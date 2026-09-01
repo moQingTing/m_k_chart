@@ -39,8 +39,9 @@ final class ChartPanelSpec {
   /// [gridRows] + 1, including both panel edges.
   final int gridRows;
 
-  /// Whether the panel draws horizontal grid lines. Vertical data-anchored
-  /// grid lines remain available for every panel.
+  /// Whether the panel draws horizontal grid lines. When false, only the
+  /// top and bottom boundaries of the complete grid area are drawn; vertical
+  /// data-anchored grid lines remain available for every panel.
   final bool showHorizontalGrid;
 
   @override

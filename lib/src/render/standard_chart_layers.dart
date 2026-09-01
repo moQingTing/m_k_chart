@@ -566,6 +566,17 @@ Picture _recordGridPicture<TTheme extends ChartRenderStyle>(
           paint,
         );
       }
+    } else {
+      canvas.drawLine(
+        Offset(gridBounds.left, gridBounds.top),
+        Offset(gridBounds.right, gridBounds.top),
+        paint,
+      );
+      canvas.drawLine(
+        Offset(gridBounds.left, gridBounds.bottom),
+        Offset(gridBounds.right, gridBounds.bottom),
+        paint,
+      );
     }
   }
   return recorder.endRecording();
