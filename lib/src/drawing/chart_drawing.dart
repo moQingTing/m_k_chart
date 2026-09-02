@@ -149,6 +149,7 @@ final class ChartDrawing {
     required Iterable<ChartDrawingAnchor> anchors,
     ChartDrawingStyle? style,
     String? text,
+    bool isLocked = false,
   }) {
     if (id.trim().isEmpty) {
       throw ArgumentError.value(id, 'id', 'Must not be empty.');
@@ -171,6 +172,7 @@ final class ChartDrawing {
       anchors: immutableAnchors,
       style: style ?? ChartDrawingStyle(),
       text: text,
+      isLocked: isLocked,
     );
   }
 
@@ -180,6 +182,7 @@ final class ChartDrawing {
     required this.anchors,
     required this.style,
     required this.text,
+    required this.isLocked,
   });
 
   static const schemaVersion = 1;
@@ -189,6 +192,20 @@ final class ChartDrawing {
   final List<ChartDrawingAnchor> anchors;
   final ChartDrawingStyle style;
   final String? text;
+  final bool isLocked;
+
+  ChartDrawing copyWith({
+    Iterable<ChartDrawingAnchor>? anchors,
+    bool? isLocked,
+  }) =>
+      ChartDrawing(
+        id: id,
+        kind: kind,
+        anchors: anchors ?? this.anchors,
+        style: style,
+        text: text,
+        isLocked: isLocked ?? this.isLocked,
+      );
 
   Map<String, Object?> toJson() => UnmodifiableMapView({
         'schemaVersion': schemaVersion,
@@ -197,6 +214,7 @@ final class ChartDrawing {
         'anchors': anchors.map((anchor) => anchor.toJson()).toList(),
         'style': style.toJson(),
         if (text != null) 'text': text,
+        if (isLocked) 'isLocked': true,
       });
 
   factory ChartDrawing.fromJson(Map<String, Object?> json) {
@@ -214,6 +232,7 @@ final class ChartDrawing {
           anchors: _anchors(json['anchors'], 'anchors'),
           style: _style(json['style']),
           text: _optionalString(json['text']),
+          isLocked: _optionalBool(json['isLocked']) ?? false,
         ),
       _ => throw UnsupportedError('Unsupported drawing schema $version.'),
     };
@@ -229,6 +248,7 @@ final class ChartDrawing {
           strokeWidth: _optionalDouble(json['width']) ?? 1,
         ),
         text: _optionalString(json['text']),
+        isLocked: _optionalBool(json['isLocked']) ?? false,
       );
 
   @override
@@ -239,11 +259,12 @@ final class ChartDrawing {
           kind == other.kind &&
           _listEquals(anchors, other.anchors) &&
           style == other.style &&
-          text == other.text;
+          text == other.text &&
+          isLocked == other.isLocked;
 
   @override
   int get hashCode =>
-      Object.hash(id, kind, Object.hashAll(anchors), style, text);
+      Object.hash(id, kind, Object.hashAll(anchors), style, text, isLocked);
 }
 
 int _minimumAnchors(ChartDrawingKind kind) => switch (kind) {
