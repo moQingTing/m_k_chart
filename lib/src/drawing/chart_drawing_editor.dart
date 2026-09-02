@@ -92,6 +92,16 @@ final class ChartDrawingEditor {
         selectedDrawingId: id,
       );
 
+  ChartDrawingEditor add(ChartDrawing drawing, {bool select = true}) {
+    if (drawingById.containsKey(drawing.id)) {
+      throw ArgumentError.value(drawing.id, 'drawing.id', 'Duplicate ID.');
+    }
+    return ChartDrawingEditor(
+      drawings: [...drawings, drawing],
+      selectedDrawingId: select ? drawing.id : selectedDrawingId,
+    );
+  }
+
   ChartDrawingEditor setLocked(String id, bool value) =>
       _replace(id, _get(id).copyWith(isLocked: value));
 
