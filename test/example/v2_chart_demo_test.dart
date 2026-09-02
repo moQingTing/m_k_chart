@@ -138,6 +138,25 @@ void main() {
     await tester.tap(secondaryThousands);
     await tester.pump();
     expect(tester.widget<FilterChip>(secondaryThousands).selected, isFalse);
+    final tradeOverlays = find.byKey(
+      const ValueKey('trade-overlay-examples'),
+    );
+    await tester.scrollUntilVisible(
+      tradeOverlays,
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(tester.widget<FilterChip>(tradeOverlays).selected, isTrue);
+    expect(
+      find.byKey(const ValueKey('trade-overlay-example-labels')),
+      findsOneWidget,
+    );
+    await tester.tap(tradeOverlays);
+    await tester.pump();
+    expect(tester.widget<FilterChip>(tradeOverlays).selected, isFalse);
+    await tester.tap(tradeOverlays);
+    await tester.pump();
+    expect(tester.widget<FilterChip>(tradeOverlays).selected, isTrue);
     await tester.drag(find.byType(ListView), const Offset(0, -1400));
     await tester.pump();
     expect(

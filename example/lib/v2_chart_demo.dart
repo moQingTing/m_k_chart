@@ -9,6 +9,7 @@ import 'package:m_k_chart/renderer/legacy_chart_viewport.dart';
 import 'package:m_k_chart/v2_example_support.dart';
 
 import 'okx_market_data_client.dart';
+import 'v2_trade_overlay_examples.dart';
 
 /// Runnable trading-chart example backed by OKX public market data.
 ///
@@ -184,10 +185,12 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _mainTimeAxisHeight = 18.0;
   var _timeZoneOffsetHours = 8;
   var _overlaySecondaryIndicators = false;
+  var _showTradeOverlayExamples = true;
   var _revision = 0;
   var _viewportRevision = 0;
   var _selectionRevision = 0;
   var _clockRevision = 0;
+  var _overlayRevision = 0;
   var _currentTime = DateTime.now().millisecondsSinceEpoch;
   var _scrollOffsetItems = 0.0;
   double? _itemExtent;
@@ -1133,6 +1136,29 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               ),
               const SizedBox(height: 12),
               _ToolbarSection(
+                title: '交易叠加示例',
+                children: [
+                  FilterChip(
+                    key: const ValueKey('trade-overlay-examples'),
+                    label: const Text('显示仓位与订单'),
+                    selected: _showTradeOverlayExamples,
+                    onSelected: (enabled) => setState(() {
+                      _showTradeOverlayExamples = enabled;
+                      _overlayRevision++;
+                    }),
+                  ),
+                  const Text(
+                    '多仓均价 · 强平价 · 买入挂单 · 止盈 · 止损',
+                    key: ValueKey('trade-overlay-example-labels'),
+                    style: TextStyle(
+                      color: Color(0xff475569),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ToolbarSection(
                 title: '模拟实时数据（用于验证视口）',
                 children: [
                   OutlinedButton.icon(
@@ -1209,6 +1235,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       scrollOffsetItems: _scrollOffsetItems,
                     );
                     _latestViewport = viewport;
+                    final tradeOverlays = _showTradeOverlayExamples
+                        ? buildDemoTradeOverlays(_data.data)
+                        : DemoTradeOverlaySet(priceLines: const []);
                     final baseSnapshot = RenderSnapshot<KChartTheme>(
                       data: _data,
                       viewport: viewport,
@@ -1220,9 +1249,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                         selection: _selectionRevision,
                         theme: _revision,
                         layout: _revision,
+                        overlays: _overlayRevision,
                         clock: _clockRevision,
                       ),
                       indicators: _indicatorSnapshots(),
+                      priceLines: tradeOverlays.priceLines,
                       mainMode: _mode,
                       timeZoneOffset: Duration(
                         hours: _timeZoneOffsetHours,
@@ -1240,9 +1271,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                         selection: _selectionRevision,
                         theme: _revision,
                         layout: _revision,
+                        overlays: _overlayRevision,
                         clock: _clockRevision,
                       ),
                       indicators: baseSnapshot.indicators,
+                      priceLines: tradeOverlays.priceLines,
                       selection: _selectionFor(baseSnapshot),
                       mainMode: _mode,
                       timeZoneOffset: Duration(
