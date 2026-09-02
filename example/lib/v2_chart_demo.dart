@@ -9,6 +9,7 @@ import 'package:m_k_chart/renderer/legacy_chart_viewport.dart';
 import 'package:m_k_chart/v2_example_support.dart';
 
 import 'okx_market_data_client.dart';
+import 'v2_depth_chart_demo.dart';
 import 'v2_trade_overlay_examples.dart';
 
 /// Runnable trading-chart example backed by OKX public market data.
@@ -1675,6 +1676,12 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             const Text(
               'OKX 行情接口无需认证；网络不可用时，Demo 会继续展示本地确定性数据。',
               style: TextStyle(color: Color(0xff475569)),
+            ),
+            const SizedBox(height: 20),
+            V2DepthChartDemo(
+              referencePrice: _data.data.isEmpty ? 1 : _data.data.last.close,
+              theme: _theme,
+              version: _revision,
             ),
           ],
         ),

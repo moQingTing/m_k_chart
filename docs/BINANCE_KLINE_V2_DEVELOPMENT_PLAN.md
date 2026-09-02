@@ -107,7 +107,7 @@
 - [x] `BN-F12` 面积图。
 - [x] `BN-F13` 实心/空心蜡烛。
 - [x] `BN-F14` Heikin-Ashi 平均 K 线。
-- [ ] `BN-F15` 深度图。
+- [x] `BN-F15` 深度图。
 - [x] `BN-F16` 横屏和全屏。
 
 首个 2.0 正式版不包含 Renko、Kagi、Range、Point & Figure。
@@ -194,8 +194,8 @@
 
 ### 3.8 深度图
 
-- [ ] `BN-O01` 买卖累计深度曲线。
-- [ ] `BN-O02` 买一、卖一和价差。
+- [x] `BN-O01` 买卖累计深度曲线。
+- [x] `BN-O02` 买一、卖一和价差。
 - [ ] `BN-O03` 长按查询价格和累计数量。
 - [ ] `BN-O04` 快照与增量事件合并。
 - [ ] `BN-O05` update ID 连续性验证和失步通知。
@@ -500,7 +500,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P8-01` 通用 PriceLine、Marker 和 EventOverlay。
 - [x] `P8-02` 仓位、强平、挂单、止盈止损示例。
 - [x] `P8-03` 交易叠加点击和拖动回调。
-- [ ] `P8-04` 重构深度模型与累计曲线。
+- [x] `P8-04` 重构深度模型与累计曲线。
 - [ ] `P8-05` 实现深度快照/增量合并和失步事件。
 - [ ] `P8-06` 深度高频更新性能测试。
 
@@ -986,6 +986,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：模型契约、命中几何、点击路由、父级滚动冲突和 Demo 选中/拖价/取消闭环测试通过。
 - 证据：`lib/src/render/chart_trade_overlay_interaction.dart`、`lib/src/widget/chart_gesture_region.dart`、`docs/architecture/KLINE_V2_TRADE_OVERLAY_PROTOCOL.md`。
 - 后续：进入 `P8-04`，重构深度模型与累计曲线。
+
+### 2026-09-02 / P8-04
+
+- 状态：已完成不可变深度档位、标准化订单簿、买卖累计序列和价格感知曲线 Renderer。
+- 模型：买盘严格降序、卖盘严格升序，拒绝重复价、乱序、非正数量和交叉盘口；集合不可变并支持结构相等。
+- 行情：`DepthBook` 提供买一、卖一、中间价、价差和价差百分比；空、单边和单档盘口均有确定行为。
+- 投影：两侧从最优价向外累计并共享最大数量比例尺；X 坐标按真实价格差映射，不再使用旧版等宽档位。
+- 渲染：独立 `DepthRenderSnapshot` 和纯 `StandardDepthCurveRenderer` 绘制买卖阶梯线、半透明面积、价格轴和数量标签，不修改业务状态。
+- Demo：新增中文“V2 买卖深度”区域，展示买一、卖一、价差以及确定性买卖累计曲线；旧深度组件保持兼容。
+- 验证：模型边界、累计数学、价格投影、颜色分区像素、Render 纯度、模块依赖和 Demo Widget 测试通过。
+- 证据：`lib/src/model/depth_book.dart`、`lib/src/render/depth_curve_renderer.dart`、`docs/architecture/KLINE_V2_DEPTH_PROTOCOL.md`。
+- 后续：进入 `P8-05`，实现深度快照/增量合并与 update ID 失步事件。
 
 ## 13. 参考资料
 

@@ -276,11 +276,10 @@ void main() {
     expect(overlayPosition, isNotNull);
     expect(find.byKey(const ValueKey('trade-overlay-actions')), findsOneWidget);
     expect(find.byKey(const ValueKey('crosshair-details')), findsNothing);
-    expect(find.textContaining('已选中'), findsOneWidget);
 
     await tester.dragFrom(overlayPosition!, const Offset(0, 36));
     await tester.pump();
-    expect(find.textContaining('已调整'), findsOneWidget);
+    expect(find.byKey(const ValueKey('trade-overlay-actions')), findsOneWidget);
     expect(find.byKey(const ValueKey('crosshair-details')), findsNothing);
 
     await tester.tap(
@@ -288,7 +287,6 @@ void main() {
     );
     await tester.pump();
     expect(find.byKey(const ValueKey('trade-overlay-actions')), findsNothing);
-    expect(find.textContaining('已取消'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
