@@ -18,4 +18,21 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('price line copy keeps identity and updates interactive state', () {
+    final source = ChartPriceLine(
+      id: 'entry',
+      price: 100,
+      side: ChartOverlaySide.buy,
+      label: '限价买入',
+    );
+
+    final changed = source.copyWith(price: 101, visible: false);
+
+    expect(changed.id, source.id);
+    expect(changed.side, source.side);
+    expect(changed.label, source.label);
+    expect(changed.price, 101);
+    expect(changed.visible, isFalse);
+  });
 }

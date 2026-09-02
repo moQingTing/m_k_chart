@@ -191,6 +191,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _selectionRevision = 0;
   var _clockRevision = 0;
   var _overlayRevision = 0;
+  final Map<String, double> _tradeOverlayPriceOverrides = {};
+  final Set<String> _hiddenTradeOverlayIds = {};
+  ChartTradeOverlayHit? _selectedTradeOverlay;
+  ChartTradeOverlayInteraction? _lastTradeOverlayInteraction;
+  String? _tradeOverlayStatus;
   var _currentTime = DateTime.now().millisecondsSinceEpoch;
   var _scrollOffsetItems = 0.0;
   double? _itemExtent;
@@ -266,6 +271,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       _scrollOffsetItems = 0;
       _itemExtent = null;
       _clearSelection();
+      _clearTradeOverlayInteraction();
     });
     _loadCandles();
   }
@@ -286,6 +292,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       _instrumentId = instrument;
       _instrumentController.text = instrument;
       _ticker = null;
+      _clearTradeOverlayInteraction();
     });
     _loadCandles();
   }
@@ -382,6 +389,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         _scrollOffsetItems = 0;
         _itemExtent = null;
         _latestViewport = null;
+        _clearTradeOverlayInteraction();
       }
       _simulationMessage = simulationMessage;
       _ticker = ticker ?? _ticker;
@@ -500,6 +508,149 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _selectionRevision++;
   }
 
+  void _clearTradeOverlayInteraction() {
+    _tradeOverlayPriceOverrides.clear();
+    _hiddenTradeOverlayIds.clear();
+    _selectedTradeOverlay = null;
+    _lastTradeOverlayInteraction = null;
+    _tradeOverlayStatus = null;
+    _overlayRevision++;
+  }
+
+  DemoTradeOverlaySet _tradeOverlays() {
+    if (!_showTradeOverlayExamples) {
+      return DemoTradeOverlaySet(priceLines: const []);
+    }
+    final source = buildDemoTradeOverlays(_data.data);
+    return DemoTradeOverlaySet(
+      priceLines: [
+        for (final line in source.priceLines)
+          line.copyWith(
+            price: _tradeOverlayPriceOverrides[line.id],
+            visible: !_hiddenTradeOverlayIds.contains(line.id),
+          ),
+      ],
+    );
+  }
+
+  String _tradeOverlayLabel(String id) => switch (id) {
+        'demo-position-long-average' => '多仓均价',
+        'demo-position-long-liquidation' => '强平价',
+        'demo-order-buy-limit' => '买入挂单',
+        'demo-order-long-take-profit' => '止盈',
+        'demo-order-long-stop-loss' => '止损',
+        _ => id,
+      };
+
+  ChartTradeOverlayHit _tradeOverlayHitAtPrice(
+    ChartTradeOverlayHit hit,
+    double price,
+  ) =>
+      ChartTradeOverlayHit(
+        id: hit.id,
+        kind: hit.kind,
+        side: hit.side,
+        price: price,
+        distance: 0,
+        epochMilliseconds: hit.epochMilliseconds,
+      );
+
+  void _handleTradeOverlayTap(ChartTradeOverlayHit hit) {
+    final interaction = ChartTradeOverlayInteraction(
+      hit: hit,
+      type: ChartTradeOverlayInteractionType.tap,
+    );
+    setState(() {
+      _clearSelection();
+      _selectedTradeOverlay = hit;
+      _lastTradeOverlayInteraction = interaction;
+      _tradeOverlayStatus = '已选中 ${_tradeOverlayLabel(hit.id)}';
+    });
+  }
+
+  void _handleTradeOverlayDragStart(
+    ChartTradeOverlayHit hit,
+    Offset localPosition,
+  ) {
+    final interaction = ChartTradeOverlayInteraction(
+      hit: hit,
+      type: ChartTradeOverlayInteractionType.dragStart,
+    );
+    setState(() {
+      _clearSelection();
+      _selectedTradeOverlay = hit;
+      _lastTradeOverlayInteraction = interaction;
+      _tradeOverlayStatus = '开始调整 ${_tradeOverlayLabel(hit.id)}';
+    });
+  }
+
+  void _handleTradeOverlayDragUpdate(
+    ChartTradeOverlayHit hit,
+    Offset localPosition,
+    RenderSnapshot<KChartTheme> snapshot,
+  ) {
+    final panel = snapshot.layout.mainPanel.bounds;
+    final localY = localPosition.dy.clamp(panel.top, panel.bottom).toDouble();
+    final price = ChartLayerGeometry.rangeFor(snapshot, 'main')
+        .transform(panel)
+        .localYToPrice(localY);
+    final updatedHit = _tradeOverlayHitAtPrice(hit, price);
+    final interaction = ChartTradeOverlayInteraction(
+      hit: updatedHit,
+      type: ChartTradeOverlayInteractionType.dragUpdate,
+      price: price,
+    );
+    setState(() {
+      _tradeOverlayPriceOverrides[hit.id] = price;
+      _selectedTradeOverlay = updatedHit;
+      _lastTradeOverlayInteraction = interaction;
+      _tradeOverlayStatus =
+          '正在调整 ${_tradeOverlayLabel(hit.id)}：${_theme.formatMainValue(price)}';
+      _overlayRevision++;
+    });
+  }
+
+  void _handleTradeOverlayDragEnd(ChartTradeOverlayHit hit) {
+    final price = _tradeOverlayPriceOverrides[hit.id] ?? hit.price;
+    final updatedHit = _tradeOverlayHitAtPrice(hit, price);
+    final interaction = ChartTradeOverlayInteraction(
+      hit: updatedHit,
+      type: ChartTradeOverlayInteractionType.dragEnd,
+      price: price,
+    );
+    setState(() {
+      _selectedTradeOverlay = updatedHit;
+      _lastTradeOverlayInteraction = interaction;
+      _tradeOverlayStatus =
+          '已调整 ${_tradeOverlayLabel(hit.id)}：${_theme.formatMainValue(price)}';
+    });
+  }
+
+  void _cancelTradeOverlayDrag(ChartTradeOverlayHit hit) {
+    if (_lastTradeOverlayInteraction?.type !=
+        ChartTradeOverlayInteractionType.dragUpdate) {
+      return;
+    }
+    setState(() => _tradeOverlayStatus = '调整已中断');
+  }
+
+  void _cancelSelectedTradeOverlay() {
+    final hit = _selectedTradeOverlay;
+    if (hit == null) return;
+    final interaction = ChartTradeOverlayInteraction(
+      hit: hit,
+      type: ChartTradeOverlayInteractionType.action,
+      actionId: 'cancel',
+    );
+    setState(() {
+      _hiddenTradeOverlayIds.add(hit.id);
+      _selectedTradeOverlay = null;
+      _lastTradeOverlayInteraction = interaction;
+      _tradeOverlayStatus = '已取消 ${_tradeOverlayLabel(hit.id)}';
+      _overlayRevision++;
+    });
+  }
+
   void _handleChartIntent(
     ChartInteractionIntent intent,
     RenderSnapshot<KChartTheme> snapshot,
@@ -511,6 +662,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
           _itemExtent = viewport.itemExtent;
           _viewportRevision++;
           _clearSelection();
+          _selectedTradeOverlay = null;
         });
       case ChartCrosshairIntent(:final isActive, :final localX, :final localY):
         if (isActive) {
@@ -532,6 +684,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       _latestViewport = latest;
       _viewportRevision++;
       _clearSelection();
+      _selectedTradeOverlay = null;
     });
   }
 
@@ -561,6 +714,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         .transform(panelBounds)
         .localYToPrice(localPosition.dy);
     setState(() {
+      _selectedTradeOverlay = null;
       _selectedIndex = index;
       _selectedPanelId = panelId;
       _selectedPrice = price;
@@ -1144,6 +1298,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     selected: _showTradeOverlayExamples,
                     onSelected: (enabled) => setState(() {
                       _showTradeOverlayExamples = enabled;
+                      if (!enabled) {
+                        _selectedTradeOverlay = null;
+                      }
                       _overlayRevision++;
                     }),
                   ),
@@ -1155,6 +1312,16 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       fontSize: 12,
                     ),
                   ),
+                  if (_tradeOverlayStatus case final status?)
+                    Text(
+                      status,
+                      key: const ValueKey('trade-overlay-status'),
+                      style: const TextStyle(
+                        color: Color(0xff0369a1),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -1235,9 +1402,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       scrollOffsetItems: _scrollOffsetItems,
                     );
                     _latestViewport = viewport;
-                    final tradeOverlays = _showTradeOverlayExamples
-                        ? buildDemoTradeOverlays(_data.data)
-                        : DemoTradeOverlaySet(priceLines: const []);
+                    final tradeOverlays = _tradeOverlays();
                     final baseSnapshot = RenderSnapshot<KChartTheme>(
                       data: _data,
                       viewport: viewport,
@@ -1314,122 +1479,183 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       viewport: () => viewport,
                       onIntent: (intent) =>
                           _handleChartIntent(intent, baseSnapshot),
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTapUp: (details) => _selectChartPosition(
-                            details.localPosition, baseSnapshot),
-                        child: Stack(
-                          children: [
-                            RepaintBoundary(
-                              child: CustomPaint(
-                                key: const ValueKey('v2-chart-canvas'),
-                                painter: _DemoPainter(
-                                    pipeline: _pipeline, snapshot: snapshot),
-                                size: Size(width, chartHeight),
+                      onTapUp: (localPosition) =>
+                          _selectChartPosition(localPosition, baseSnapshot),
+                      tradeOverlayGestures: ChartTradeOverlayGestureCallbacks(
+                        hitTest: (localPosition) =>
+                            ChartTradeOverlayHitTester.hitTest(
+                          snapshot: snapshot,
+                          localPosition: localPosition,
+                        ),
+                        onTap: _handleTradeOverlayTap,
+                        onDragStart: _handleTradeOverlayDragStart,
+                        onDragUpdate: (hit, localPosition) =>
+                            _handleTradeOverlayDragUpdate(
+                          hit,
+                          localPosition,
+                          snapshot,
+                        ),
+                        onDragEnd: _handleTradeOverlayDragEnd,
+                        onDragCancel: _cancelTradeOverlayDrag,
+                      ),
+                      child: Stack(
+                        children: [
+                          RepaintBoundary(
+                            child: CustomPaint(
+                              key: const ValueKey('v2-chart-canvas'),
+                              painter: _DemoPainter(
+                                  pipeline: _pipeline, snapshot: snapshot),
+                              size: Size(width, chartHeight),
+                            ),
+                          ),
+                          for (final panel in layout.panels)
+                            Positioned(
+                              key: ValueKey(
+                                'panel-indicator-legend-${panel.spec.id}',
+                              ),
+                              left: panel.headerBounds.left + 8,
+                              width: math.max(
+                                0,
+                                panel.headerBounds.width - 16,
+                              ),
+                              top: panel.headerBounds.top,
+                              height: panel.headerBounds.height,
+                              child: IgnorePointer(
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: _PanelIndicatorLegend(
+                                    entries: _indicatorLegendEntries(
+                                      snapshot,
+                                      panelId: panel.spec.id,
+                                      dataIndex: indicatorLegendIndex,
+                                    ),
+                                    valueFormatter:
+                                        panel.spec.kind == ChartPanelKind.main
+                                            ? _theme.formatMainValue
+                                            : _theme.formatSecondaryValue,
+                                  ),
+                                ),
                               ),
                             ),
-                            for (final panel in layout.panels)
-                              Positioned(
-                                key: ValueKey(
-                                  'panel-indicator-legend-${panel.spec.id}',
-                                ),
-                                left: panel.headerBounds.left + 8,
-                                width: math.max(
-                                  0,
-                                  panel.headerBounds.width - 16,
-                                ),
-                                top: panel.headerBounds.top,
-                                height: panel.headerBounds.height,
-                                child: IgnorePointer(
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: _PanelIndicatorLegend(
-                                      entries: _indicatorLegendEntries(
-                                        snapshot,
-                                        panelId: panel.spec.id,
-                                        dataIndex: indicatorLegendIndex,
-                                      ),
-                                      valueFormatter:
-                                          panel.spec.kind == ChartPanelKind.main
-                                              ? _theme.formatMainValue
-                                              : _theme.formatSecondaryValue,
-                                    ),
-                                  ),
+                          if (layout.secondaryPanels.isNotEmpty)
+                            Positioned(
+                              left: layout.mainTimeAxisBounds.left,
+                              width: layout.mainTimeAxisBounds.width,
+                              top: layout.mainTimeAxisBounds.top,
+                              height: layout.mainTimeAxisBounds.height,
+                              child: IgnorePointer(
+                                child: _IntermediateTimeAxis(
+                                  labels: _timeAxisLabels(layout, viewport),
                                 ),
                               ),
-                            if (layout.secondaryPanels.isNotEmpty)
-                              Positioned(
-                                left: layout.mainTimeAxisBounds.left,
-                                width: layout.mainTimeAxisBounds.width,
-                                top: layout.mainTimeAxisBounds.top,
-                                height: layout.mainTimeAxisBounds.height,
-                                child: IgnorePointer(
-                                  child: _IntermediateTimeAxis(
-                                    labels: _timeAxisLabels(layout, viewport),
-                                  ),
-                                ),
-                              ),
-                            if (selectedCandle != null &&
-                                layout.secondaryPanels.isNotEmpty)
-                              Positioned(
-                                left: layout.mainTimeAxisBounds.left,
-                                width: layout.mainTimeAxisBounds.width,
-                                top: layout.mainTimeAxisBounds.top,
-                                height: layout.mainTimeAxisBounds.height,
-                                child: IgnorePointer(
-                                  child: _SelectedCrosshairTimeLabel(
-                                    localX: snapshot.selection.localX -
-                                        layout.mainTimeAxisBounds.left,
-                                    text: _formatCrosshairSelectionTime(
-                                      selectedCandle,
-                                      Duration(
-                                        hours: _timeZoneOffsetHours,
-                                      ),
-                                    ),
-                                    theme: _theme,
-                                  ),
-                                ),
-                              ),
-                            if (selectedCandle != null)
-                              Positioned(
-                                key: const ValueKey(
-                                  'crosshair-details-position',
-                                ),
-                                left: detailsLeft,
-                                top: mainPanelBounds.top + 8,
-                                child: IgnorePointer(
-                                  child: _CrosshairDetails(
-                                    candle: selectedCandle,
-                                    previousCandle: previousSelectedCandle,
-                                    selectedPrice: _selectedPrice,
-                                    selectedValueIsMain:
-                                        _selectedPanelId == 'main',
-                                    theme: _theme,
-                                    timeZoneOffset: Duration(
+                            ),
+                          if (selectedCandle != null &&
+                              layout.secondaryPanels.isNotEmpty)
+                            Positioned(
+                              left: layout.mainTimeAxisBounds.left,
+                              width: layout.mainTimeAxisBounds.width,
+                              top: layout.mainTimeAxisBounds.top,
+                              height: layout.mainTimeAxisBounds.height,
+                              child: IgnorePointer(
+                                child: _SelectedCrosshairTimeLabel(
+                                  localX: snapshot.selection.localX -
+                                      layout.mainTimeAxisBounds.left,
+                                  text: _formatCrosshairSelectionTime(
+                                    selectedCandle,
+                                    Duration(
                                       hours: _timeZoneOffsetHours,
                                     ),
                                   ),
+                                  theme: _theme,
                                 ),
                               ),
-                            if (latestPriceHitRegion case final region?
-                                when region.showsChevron)
-                              Positioned.fromRect(
-                                rect: region.bounds,
-                                child: Semantics(
-                                  button: true,
-                                  label: '返回最新 K 线',
-                                  child: GestureDetector(
-                                    key: const ValueKey(
-                                      'latest-price-return',
-                                    ),
-                                    behavior: HitTestBehavior.opaque,
-                                    onTap: () => _returnToLatest(viewport),
-                                    child: const SizedBox.expand(),
+                            ),
+                          if (selectedCandle != null)
+                            Positioned(
+                              key: const ValueKey(
+                                'crosshair-details-position',
+                              ),
+                              left: detailsLeft,
+                              top: mainPanelBounds.top + 8,
+                              child: IgnorePointer(
+                                child: _CrosshairDetails(
+                                  candle: selectedCandle,
+                                  previousCandle: previousSelectedCandle,
+                                  selectedPrice: _selectedPrice,
+                                  selectedValueIsMain:
+                                      _selectedPanelId == 'main',
+                                  theme: _theme,
+                                  timeZoneOffset: Duration(
+                                    hours: _timeZoneOffsetHours,
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
+                            ),
+                          if (_selectedTradeOverlay case final selected?)
+                            Positioned(
+                              key: const ValueKey(
+                                'trade-overlay-actions-position',
+                              ),
+                              right: 8,
+                              top: mainPanelBounds.top + 8,
+                              child: Material(
+                                key: const ValueKey(
+                                  'trade-overlay-actions',
+                                ),
+                                color: const Color(0xee0f172a),
+                                borderRadius: BorderRadius.circular(6),
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 10),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '${_tradeOverlayLabel(selected.id)}  ${_theme.formatMainValue(selected.price)}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      TextButton(
+                                        key: const ValueKey(
+                                          'trade-overlay-action-cancel',
+                                        ),
+                                        onPressed: _cancelSelectedTradeOverlay,
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: const Color(
+                                            0xfffda4af,
+                                          ),
+                                          minimumSize: const Size(52, 36),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                          ),
+                                        ),
+                                        child: const Text('取消'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (latestPriceHitRegion case final region?
+                              when region.showsChevron)
+                            Positioned.fromRect(
+                              rect: region.bounds,
+                              child: Semantics(
+                                button: true,
+                                label: '返回最新 K 线',
+                                child: GestureDetector(
+                                  key: const ValueKey(
+                                    'latest-price-return',
+                                  ),
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => _returnToLatest(viewport),
+                                  child: const SizedBox.expand(),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   },

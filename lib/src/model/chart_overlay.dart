@@ -27,6 +27,14 @@ final class ChartPriceLine {
   final ChartOverlaySide side;
   final String? label;
   final bool visible;
+
+  ChartPriceLine copyWith({double? price, bool? visible}) => ChartPriceLine(
+        id: id,
+        price: price ?? this.price,
+        side: side,
+        label: label,
+        visible: visible ?? this.visible,
+      );
 }
 
 /// A time/price annotation point for executions, alerts, or user events.

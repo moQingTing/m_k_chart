@@ -2,6 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/src/interaction/interaction.dart';
+import 'package:m_k_chart/src/model/model.dart';
+import 'package:m_k_chart/src/render/render.dart';
 import 'package:m_k_chart/src/viewport/viewport.dart';
 import 'package:m_k_chart/src/widget/widget.dart';
 
@@ -118,14 +120,70 @@ void main() {
     expect(harness.machine.isIdle, isTrue);
     expect(harness.crosshairIntents, isEmpty);
   });
+
+  testWidgets('overlay tap owns the tap and suppresses chart details',
+      (tester) async {
+    final harness = _CompetitionHarness(withTradeOverlay: true);
+    await tester.pumpWidget(harness.app());
+
+    await tester
+        .tapAt(tester.getTopLeft(harness.finder) + const Offset(150, 110));
+    await tester.pump();
+
+    expect(harness.overlayTaps, hasLength(1));
+    expect(harness.chartTaps, isEmpty);
+  });
+
+  testWidgets('tap away from overlay keeps the normal chart tap route',
+      (tester) async {
+    final harness = _CompetitionHarness(withTradeOverlay: true);
+    await tester.pumpWidget(harness.app());
+
+    await tester
+        .tapAt(tester.getTopLeft(harness.finder) + const Offset(150, 40));
+    await tester.pump();
+
+    expect(harness.overlayTaps, isEmpty);
+    expect(harness.chartTaps, hasLength(1));
+  });
+
+  testWidgets('overlay vertical drag excludes viewport and parent scroll',
+      (tester) async {
+    final parent = ScrollController();
+    final harness = _CompetitionHarness(withTradeOverlay: true);
+    await tester.pumpWidget(harness.nested(parent));
+    final start = tester.getTopLeft(harness.finder) + const Offset(150, 110);
+
+    final gesture = await tester.startGesture(start);
+    await gesture.moveBy(const Offset(2, -70));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(harness.overlayDragStarts, hasLength(1));
+    expect(harness.overlayDragUpdates, isNotEmpty);
+    expect(harness.overlayDragEnds, hasLength(1));
+    expect(harness.viewportIntents, isEmpty);
+    expect(parent.offset, 0);
+    expect(harness.machine.isIdle, isTrue);
+  });
 }
 
 final class _CompetitionHarness {
+  _CompetitionHarness({this.withTradeOverlay = false});
+
   static const _key = Key('competition-chart');
+
+  final bool withTradeOverlay;
 
   final machine = ChartInteractionMachine();
   final navigationMachine = ChartNavigationMachine();
   final intents = <ChartInteractionIntent>[];
+  final chartTaps = <Offset>[];
+  final overlayTaps = <ChartTradeOverlayHit>[];
+  final overlayDragStarts = <Offset>[];
+  final overlayDragUpdates = <Offset>[];
+  final overlayDragEnds = <ChartTradeOverlayHit>[];
   ChartViewport viewport = ChartViewport(
     itemCount: 200,
     width: 300,
@@ -175,7 +233,30 @@ final class _CompetitionHarness {
               this.viewport = viewport;
             }
           },
+          onTapUp: chartTaps.add,
+          tradeOverlayGestures: withTradeOverlay
+              ? ChartTradeOverlayGestureCallbacks(
+                  hitTest: _overlayHitTest,
+                  onTap: overlayTaps.add,
+                  onDragStart: (hit, position) =>
+                      overlayDragStarts.add(position),
+                  onDragUpdate: (hit, position) =>
+                      overlayDragUpdates.add(position),
+                  onDragEnd: overlayDragEnds.add,
+                )
+              : null,
           child: const ColoredBox(color: Color(0xff000000)),
         ),
       );
+
+  ChartTradeOverlayHit? _overlayHitTest(Offset position) =>
+      (position.dy - 110).abs() <= 12
+          ? ChartTradeOverlayHit(
+              id: 'entry',
+              kind: ChartTradeOverlayKind.priceLine,
+              side: ChartOverlaySide.buy,
+              price: 100,
+              distance: (position.dy - 110).abs(),
+            )
+          : null;
 }

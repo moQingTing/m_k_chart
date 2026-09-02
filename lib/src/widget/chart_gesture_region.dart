@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import '../interaction/interaction.dart';
+import '../render/chart_trade_overlay_interaction.dart';
 import '../viewport/viewport.dart';
 import 'chart_axis_scale_gesture_recognizer.dart';
 
@@ -24,6 +25,30 @@ final class ChartPointerInputPolicy {
   final double mouseWheelZoomSensitivity;
 }
 
+typedef ChartTradeOverlayDragCallback = void Function(
+  ChartTradeOverlayHit hit,
+  Offset localPosition,
+);
+
+/// Optional Overlay callbacks that participate in the chart gesture arena.
+final class ChartTradeOverlayGestureCallbacks {
+  const ChartTradeOverlayGestureCallbacks({
+    required this.hitTest,
+    required this.onTap,
+    required this.onDragStart,
+    required this.onDragUpdate,
+    required this.onDragEnd,
+    this.onDragCancel,
+  });
+
+  final ChartTradeOverlayHit? Function(Offset localPosition) hitTest;
+  final ValueChanged<ChartTradeOverlayHit> onTap;
+  final ChartTradeOverlayDragCallback onDragStart;
+  final ChartTradeOverlayDragCallback onDragUpdate;
+  final ValueChanged<ChartTradeOverlayHit> onDragEnd;
+  final ValueChanged<ChartTradeOverlayHit>? onDragCancel;
+}
+
 /// Internal Flutter Gesture Arena adapter for [ChartInteractionMachine].
 ///
 /// One axis-gated scale recognizer handles one-finger horizontal pan and
@@ -38,6 +63,8 @@ final class ChartGestureRegion extends StatefulWidget {
     required this.onIntent,
     required this.child,
     this.crosshairIntentBuilder,
+    this.onTapUp,
+    this.tradeOverlayGestures,
     this.pointerInputPolicy = const ChartPointerInputPolicy(),
     this.behavior = HitTestBehavior.opaque,
     super.key,
@@ -50,6 +77,8 @@ final class ChartGestureRegion extends StatefulWidget {
   final Widget child;
   final ChartCrosshairIntent Function(double localX, double localY)?
       crosshairIntentBuilder;
+  final ValueChanged<Offset>? onTapUp;
+  final ChartTradeOverlayGestureCallbacks? tradeOverlayGestures;
   final ChartPointerInputPolicy pointerInputPolicy;
   final HitTestBehavior behavior;
 
@@ -64,6 +93,7 @@ final class _ChartGestureRegionState extends State<ChartGestureRegion>
   bool _mouseCrosshairVisible = false;
   bool _trackpadActive = false;
   double _trackpadStartLocalX = 0;
+  ChartTradeOverlayHit? _activeTradeOverlayHit;
 
   @override
   void initState() {
@@ -85,6 +115,28 @@ final class _ChartGestureRegionState extends State<ChartGestureRegion>
           child: RawGestureDetector(
             behavior: widget.behavior,
             gestures: <Type, GestureRecognizerFactory>{
+              TapGestureRecognizer:
+                  GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+                () => TapGestureRecognizer(debugOwner: this),
+                (recognizer) => recognizer.onTapUp = _onTapUp,
+              ),
+              if (widget.tradeOverlayGestures != null)
+                _ChartTradeOverlayVerticalDragGestureRecognizer:
+                    GestureRecognizerFactoryWithHandlers<
+                        _ChartTradeOverlayVerticalDragGestureRecognizer>(
+                  () => _ChartTradeOverlayVerticalDragGestureRecognizer(
+                    debugOwner: this,
+                  ),
+                  (recognizer) {
+                    recognizer
+                      ..overlayHitTest = widget.tradeOverlayGestures?.hitTest
+                      ..dragStartBehavior = DragStartBehavior.down
+                      ..onStart = _onTradeOverlayDragStart
+                      ..onUpdate = _onTradeOverlayDragUpdate
+                      ..onEnd = _onTradeOverlayDragEnd
+                      ..onCancel = _onTradeOverlayDragCancel;
+                  },
+                ),
               ChartAxisScaleGestureRecognizer:
                   GestureRecognizerFactoryWithHandlers<
                       ChartAxisScaleGestureRecognizer>(
@@ -127,6 +179,43 @@ final class _ChartGestureRegionState extends State<ChartGestureRegion>
           ),
         ),
       );
+
+  void _onTapUp(TapUpDetails details) {
+    final overlayCallbacks = widget.tradeOverlayGestures;
+    final hit = overlayCallbacks?.hitTest(details.localPosition);
+    if (hit != null) {
+      overlayCallbacks!.onTap(hit);
+      return;
+    }
+    widget.onTapUp?.call(details.localPosition);
+  }
+
+  void _onTradeOverlayDragStart(DragStartDetails details) {
+    final callbacks = widget.tradeOverlayGestures;
+    final hit = callbacks?.hitTest(details.localPosition);
+    if (callbacks == null || hit == null) return;
+    _cancelInertia();
+    _activeTradeOverlayHit = hit;
+    callbacks.onDragStart(hit, details.localPosition);
+  }
+
+  void _onTradeOverlayDragUpdate(DragUpdateDetails details) {
+    final hit = _activeTradeOverlayHit;
+    if (hit == null) return;
+    widget.tradeOverlayGestures?.onDragUpdate(hit, details.localPosition);
+  }
+
+  void _onTradeOverlayDragEnd(DragEndDetails details) {
+    final hit = _activeTradeOverlayHit;
+    _activeTradeOverlayHit = null;
+    if (hit != null) widget.tradeOverlayGestures?.onDragEnd(hit);
+  }
+
+  void _onTradeOverlayDragCancel() {
+    final hit = _activeTradeOverlayHit;
+    _activeTradeOverlayHit = null;
+    if (hit != null) widget.tradeOverlayGestures?.onDragCancel?.call(hit);
+  }
 
   void _onScaleStart(ScaleStartDetails details) {
     _cancelInertia();
@@ -363,8 +452,21 @@ final class _ChartGestureRegionState extends State<ChartGestureRegion>
       _trackpadActive = false;
       widget.machine.cancelScale();
     }
+    _onTradeOverlayDragCancel();
     _inertiaTicker.dispose();
     _emit(widget.machine.cancelActive());
     super.dispose();
   }
+}
+
+final class _ChartTradeOverlayVerticalDragGestureRecognizer
+    extends VerticalDragGestureRecognizer {
+  _ChartTradeOverlayVerticalDragGestureRecognizer({super.debugOwner});
+
+  ChartTradeOverlayHit? Function(Offset localPosition)? overlayHitTest;
+
+  @override
+  bool isPointerAllowed(PointerEvent event) =>
+      overlayHitTest?.call(event.localPosition) != null &&
+      super.isPointerAllowed(event);
 }

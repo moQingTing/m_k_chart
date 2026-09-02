@@ -239,4 +239,56 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('trade overlay supports exclusive tap drag and cancel actions',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      const MaterialApp(home: V2TradingChartDemo(loadOnStart: false)),
+    );
+
+    final chartCanvas = find.byKey(const ValueKey('v2-chart-canvas'));
+    await tester.scrollUntilVisible(
+      chartCanvas,
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    final chartTopLeft = tester.getTopLeft(chartCanvas);
+    final chartSize = tester.getSize(chartCanvas);
+    Offset? overlayPosition;
+    for (var localY = 22.0; localY < 300; localY += 6) {
+      final candidate = chartTopLeft + Offset(chartSize.width * 0.45, localY);
+      await tester.tapAt(candidate);
+      await tester.pump();
+      if (find
+          .byKey(const ValueKey('trade-overlay-actions'))
+          .evaluate()
+          .isNotEmpty) {
+        overlayPosition = candidate;
+        break;
+      }
+    }
+
+    expect(overlayPosition, isNotNull);
+    expect(find.byKey(const ValueKey('trade-overlay-actions')), findsOneWidget);
+    expect(find.byKey(const ValueKey('crosshair-details')), findsNothing);
+    expect(find.textContaining('已选中'), findsOneWidget);
+
+    await tester.dragFrom(overlayPosition!, const Offset(0, 36));
+    await tester.pump();
+    expect(find.textContaining('已调整'), findsOneWidget);
+    expect(find.byKey(const ValueKey('crosshair-details')), findsNothing);
+
+    await tester.tap(
+      find.byKey(const ValueKey('trade-overlay-action-cancel')),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('trade-overlay-actions')), findsNothing);
+    expect(find.textContaining('已取消'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

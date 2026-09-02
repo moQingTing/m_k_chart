@@ -188,7 +188,7 @@
 - [x] `BN-T03` 挂单、止盈、止损价格线。
 - [ ] `BN-T04` 买入、卖出成交点。
 - [ ] `BN-T05` 资金费率或业务事件时间标记。
-- [ ] `BN-T06` 叠加对象点击、拖动和操作按钮回调。
+- [x] `BN-T06` 叠加对象点击、拖动和操作按钮回调。
 
 插件仅渲染宿主传入的数据并回传用户操作，不保存密钥、不访问账户、不执行订单。
 
@@ -499,7 +499,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 - [x] `P8-01` 通用 PriceLine、Marker 和 EventOverlay。
 - [x] `P8-02` 仓位、强平、挂单、止盈止损示例。
-- [ ] `P8-03` 交易叠加点击和拖动回调。
+- [x] `P8-03` 交易叠加点击和拖动回调。
 - [ ] `P8-04` 重构深度模型与累计曲线。
 - [ ] `P8-05` 实现深度快照/增量合并和失步事件。
 - [ ] `P8-06` 深度高频更新性能测试。
@@ -976,6 +976,16 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：稳定 ID、中文标签、可见有限价格、集合不可变、空数据和依赖扫描测试通过；Widget 测试覆盖关闭与恢复。
 - 证据：`example/lib/v2_trade_overlay_examples.dart`、`docs/architecture/KLINE_V2_TRADE_OVERLAY_PROTOCOL.md`。
 - 后续：进入 `P8-03`，实现 Overlay 命中、点击、拖动和操作回调。
+
+### 2026-09-02 / P8-03
+
+- 状态：已完成交易叠加对象的统一命中结果、点击、拖动价格和操作事件协议。
+- 命中：PriceLine、右侧 ValueMarker 与 EventOverlay 复用 Renderer 坐标投影；支持命中容差、右侧标记带宽度、隐藏对象过滤和重叠绘制顺序。
+- 竞技场：交易对象垂直拖动只在 pointer-down 命中时参赛；对象点击不再打开 K 线详情，拖动不同时平移图表或滚动父列表，空白区域保留原有手势。
+- Demo：点击示例交易线显示中文操作区，拖动实时修改价格，“取消”按钮隐藏目标对象；所有业务动作只修改本地示例状态并推进 overlays 版本。
+- 验证：模型契约、命中几何、点击路由、父级滚动冲突和 Demo 选中/拖价/取消闭环测试通过。
+- 证据：`lib/src/render/chart_trade_overlay_interaction.dart`、`lib/src/widget/chart_gesture_region.dart`、`docs/architecture/KLINE_V2_TRADE_OVERLAY_PROTOCOL.md`。
+- 后续：进入 `P8-04`，重构深度模型与累计曲线。
 
 ## 13. 参考资料
 
