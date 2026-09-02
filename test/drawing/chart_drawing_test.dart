@@ -74,4 +74,39 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('keeps every tool family and optional locked field compatible', () {
+    for (final kind in ChartDrawingKind.values) {
+      final anchorCount = kind == ChartDrawingKind.parallelChannel
+          ? 3
+          : (kind == ChartDrawingKind.horizontalLine ||
+                  kind == ChartDrawingKind.verticalLine ||
+                  kind == ChartDrawingKind.text ||
+                  kind == ChartDrawingKind.priceMarker)
+              ? 1
+              : 2;
+      final drawing = ChartDrawing(
+        id: kind.name,
+        kind: kind,
+        anchors: [
+          for (var index = 0; index < anchorCount; index++)
+            ChartDrawingAnchor(
+                epochMilliseconds: 1700000000000 + index,
+                price: index.toDouble()),
+        ],
+        text: kind == ChartDrawingKind.text ? '文本' : null,
+        isLocked: true,
+      );
+      expect(ChartDrawing.fromJson(drawing.toJson()), drawing);
+    }
+    final unlocked = ChartDrawing.fromJson({
+      'schemaVersion': 1,
+      'id': 'old-v1',
+      'kind': 'horizontalLine',
+      'anchors': [
+        {'time': 1, 'price': 1}
+      ],
+    });
+    expect(unlocked.isLocked, isFalse);
+  });
 }
