@@ -7,6 +7,7 @@ import '../indicator/indicator.dart';
 import '../theme/theme.dart';
 import '../viewport/viewport.dart';
 import 'chart_candle_projection.dart';
+import 'chart_drawing_renderer.dart';
 import 'chart_main_mode.dart';
 import 'render_cache.dart';
 import 'render_layer.dart';
@@ -450,22 +451,27 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
   }
 }
 
-/// Projected chart-local drawing primitives. P7 will add anchored tools.
+/// Paints legacy local lines and P7 time/price-anchored drawing tools.
 final class ChartDrawingLayer<TTheme extends ChartRenderStyle>
     extends ChartRenderLayer<TTheme> {
-  ChartDrawingLayer()
+  ChartDrawingLayer(this.cache)
       : super(
           id: 'drawing',
           dependencies: const {
             RenderSnapshotSlice.data,
+            RenderSnapshotSlice.viewport,
             RenderSnapshotSlice.layout,
             RenderSnapshotSlice.theme,
+            RenderSnapshotSlice.drawings,
           },
         );
 
+  final ChartRenderCache cache;
+
   @override
   void paint(RenderLayerContext<TTheme> context) {
-    if (context.snapshot.drawings.isEmpty) {
+    if (context.snapshot.drawings.isEmpty &&
+        context.snapshot.anchoredDrawings.isEmpty) {
       return;
     }
     final canvas = context.canvas;
@@ -478,6 +484,25 @@ final class ChartDrawingLayer<TTheme extends ChartRenderStyle>
       ..style = PaintingStyle.stroke;
     for (final drawing in context.snapshot.drawings) {
       canvas.drawLine(drawing.start, drawing.end, paint);
+    }
+    if (context.snapshot.data.data.isNotEmpty) {
+      final xTransform = cache.windowFor(context.snapshot).xTransform;
+      final panel = context.snapshot.layout.mainPanel;
+      final priceTransform = cache
+          .panelRangeFor(context.snapshot, panel.spec.id)
+          .transform(panel.bounds);
+      for (final drawing in context.snapshot.anchoredDrawings) {
+        ChartDrawingRenderer.paintAnchored(
+          canvas: canvas,
+          drawing: drawing,
+          xTransform: xTransform,
+          priceTransform: priceTransform,
+          bounds: _rect(bounds),
+          color: context.snapshot.theme.drawingColor,
+          formatPrice: context.snapshot.theme.formatMainValue,
+          textFontSize: context.snapshot.theme.axisFontSize,
+        );
+      }
     }
     canvas.restore();
   }
@@ -493,7 +518,7 @@ RenderLayerStack<TTheme>
           ChartSecondaryLayer<TTheme>(cache),
           ChartAxisLayer<TTheme>(cache),
           ChartMarkerLayer<TTheme>(cache),
-          ChartDrawingLayer<TTheme>(),
+          ChartDrawingLayer<TTheme>(cache),
           ChartCrosshairLayer<TTheme>(cache),
         ]);
 

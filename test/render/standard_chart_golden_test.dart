@@ -163,7 +163,7 @@ void main() {
     );
     await tester.pump();
     expect(reports.last.repaintedLayerIds,
-        ['grid', 'main', 'secondary', 'axis', 'marker']);
+        ['grid', 'main', 'secondary', 'axis', 'marker', 'drawing']);
     expect(pipeline.repaintStats.repaintCount('grid'), 2);
     expect(pipeline.repaintStats.repaintCount('main'), 2);
     expect(pipeline.repaintStats.repaintCount('crosshair'), 2);

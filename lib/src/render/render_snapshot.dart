@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:ui';
 
+import '../drawing/drawing.dart';
 import '../indicator/indicator.dart';
 import '../model/model.dart';
 import '../viewport/viewport.dart';
@@ -14,6 +15,7 @@ enum RenderSnapshotSlice {
   history,
   layout,
   theme,
+  drawings,
   clock,
 }
 
@@ -26,6 +28,7 @@ final class RenderSnapshotVersions {
     this.history = 0,
     this.layout = 0,
     this.theme = 0,
+    this.drawings = 0,
     this.clock = 0,
   })  : assert(data >= 0),
         assert(viewport >= 0),
@@ -33,6 +36,7 @@ final class RenderSnapshotVersions {
         assert(history >= 0),
         assert(layout >= 0),
         assert(theme >= 0),
+        assert(drawings >= 0),
         assert(clock >= 0);
 
   final int data;
@@ -41,6 +45,7 @@ final class RenderSnapshotVersions {
   final int history;
   final int layout;
   final int theme;
+  final int drawings;
   final int clock;
 
   int versionOf(RenderSnapshotSlice slice) => switch (slice) {
@@ -50,6 +55,7 @@ final class RenderSnapshotVersions {
         RenderSnapshotSlice.history => history,
         RenderSnapshotSlice.layout => layout,
         RenderSnapshotSlice.theme => theme,
+        RenderSnapshotSlice.drawings => drawings,
         RenderSnapshotSlice.clock => clock,
       };
 }
@@ -134,7 +140,7 @@ final class RenderHistorySnapshot {
   final RenderHistoryPhase phase;
 }
 
-/// Chart-local drawing projection. P7 will add data/time/price anchored tools.
+/// Legacy chart-local line primitive kept for backward-compatible render input.
 final class RenderLineDrawing {
   RenderLineDrawing({
     required this.id,
@@ -231,6 +237,7 @@ final class RenderSnapshot<TTheme extends Object> {
     RenderSelectionSnapshot selection = const RenderSelectionSnapshot.hidden(),
     RenderHistorySnapshot history = const RenderHistorySnapshot(),
     Iterable<RenderLineDrawing> drawings = const [],
+    Iterable<ChartDrawing> anchoredDrawings = const [],
     ChartMainMode mainMode = ChartMainMode.candlestick,
     Duration timeZoneOffset = Duration.zero,
     int? currentTime,
@@ -302,6 +309,19 @@ final class RenderSnapshot<TTheme extends Object> {
       }
       drawingById[drawing.id] = drawing;
     }
+    final immutableAnchoredDrawings =
+        List<ChartDrawing>.unmodifiable(anchoredDrawings);
+    final anchoredDrawingById = <String, ChartDrawing>{};
+    for (final drawing in immutableAnchoredDrawings) {
+      if (anchoredDrawingById.containsKey(drawing.id)) {
+        throw ArgumentError.value(
+          drawing.id,
+          'anchoredDrawings',
+          'Duplicate drawing id.',
+        );
+      }
+      anchoredDrawingById[drawing.id] = drawing;
+    }
 
     final resolvedCurrentTime = currentTime ?? _nextExpectedOpenTime(data.data);
     if (resolvedCurrentTime < 0) {
@@ -327,6 +347,8 @@ final class RenderSnapshot<TTheme extends Object> {
       history: history,
       drawings: immutableDrawings,
       drawingById: UnmodifiableMapView(drawingById),
+      anchoredDrawings: immutableAnchoredDrawings,
+      anchoredDrawingById: UnmodifiableMapView(anchoredDrawingById),
       mainMode: mainMode,
       timeZoneOffset: timeZoneOffset,
       currentTime: resolvedCurrentTime,
@@ -345,6 +367,8 @@ final class RenderSnapshot<TTheme extends Object> {
     required this.history,
     required this.drawings,
     required this.drawingById,
+    required this.anchoredDrawings,
+    required this.anchoredDrawingById,
     required this.mainMode,
     required this.timeZoneOffset,
     required this.currentTime,
@@ -361,6 +385,10 @@ final class RenderSnapshot<TTheme extends Object> {
   final RenderHistorySnapshot history;
   final List<RenderLineDrawing> drawings;
   final Map<String, RenderLineDrawing> drawingById;
+
+  /// P7 drawings persisted as time/price anchors and projected at paint time.
+  final List<ChartDrawing> anchoredDrawings;
+  final Map<String, ChartDrawing> anchoredDrawingById;
   final ChartMainMode mainMode;
 
   /// Display offset applied by axis and overlay time formatters.
@@ -411,6 +439,14 @@ final class RenderSnapshot<TTheme extends Object> {
     final result = drawingById[id];
     if (result == null) {
       throw ArgumentError.value(id, 'id', 'Unknown drawing.');
+    }
+    return result;
+  }
+
+  ChartDrawing anchoredDrawing(String id) {
+    final result = anchoredDrawingById[id];
+    if (result == null) {
+      throw ArgumentError.value(id, 'id', 'Unknown anchored drawing.');
     }
     return result;
   }

@@ -425,7 +425,7 @@ void main() {
     final fixture = _fixture();
     final layers = <ChartRenderLayer<DefaultChartRenderStyle>>[
       ChartMarkerLayer<DefaultChartRenderStyle>(cache),
-      ChartDrawingLayer<DefaultChartRenderStyle>(),
+      ChartDrawingLayer<DefaultChartRenderStyle>(cache),
       ChartCrosshairLayer<DefaultChartRenderStyle>(cache),
     ];
     final pixels = await _paint(fixture.snapshot, layers);

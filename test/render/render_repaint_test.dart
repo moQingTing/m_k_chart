@@ -73,7 +73,7 @@ void main() {
     );
     expect(
       viewport.repaintedLayerIds,
-      ['grid', 'main', 'secondary', 'axis', 'marker'],
+      ['grid', 'main', 'secondary', 'axis', 'marker', 'drawing'],
     );
 
     final data = _paint(
@@ -145,7 +145,29 @@ void main() {
       {RenderSnapshotSlice.clock},
     );
 
-    expect(pipeline.repaintStats.frameCount, 9);
+    final drawings = _paint(
+      pipeline,
+      _snapshot(
+        versions: const RenderSnapshotVersions(
+          data: 1,
+          viewport: 1,
+          selection: 1,
+          history: 1,
+          layout: 1,
+          theme: 1,
+          drawings: 1,
+          clock: 1,
+        ),
+        selection: RenderSelectionSnapshot.visible(localX: 50, localY: 60),
+      ),
+    );
+    expect(drawings.repaintedLayerIds, ['drawing']);
+    expect(
+      drawings.invalidatedSlices['drawing'],
+      {RenderSnapshotSlice.drawings},
+    );
+
+    expect(pipeline.repaintStats.frameCount, 10);
     expect(pipeline.repaintStats.repaintCount('grid'), 5);
     expect(pipeline.repaintStats.repaintCount('main'), 5);
     expect(pipeline.repaintStats.repaintCount('marker'), 6);

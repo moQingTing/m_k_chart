@@ -252,6 +252,7 @@ int _minimumAnchors(ChartDrawingKind kind) => switch (kind) {
       ChartDrawingKind.text ||
       ChartDrawingKind.priceMarker =>
         1,
+      ChartDrawingKind.parallelChannel => 3,
       _ => 2,
     };
 

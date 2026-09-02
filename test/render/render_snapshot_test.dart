@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:m_k_chart/src/drawing/drawing.dart';
 import 'package:m_k_chart/src/indicator/indicator.dart';
 import 'package:m_k_chart/src/model/model.dart';
 import 'package:m_k_chart/src/render/render.dart';
@@ -197,7 +198,8 @@ void main() {
       history: 4,
       layout: 5,
       theme: 6,
-      clock: 7,
+      drawings: 7,
+      clock: 8,
     );
 
     expect(
@@ -205,7 +207,50 @@ void main() {
         for (final slice in RenderSnapshotSlice.values)
           versions.versionOf(slice),
       ],
-      [1, 2, 3, 4, 5, 6, 7],
+      [1, 2, 3, 4, 5, 6, 7, 8],
+    );
+  });
+
+  test('snapshot freezes versioned anchored drawings independently', () {
+    final fixture = _fixture();
+    final anchored = <ChartDrawing>[
+      ChartDrawing(
+        id: 'support',
+        kind: ChartDrawingKind.horizontalLine,
+        anchors: [
+          ChartDrawingAnchor(
+            epochMilliseconds: fixture.data.data.first.openTime,
+            price: 1000,
+          ),
+        ],
+      ),
+    ];
+    final snapshot = RenderSnapshot<_Theme>(
+      data: fixture.data,
+      viewport: fixture.viewport,
+      layout: fixture.layout,
+      theme: const _Theme('dark'),
+      versions: const RenderSnapshotVersions(drawings: 1),
+      anchoredDrawings: anchored,
+    );
+    anchored.clear();
+
+    expect(snapshot.anchoredDrawing('support').id, 'support');
+    expect(snapshot.anchoredDrawings, hasLength(1));
+    expect(() => snapshot.anchoredDrawings.clear(), throwsUnsupportedError);
+    expect(
+      () => RenderSnapshot<_Theme>(
+        data: fixture.data,
+        viewport: fixture.viewport,
+        layout: fixture.layout,
+        theme: const _Theme('dark'),
+        versions: const RenderSnapshotVersions(),
+        anchoredDrawings: [
+          snapshot.anchoredDrawings.first,
+          snapshot.anchoredDrawings.first,
+        ],
+      ),
+      throwsArgumentError,
     );
   });
 
