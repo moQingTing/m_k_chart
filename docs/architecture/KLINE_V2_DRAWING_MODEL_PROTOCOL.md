@@ -6,4 +6,4 @@ P7-01 定义内部不可变 `ChartDrawing`，其锚点始终是 UTC 毫秒与价
 
 `toJson()` 当前输出 schema v1；未带版本的旧 shape 自动迁移：`type` → `kind`、`points` → `anchors`、`color/width` → `style`。未来 schema 会明确抛出 `UnsupportedError`，避免旧代码静默丢失工具数据。
 
-P7-01 仅冻结模型和 JSON。命中测试、控制点、具体工具渲染、编辑命令与跨周期恢复分别在 P7-02～P7-06 完成。
+P7-01 冻结模型和 JSON；P7-02 已加入与 viewport 解耦的控制点投影和命中协议。具体工具渲染、编辑命令与跨周期恢复分别在 P7-03～P7-06 完成。

@@ -2,3 +2,4 @@
 library;
 
 export 'chart_drawing.dart';
+export 'chart_drawing_hit_test.dart';
