@@ -4,6 +4,7 @@ import 'dart:ui' show Picture, PictureRecorder;
 import 'package:flutter/painting.dart';
 
 import '../indicator/indicator.dart';
+import '../model/chart_overlay.dart';
 import '../theme/theme.dart';
 import '../viewport/viewport.dart';
 import 'chart_candle_projection.dart';
@@ -451,6 +452,129 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
   }
 }
 
+/// Paints host-supplied trading references without invalidating chart data.
+final class ChartTradeOverlayLayer<TTheme extends ChartRenderStyle>
+    extends ChartRenderLayer<TTheme> {
+  ChartTradeOverlayLayer(this.cache)
+      : super(
+          id: 'tradeOverlay',
+          dependencies: const {
+            RenderSnapshotSlice.data,
+            RenderSnapshotSlice.viewport,
+            RenderSnapshotSlice.layout,
+            RenderSnapshotSlice.theme,
+            RenderSnapshotSlice.overlays,
+          },
+        );
+
+  final ChartRenderCache cache;
+
+  @override
+  void paint(RenderLayerContext<TTheme> context) {
+    final snapshot = context.snapshot;
+    if (snapshot.data.data.isEmpty ||
+        (snapshot.priceLines.isEmpty &&
+            snapshot.eventOverlays.isEmpty &&
+            snapshot.valueMarkers.isEmpty)) {
+      return;
+    }
+    final panel = snapshot.layout.mainPanel;
+    final priceTransform =
+        cache.panelRangeFor(snapshot, panel.spec.id).transform(panel.bounds);
+    final window = cache.windowFor(snapshot);
+    final xTransform = window.xTransform;
+    final panelMidY = (panel.bounds.top + panel.bounds.bottom) / 2;
+    final canvas = context.canvas;
+    canvas.save();
+    canvas.clipRect(_rect(panel.bounds));
+
+    for (final line in snapshot.priceLines) {
+      if (!line.visible) continue;
+      final color = _tradeOverlayColor(snapshot.theme, line.side);
+      final y = priceTransform.priceToLocalY(line.price);
+      canvas.drawLine(
+        Offset(panel.bounds.left, y),
+        Offset(panel.bounds.right, y),
+        Paint()
+          ..color = color
+          ..strokeWidth = snapshot.theme.overlayStrokeWidth
+          ..style = PaintingStyle.stroke,
+      );
+      _drawText(
+        canvas: canvas,
+        text: line.label == null
+            ? snapshot.theme.formatMainValue(line.price)
+            : '${line.label} ${snapshot.theme.formatMainValue(line.price)}',
+        color: color,
+        fontSize: snapshot.theme.axisFontSize,
+        x: panel.bounds.right - 3,
+        y: y,
+        horizontalAnchor: 1,
+        verticalAnchor: y < panelMidY ? 0 : 1,
+        cache: cache,
+      );
+    }
+
+    for (final marker in snapshot.valueMarkers) {
+      final color = _tradeOverlayColor(snapshot.theme, marker.side);
+      final y = priceTransform.priceToLocalY(marker.price);
+      final center = Offset(panel.bounds.right - 6, y);
+      canvas.drawCircle(center, 3, Paint()..color = color);
+      _drawText(
+        canvas: canvas,
+        text: marker.text,
+        color: color,
+        fontSize: snapshot.theme.axisFontSize,
+        x: center.dx - 5,
+        y: y,
+        horizontalAnchor: 1,
+        verticalAnchor: 0.5,
+        cache: cache,
+      );
+    }
+
+    for (final event in snapshot.eventOverlays) {
+      if (window.range.isEmpty) continue;
+      final firstVisibleTime = snapshot.data.data[window.range.start].openTime;
+      final lastVisibleTime = snapshot.data.data[window.range.end - 1].openTime;
+      if (event.epochMilliseconds < firstVisibleTime ||
+          event.epochMilliseconds > lastVisibleTime) {
+        continue;
+      }
+      final x = xTransform.timeToLocalX(event.epochMilliseconds) +
+          snapshot.layout.drawingBounds.left;
+      if (x < panel.bounds.left || x > panel.bounds.right) continue;
+      final y = priceTransform.priceToLocalY(event.price);
+      final color = _tradeOverlayColor(snapshot.theme, event.side);
+      canvas.drawCircle(Offset(x, y), 4, Paint()..color = color);
+      if (event.label != null) {
+        _drawText(
+          canvas: canvas,
+          text: event.label!,
+          color: color,
+          fontSize: snapshot.theme.axisFontSize,
+          x: x,
+          y: y < panelMidY ? y + 5 : y - 5,
+          horizontalAnchor: 0.5,
+          verticalAnchor: y < panelMidY ? 0 : 1,
+          cache: cache,
+        );
+      }
+    }
+    canvas.restore();
+  }
+}
+
+Color _tradeOverlayColor(
+  ChartRenderStyle theme,
+  ChartOverlaySide side,
+) =>
+    switch (side) {
+      ChartOverlaySide.buy => theme.upColor,
+      ChartOverlaySide.sell => theme.downColor,
+      ChartOverlaySide.neutral => theme.markerColor,
+    };
+
 /// Paints legacy local lines and P7 time/price-anchored drawing tools.
 final class ChartDrawingLayer<TTheme extends ChartRenderStyle>
     extends ChartRenderLayer<TTheme> {
@@ -518,6 +642,7 @@ RenderLayerStack<TTheme>
           ChartSecondaryLayer<TTheme>(cache),
           ChartAxisLayer<TTheme>(cache),
           ChartMarkerLayer<TTheme>(cache),
+          ChartTradeOverlayLayer<TTheme>(cache),
           ChartDrawingLayer<TTheme>(cache),
           ChartCrosshairLayer<TTheme>(cache),
         ]);

@@ -20,7 +20,16 @@ void main() {
 
     expect(
       stack.layers.map((layer) => layer.id),
-      ['grid', 'main', 'secondary', 'axis', 'marker', 'drawing', 'crosshair'],
+      [
+        'grid',
+        'main',
+        'secondary',
+        'axis',
+        'marker',
+        'tradeOverlay',
+        'drawing',
+        'crosshair',
+      ],
     );
     expect(
       stack.layer('crosshair').dependencies,
@@ -33,6 +42,10 @@ void main() {
     expect(
       stack.layer('marker').dependencies,
       contains(RenderSnapshotSlice.clock),
+    );
+    expect(
+      stack.layer('tradeOverlay').dependencies,
+      contains(RenderSnapshotSlice.overlays),
     );
     expect(
       stack.layer('grid').dependencies,
@@ -553,6 +566,81 @@ void main() {
     expect(_nonTransparentCount(outside, fixture.width, fixture.fullRect), 0);
   });
 
+  test('trade overlay Layer paints side colors inside the main panel',
+      () async {
+    final fixture = _fixture();
+    final snapshot = fixture.snapshotWithOverlays(
+      priceLines: [
+        ChartPriceLine(
+          id: 'entry',
+          price: 105,
+          side: ChartOverlaySide.buy,
+          label: 'BUY',
+        ),
+      ],
+      eventOverlays: [
+        ChartEventOverlay(
+          id: 'fill',
+          epochMilliseconds: fixture.data.data[2].openTime,
+          price: 103,
+          side: ChartOverlaySide.sell,
+          label: 'SELL',
+        ),
+      ],
+      valueMarkers: [
+        ChartValueMarker(
+          id: 'alert',
+          price: 101,
+          text: 'ALERT',
+        ),
+      ],
+    );
+    final pixels = await _paint(
+      snapshot,
+      [ChartTradeOverlayLayer<DefaultChartRenderStyle>(cache)],
+    );
+    final main = fixture.layout.mainPanel.bounds;
+    final bounds = Rect.fromLTRB(main.left, main.top, main.right, main.bottom);
+
+    expect(
+      _hasColor(pixels, fixture.width, bounds, fixture.style.upColor),
+      isTrue,
+    );
+    expect(
+      _hasColor(pixels, fixture.width, bounds, fixture.style.downColor),
+      isTrue,
+    );
+    expect(
+      _hasColor(pixels, fixture.width, bounds, fixture.style.markerColor),
+      isTrue,
+    );
+  });
+
+  test('trade overlay Layer ignores events outside the visible timeline',
+      () async {
+    final fixture = _fixture();
+    final snapshot = fixture.snapshotWithOverlays(
+      eventOverlays: [
+        ChartEventOverlay(
+          id: 'old-fill',
+          epochMilliseconds: fixture.data.data.first.openTime - 1,
+          price: 103,
+          side: ChartOverlaySide.sell,
+          label: 'OLD',
+        ),
+      ],
+    );
+    final pixels = await _paint(
+      snapshot,
+      [ChartTradeOverlayLayer<DefaultChartRenderStyle>(cache)],
+    );
+
+    expect(
+      _nonTransparentCount(pixels, fixture.width, fixture.fullRect),
+      0,
+    );
+  });
+
   test('drawing projection validates identity, coordinates and immutability',
       () {
     final source = <RenderLineDrawing>[
@@ -875,9 +963,23 @@ final class _Fixture {
   ) =>
       _snapshot(viewport: viewport);
 
+  RenderSnapshot<DefaultChartRenderStyle> snapshotWithOverlays({
+    Iterable<ChartPriceLine> priceLines = const [],
+    Iterable<ChartEventOverlay> eventOverlays = const [],
+    Iterable<ChartValueMarker> valueMarkers = const [],
+  }) =>
+      _snapshot(
+        priceLines: priceLines,
+        eventOverlays: eventOverlays,
+        valueMarkers: valueMarkers,
+      );
+
   RenderSnapshot<DefaultChartRenderStyle> _snapshot({
     RenderSelectionSnapshot selection = const RenderSelectionSnapshot.hidden(),
     Iterable<RenderLineDrawing> drawings = const [],
+    Iterable<ChartPriceLine> priceLines = const [],
+    Iterable<ChartEventOverlay> eventOverlays = const [],
+    Iterable<ChartValueMarker> valueMarkers = const [],
     ChartMainMode mainMode = ChartMainMode.candlestick,
     ChartViewport? viewport,
   }) =>
@@ -890,6 +992,9 @@ final class _Fixture {
         indicators: indicators,
         selection: selection,
         drawings: drawings,
+        priceLines: priceLines,
+        eventOverlays: eventOverlays,
+        valueMarkers: valueMarkers,
         mainMode: mainMode,
       );
 }

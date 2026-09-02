@@ -73,7 +73,15 @@ void main() {
     );
     expect(
       viewport.repaintedLayerIds,
-      ['grid', 'main', 'secondary', 'axis', 'marker', 'drawing'],
+      [
+        'grid',
+        'main',
+        'secondary',
+        'axis',
+        'marker',
+        'tradeOverlay',
+        'drawing',
+      ],
     );
 
     final data = _paint(
@@ -90,7 +98,15 @@ void main() {
     );
     expect(
       data.repaintedLayerIds,
-      ['grid', 'main', 'secondary', 'axis', 'marker', 'drawing'],
+      [
+        'grid',
+        'main',
+        'secondary',
+        'axis',
+        'marker',
+        'tradeOverlay',
+        'drawing',
+      ],
     );
 
     final layout = _paint(
@@ -167,10 +183,34 @@ void main() {
       {RenderSnapshotSlice.drawings},
     );
 
-    expect(pipeline.repaintStats.frameCount, 10);
+    final overlays = _paint(
+      pipeline,
+      _snapshot(
+        versions: const RenderSnapshotVersions(
+          data: 1,
+          viewport: 1,
+          selection: 1,
+          history: 1,
+          layout: 1,
+          theme: 1,
+          drawings: 1,
+          overlays: 1,
+          clock: 1,
+        ),
+        selection: RenderSelectionSnapshot.visible(localX: 50, localY: 60),
+      ),
+    );
+    expect(overlays.repaintedLayerIds, ['tradeOverlay']);
+    expect(
+      overlays.invalidatedSlices['tradeOverlay'],
+      {RenderSnapshotSlice.overlays},
+    );
+
+    expect(pipeline.repaintStats.frameCount, 11);
     expect(pipeline.repaintStats.repaintCount('grid'), 5);
     expect(pipeline.repaintStats.repaintCount('main'), 5);
     expect(pipeline.repaintStats.repaintCount('marker'), 6);
+    expect(pipeline.repaintStats.repaintCount('tradeOverlay'), 6);
     expect(pipeline.repaintStats.repaintCount('crosshair'), 4);
     pipeline.dispose();
   });
@@ -283,6 +323,7 @@ const _standardLayerIds = [
   'secondary',
   'axis',
   'marker',
+  'tradeOverlay',
   'drawing',
   'crosshair',
 ];

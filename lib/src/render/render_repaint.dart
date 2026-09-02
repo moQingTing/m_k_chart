@@ -13,6 +13,7 @@ final class RenderLayerVersionStamp {
     required this.layout,
     required this.theme,
     required this.drawings,
+    required this.overlays,
     required this.clock,
   });
 
@@ -38,6 +39,11 @@ final class RenderLayerVersionStamp {
           versions,
           RenderSnapshotSlice.drawings,
         ),
+        overlays: _versionFor(
+          dependencies,
+          versions,
+          RenderSnapshotSlice.overlays,
+        ),
         clock: _versionFor(dependencies, versions, RenderSnapshotSlice.clock),
       );
 
@@ -48,6 +54,7 @@ final class RenderLayerVersionStamp {
   final int? layout;
   final int? theme;
   final int? drawings;
+  final int? overlays;
   final int? clock;
 
   int? versionOf(RenderSnapshotSlice slice) => switch (slice) {
@@ -58,6 +65,7 @@ final class RenderLayerVersionStamp {
         RenderSnapshotSlice.layout => layout,
         RenderSnapshotSlice.theme => theme,
         RenderSnapshotSlice.drawings => drawings,
+        RenderSnapshotSlice.overlays => overlays,
         RenderSnapshotSlice.clock => clock,
       };
 
@@ -83,6 +91,7 @@ final class RenderLayerVersionStamp {
           layout == other.layout &&
           theme == other.theme &&
           drawings == other.drawings &&
+          overlays == other.overlays &&
           clock == other.clock;
 
   @override
@@ -94,6 +103,7 @@ final class RenderLayerVersionStamp {
         layout,
         theme,
         drawings,
+        overlays,
         clock,
       );
 }

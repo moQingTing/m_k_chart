@@ -199,7 +199,8 @@ void main() {
       layout: 5,
       theme: 6,
       drawings: 7,
-      clock: 8,
+      overlays: 8,
+      clock: 9,
     );
 
     expect(
@@ -207,7 +208,58 @@ void main() {
         for (final slice in RenderSnapshotSlice.values)
           versions.versionOf(slice),
       ],
-      [1, 2, 3, 4, 5, 6, 7, 8],
+      [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    );
+  });
+
+  test('snapshot freezes trading overlays and enforces one id namespace', () {
+    final fixture = _fixture();
+    final priceLines = <ChartPriceLine>[
+      ChartPriceLine(id: 'entry', price: 1001, label: 'Entry'),
+    ];
+    final events = <ChartEventOverlay>[
+      ChartEventOverlay(
+        id: 'fill',
+        epochMilliseconds: fixture.data.data.first.openTime,
+        price: 1002,
+      ),
+    ];
+    final markers = <ChartValueMarker>[
+      ChartValueMarker(id: 'stop', price: 999, text: 'SL'),
+    ];
+    final snapshot = RenderSnapshot<_Theme>(
+      data: fixture.data,
+      viewport: fixture.viewport,
+      layout: fixture.layout,
+      theme: const _Theme('dark'),
+      versions: const RenderSnapshotVersions(overlays: 1),
+      priceLines: priceLines,
+      eventOverlays: events,
+      valueMarkers: markers,
+    );
+    priceLines.clear();
+    events.clear();
+    markers.clear();
+
+    expect(snapshot.priceLines.single.id, 'entry');
+    expect(snapshot.eventOverlays.single.id, 'fill');
+    expect(snapshot.valueMarkers.single.id, 'stop');
+    expect(() => snapshot.priceLines.clear(), throwsUnsupportedError);
+    expect(() => snapshot.eventOverlays.clear(), throwsUnsupportedError);
+    expect(() => snapshot.valueMarkers.clear(), throwsUnsupportedError);
+    expect(
+      () => RenderSnapshot<_Theme>(
+        data: fixture.data,
+        viewport: fixture.viewport,
+        layout: fixture.layout,
+        theme: const _Theme('dark'),
+        versions: const RenderSnapshotVersions(),
+        priceLines: [ChartPriceLine(id: 'same', price: 1000)],
+        valueMarkers: [
+          ChartValueMarker(id: 'same', price: 1000, text: 'duplicate'),
+        ],
+      ),
+      throwsArgumentError,
     );
   });
 

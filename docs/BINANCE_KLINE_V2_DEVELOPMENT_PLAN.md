@@ -497,7 +497,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 ### Phase 8：交易叠加与深度图，5～8 人日
 
-- [ ] `P8-01` 通用 PriceLine、Marker 和 EventOverlay。
+- [x] `P8-01` 通用 PriceLine、Marker 和 EventOverlay。
 - [ ] `P8-02` 仓位、强平、挂单、止盈止损示例。
 - [ ] `P8-03` 交易叠加点击和拖动回调。
 - [ ] `P8-04` 重构深度模型与累计曲线。
@@ -955,6 +955,17 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 边界：Profile 宿主只用于内部门禁，不公开；完整六指标 10,000 根增量内存、iOS/Web Profile 和发布级端到端输入延迟仍在 P6/P9 复测。
 - 证据：`docs/PERFORMANCE_P5_PROFILE_GATE.md`、`example/lib/v2_performance_main.dart`。
 - 后续：进入 `P6-01`，冻结公开不可变 KChartTheme 与 ChartColors adapter。
+
+### 2026-09-02 / P8-01
+
+- 状态：已完成通用 PriceLine、ValueMarker 和 EventOverlay 模型及标准交易叠加 Layer。
+- 模型：核心对象只保存价格、时间、文字和买卖语义，不依赖交易所 SDK；三类对象共享唯一 ID 命名空间，Snapshot 对集合做不可变复制。
+- 渲染：`tradeOverlay` 位于 marker 与 drawing 之间，价格线和值标记使用主图价格投影，事件点复用 K 线时间 X Transform，全部裁剪在主图 panel。
+- 失效：新增独立 `overlays` 版本切片；仅更新交易对象时只重录 `tradeOverlay`，data、viewport、layout、theme 变化时按坐标依赖重新投影。
+- 验证：模型校验、快照冻结、跨类型重复 ID、三种语义色离屏像素、标准栈顺序和 overlays-only 重绘隔离测试通过。
+- 边界：P8-02 负责仓位、强平、订单和止盈止损组合示例；P8-03 负责命中、点击、拖动与操作回调。
+- 证据：`docs/architecture/KLINE_V2_TRADE_OVERLAY_PROTOCOL.md`。
+- 后续：进入 `P8-02`，基于通用原语实现业务叠加示例。
 
 ## 13. 参考资料
 

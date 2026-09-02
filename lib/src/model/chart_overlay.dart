@@ -10,12 +10,18 @@ final class ChartPriceLine {
     String? label,
     bool visible = true,
   }) {
-    if (id.trim().isEmpty || !price.isFinite)
+    if (id.trim().isEmpty || !price.isFinite) {
       throw ArgumentError('Invalid price line.');
+    }
     return ChartPriceLine._(id, price, side, label, visible);
   }
   const ChartPriceLine._(
-      this.id, this.price, this.side, this.label, this.visible);
+    this.id,
+    this.price,
+    this.side,
+    this.label,
+    this.visible,
+  );
   final String id;
   final double price;
   final ChartOverlaySide side;
@@ -38,7 +44,12 @@ final class ChartEventOverlay {
     return ChartEventOverlay._(id, epochMilliseconds, price, side, label);
   }
   const ChartEventOverlay._(
-      this.id, this.epochMilliseconds, this.price, this.side, this.label);
+    this.id,
+    this.epochMilliseconds,
+    this.price,
+    this.side,
+    this.label,
+  );
   final String id;
   final int epochMilliseconds;
   final double price;

@@ -162,8 +162,15 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(reports.last.repaintedLayerIds,
-        ['grid', 'main', 'secondary', 'axis', 'marker', 'drawing']);
+    expect(reports.last.repaintedLayerIds, [
+      'grid',
+      'main',
+      'secondary',
+      'axis',
+      'marker',
+      'tradeOverlay',
+      'drawing',
+    ]);
     expect(pipeline.repaintStats.repaintCount('grid'), 2);
     expect(pipeline.repaintStats.repaintCount('main'), 2);
     expect(pipeline.repaintStats.repaintCount('crosshair'), 2);
@@ -176,6 +183,7 @@ const _layerIds = [
   'secondary',
   'axis',
   'marker',
+  'tradeOverlay',
   'drawing',
   'crosshair',
 ];
@@ -331,6 +339,10 @@ RenderSnapshot<DefaultChartRenderStyle> _copySnapshot(
       selection: selection ?? source.selection,
       history: source.history,
       drawings: source.drawings,
+      anchoredDrawings: source.anchoredDrawings,
+      priceLines: source.priceLines,
+      eventOverlays: source.eventOverlays,
+      valueMarkers: source.valueMarkers,
       mainMode: source.mainMode,
       currentTime: source.currentTime,
     );

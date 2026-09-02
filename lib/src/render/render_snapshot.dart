@@ -16,6 +16,7 @@ enum RenderSnapshotSlice {
   layout,
   theme,
   drawings,
+  overlays,
   clock,
 }
 
@@ -29,6 +30,7 @@ final class RenderSnapshotVersions {
     this.layout = 0,
     this.theme = 0,
     this.drawings = 0,
+    this.overlays = 0,
     this.clock = 0,
   })  : assert(data >= 0),
         assert(viewport >= 0),
@@ -37,6 +39,7 @@ final class RenderSnapshotVersions {
         assert(layout >= 0),
         assert(theme >= 0),
         assert(drawings >= 0),
+        assert(overlays >= 0),
         assert(clock >= 0);
 
   final int data;
@@ -46,6 +49,7 @@ final class RenderSnapshotVersions {
   final int layout;
   final int theme;
   final int drawings;
+  final int overlays;
   final int clock;
 
   int versionOf(RenderSnapshotSlice slice) => switch (slice) {
@@ -56,6 +60,7 @@ final class RenderSnapshotVersions {
         RenderSnapshotSlice.layout => layout,
         RenderSnapshotSlice.theme => theme,
         RenderSnapshotSlice.drawings => drawings,
+        RenderSnapshotSlice.overlays => overlays,
         RenderSnapshotSlice.clock => clock,
       };
 }
@@ -238,6 +243,9 @@ final class RenderSnapshot<TTheme extends Object> {
     RenderHistorySnapshot history = const RenderHistorySnapshot(),
     Iterable<RenderLineDrawing> drawings = const [],
     Iterable<ChartDrawing> anchoredDrawings = const [],
+    Iterable<ChartPriceLine> priceLines = const [],
+    Iterable<ChartEventOverlay> eventOverlays = const [],
+    Iterable<ChartValueMarker> valueMarkers = const [],
     ChartMainMode mainMode = ChartMainMode.candlestick,
     Duration timeZoneOffset = Duration.zero,
     int? currentTime,
@@ -323,6 +331,26 @@ final class RenderSnapshot<TTheme extends Object> {
       anchoredDrawingById[drawing.id] = drawing;
     }
 
+    final immutablePriceLines = List<ChartPriceLine>.unmodifiable(priceLines);
+    final immutableEventOverlays =
+        List<ChartEventOverlay>.unmodifiable(eventOverlays);
+    final immutableValueMarkers =
+        List<ChartValueMarker>.unmodifiable(valueMarkers);
+    final overlayIds = <String>{};
+    for (final overlay in <(String, String)>[
+      for (final line in immutablePriceLines) (line.id, 'priceLines'),
+      for (final event in immutableEventOverlays) (event.id, 'eventOverlays'),
+      for (final marker in immutableValueMarkers) (marker.id, 'valueMarkers'),
+    ]) {
+      if (!overlayIds.add(overlay.$1)) {
+        throw ArgumentError.value(
+          overlay.$1,
+          overlay.$2,
+          'Duplicate trade overlay id.',
+        );
+      }
+    }
+
     final resolvedCurrentTime = currentTime ?? _nextExpectedOpenTime(data.data);
     if (resolvedCurrentTime < 0) {
       throw ArgumentError.value(
@@ -349,6 +377,9 @@ final class RenderSnapshot<TTheme extends Object> {
       drawingById: UnmodifiableMapView(drawingById),
       anchoredDrawings: immutableAnchoredDrawings,
       anchoredDrawingById: UnmodifiableMapView(anchoredDrawingById),
+      priceLines: immutablePriceLines,
+      eventOverlays: immutableEventOverlays,
+      valueMarkers: immutableValueMarkers,
       mainMode: mainMode,
       timeZoneOffset: timeZoneOffset,
       currentTime: resolvedCurrentTime,
@@ -369,6 +400,9 @@ final class RenderSnapshot<TTheme extends Object> {
     required this.drawingById,
     required this.anchoredDrawings,
     required this.anchoredDrawingById,
+    required this.priceLines,
+    required this.eventOverlays,
+    required this.valueMarkers,
     required this.mainMode,
     required this.timeZoneOffset,
     required this.currentTime,
@@ -389,6 +423,11 @@ final class RenderSnapshot<TTheme extends Object> {
   /// P7 drawings persisted as time/price anchors and projected at paint time.
   final List<ChartDrawing> anchoredDrawings;
   final Map<String, ChartDrawing> anchoredDrawingById;
+
+  /// Trading overlays are immutable and invalidated independently of data.
+  final List<ChartPriceLine> priceLines;
+  final List<ChartEventOverlay> eventOverlays;
+  final List<ChartValueMarker> valueMarkers;
   final ChartMainMode mainMode;
 
   /// Display offset applied by axis and overlay time formatters.
