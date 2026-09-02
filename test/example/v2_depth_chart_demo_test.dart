@@ -46,6 +46,27 @@ void main() {
     expect(find.textContaining('卖一'), findsOneWidget);
     expect(find.textContaining('价差'), findsOneWidget);
     expect(find.byKey(const ValueKey('v2-depth-canvas')), findsOneWidget);
+    expect(find.text('已应用初始深度快照'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('depth-simulate-delta')));
+    await tester.pump();
+    expect(find.textContaining('已合并增量'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('depth-simulate-gap')));
+    await tester.pump();
+    expect(find.textContaining('检测到 update ID 缺口'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const ValueKey('depth-recover-snapshot')),
+          )
+          .onPressed,
+      isNotNull,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('depth-recover-snapshot')));
+    await tester.pump();
+    expect(find.textContaining('已重新同步'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

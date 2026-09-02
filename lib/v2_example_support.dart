@@ -7,6 +7,7 @@
 library;
 
 export 'src/model/model.dart';
+export 'src/data/data.dart';
 export 'src/indicator/indicator.dart';
 export 'src/interaction/interaction.dart';
 export 'src/render/render.dart';

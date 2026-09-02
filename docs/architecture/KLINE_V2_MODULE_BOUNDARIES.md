@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | `model` | 不可变 Kline、区间、快照和通用值对象 | Flutter Widget、IO、指标计算 |
 | `theme` | 不可变主题和绘制样式值对象 | Canvas 绘制、运行状态 |
-| `data` | K 线 Store、合并、分页和数据版本 | Widget、指标公式、绘制 |
+| `data` | K 线/深度 Store、实时合并、分页、同步和数据版本 | Widget、指标公式、绘制 |
 | `indicator` | 指标协议、计算、Series 和缓存 | 手势、Widget、Canvas 生命周期 |
 | `drawing` | 绘图对象、锚点、命令和序列化 | 直接绘制、Controller 生命周期 |
 | `viewport` | 可见范围、坐标转换、布局和极值查询 | GestureRecognizer、Widget 状态 |

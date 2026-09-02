@@ -1,6 +1,6 @@
 # K 线 2.0 深度模型与累计曲线协议
 
-> 任务：P8-04
+> 任务：P8-04、P8-05
 >
 > 状态：已实现
 >
@@ -54,15 +54,36 @@ V2 深度模型位于 `model` 模块，不依赖 Flutter、交易所 SDK、网�
 
 V2 中文 Demo 根据当前 K 线最新价生成确定性示例盘口，并显示买一、卖一和价差。旧 `DepthChart` 与 `DepthEntity` 本阶段保持兼容，不改写其行为。
 
-## 5. 后续边界
+## 5. 快照、增量与连续性
 
-P8-04 只冻结静态模型、累计数学和纯渲染。以下内容不在本任务内：
+P8-05 在 `data` 模块提供交易所无关的同步协议：
 
-- P8-05：交易所快照、增量事件、update ID 连续性、删除档位和失步通知；
+- `DepthBookSnapshotEvent`：交易对、最后 update ID 和完整标准化盘口；
+- `DepthDeltaEvent`：交易对、首末 update ID、可选上一事件末 ID，以及两侧档位更新；
+- `DepthLevelUpdate`：数量大于零表示插入或覆盖，数量为零表示删除；
+- `DepthBookState`：最后有效盘口、交易对、update ID、版本和同步状态；
+- `DepthRealtimeCoordinator`：每实例 generation、预快照缓冲、合并、连续性判断和恢复。
+
+核心连续性规则与 Binance 官方本地订单簿同步规则一致，但类型不依赖 Binance SDK：
+
+1. `finalUpdateId <= localUpdateId`：旧事件或重复事件，忽略且不推进版本；
+2. `firstUpdateId <= localUpdateId + 1 <= finalUpdateId`：事件覆盖下一期望 ID，可以应用；
+3. `firstUpdateId > localUpdateId + 1`：存在 update ID 缺口，保留最后有效盘口并进入 `outOfSync`；
+4. 精确续接事件携带 `previousFinalUpdateId` 时，它必须等于本地 update ID；
+5. 合并后若形成交叉盘口，同样进入失步状态并请求干净快照。
+
+快照到达前，增量事件按到达顺序缓冲。应用快照时先丢弃已被 `lastUpdateId` 覆盖的事件，再重放能够桥接的事件；无法桥接的事件继续保留，供更新快照恢复。缓冲容量有硬上限，溢出后清除不安全事件并要求重新获取快照。同一 generation 不允许混入不同交易对；切换 generation 会使旧快照请求和旧流事件失效。
+
+参考：[Binance 官方本地订单簿同步规则](https://developers.binance.com/zh-CN/docs/products/spot/testnet/web-socket-streams)。
+
+## 6. 后续边界
+
+P8-04/P8-05 已冻结静态模型、累计数学、纯渲染和同步恢复。以下内容不在本任务内：
+
 - P8-06：1,000 买档 + 1,000 卖档、10 Hz 更新的裁剪、采样、缓存与 Profile 门禁；
 - BN-O03：长按命中价格和累计数量。
 
-## 6. 自动门禁
+## 7. 自动门禁
 
 - 价格、数量、排序、唯一性和交叉盘口校验；
 - 空、单边、单档和正常双边盘口；
@@ -72,4 +93,10 @@ P8-04 只冻结静态模型、累计数学和纯渲染。以下内容不在本�
 - 买卖颜色分区的离屏像素输出；
 - Render 纯度和模块依赖方向；
 - 中文 Demo 的买一、卖一、价差和 Canvas 装配；
+- 快照前缓冲、快照覆盖丢弃和连续事件重放；
+- 插入、更新、零数量删除及排序恢复；
+- 重复事件、区间桥接、ID 缺口和 `pu` 连续性；
+- 失步保留最后有效盘口并由更新快照恢复；
+- 缓冲上限、交易对隔离和 generation 隔离；
+- 中文 Demo 的正常增量、模拟丢包和重新同步闭环；
 - 完整 Flutter 回归保持通过。

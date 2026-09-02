@@ -38,7 +38,7 @@ DepthBook buildDemoDepthBook(double referencePrice, {int levelCount = 32}) {
   );
 }
 
-class V2DepthChartDemo extends StatelessWidget {
+class V2DepthChartDemo extends StatefulWidget {
   const V2DepthChartDemo({
     required this.referencePrice,
     required this.theme,
@@ -51,8 +51,119 @@ class V2DepthChartDemo extends StatelessWidget {
   final int version;
 
   @override
-  Widget build(BuildContext context) {
+  State<V2DepthChartDemo> createState() => _V2DepthChartDemoState();
+}
+
+class _V2DepthChartDemoState extends State<V2DepthChartDemo> {
+  late final DepthRealtimeCoordinator _coordinator;
+  var _nextSnapshotId = 1000;
+  int? _recoverySnapshotId;
+  var _status = '已应用初始深度快照';
+
+  @override
+  void initState() {
+    super.initState();
+    _coordinator = DepthRealtimeCoordinator();
+    _applyBaseSnapshot(widget.referencePrice, _nextSnapshotId);
+  }
+
+  @override
+  void didUpdateWidget(V2DepthChartDemo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.referencePrice != widget.referencePrice) {
+      _coordinator.beginNextGeneration();
+      _nextSnapshotId += 1000;
+      _recoverySnapshotId = null;
+      _applyBaseSnapshot(widget.referencePrice, _nextSnapshotId);
+      _status = '行情变化，已切换到新一代深度快照';
+    }
+  }
+
+  void _applyBaseSnapshot(double referencePrice, int updateId) {
     final book = buildDemoDepthBook(referencePrice);
+    _coordinator.applySnapshot(
+      DepthBookSnapshotEvent(
+        symbol: 'DEMO-USDT',
+        lastUpdateId: updateId,
+        bids: book.bids,
+        asks: book.asks,
+      ),
+      generation: _coordinator.generation,
+    );
+  }
+
+  void _simulateDelta() {
+    final state = _coordinator.state;
+    final updateId = state.lastUpdateId;
+    final bestBid = state.book.bestBid;
+    if (!state.isSynchronized || updateId == null || bestBid == null) return;
+    final result = _coordinator.addDelta(
+      DepthDeltaEvent(
+        symbol: state.symbol!,
+        firstUpdateId: updateId + 1,
+        finalUpdateId: updateId + 1,
+        previousFinalUpdateId: updateId,
+        bids: [
+          DepthLevelUpdate(
+            price: bestBid.price,
+            quantity: bestBid.quantity + 0.75,
+          ),
+        ],
+      ),
+      generation: _coordinator.generation,
+    );
+    setState(() {
+      _status = result.outcome == DepthMergeOutcome.deltaApplied
+          ? '已合并增量 · update ID ${result.state.lastUpdateId}'
+          : '增量未应用：${result.outcome.name}';
+    });
+  }
+
+  void _simulateGap() {
+    final state = _coordinator.state;
+    final updateId = state.lastUpdateId;
+    final bestAsk = state.book.bestAsk;
+    if (!state.isSynchronized || updateId == null || bestAsk == null) return;
+    _recoverySnapshotId = updateId + 1;
+    final result = _coordinator.addDelta(
+      DepthDeltaEvent(
+        symbol: state.symbol!,
+        firstUpdateId: updateId + 2,
+        finalUpdateId: updateId + 2,
+        previousFinalUpdateId: updateId + 1,
+        asks: [
+          DepthLevelUpdate(
+            price: bestAsk.price,
+            quantity: bestAsk.quantity + 0.6,
+          ),
+        ],
+      ),
+      generation: _coordinator.generation,
+    );
+    setState(() {
+      _status = result.outcome == DepthMergeOutcome.outOfSync
+          ? '检测到 update ID 缺口，需要重新同步'
+          : '未触发预期缺口：${result.outcome.name}';
+    });
+  }
+
+  void _recoverSnapshot() {
+    final recoveryId = _recoverySnapshotId;
+    if (recoveryId == null) return;
+    _applyBaseSnapshot(widget.referencePrice, recoveryId);
+    final state = _coordinator.state;
+    setState(() {
+      _recoverySnapshotId = null;
+      _status = state.isSynchronized
+          ? '已重新同步 · update ID ${state.lastUpdateId}'
+          : '重新同步失败，仍需快照';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = _coordinator.state;
+    final book = state.book;
     return Column(
       key: const ValueKey('v2-depth-section'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,13 +178,49 @@ class V2DepthChartDemo extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          '买一 ${theme.formatMainValue(book.bestBid!.price)}  ·  '
-          '卖一 ${theme.formatMainValue(book.bestAsk!.price)}  ·  '
-          '价差 ${theme.formatMainValue(book.spread!)}',
+          '买一 ${widget.theme.formatMainValue(book.bestBid!.price)}  ·  '
+          '卖一 ${widget.theme.formatMainValue(book.bestAsk!.price)}  ·  '
+          '价差 ${widget.theme.formatMainValue(book.spread!)}',
           key: const ValueKey('v2-depth-summary'),
           style: const TextStyle(
             color: Color(0xff475569),
             fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            OutlinedButton(
+              key: const ValueKey('depth-simulate-delta'),
+              onPressed: state.isSynchronized ? _simulateDelta : null,
+              child: const Text('模拟正常增量'),
+            ),
+            OutlinedButton(
+              key: const ValueKey('depth-simulate-gap'),
+              onPressed: state.isSynchronized ? _simulateGap : null,
+              child: const Text('模拟丢包'),
+            ),
+            FilledButton(
+              key: const ValueKey('depth-recover-snapshot'),
+              onPressed: state.requiresSnapshot && _recoverySnapshotId != null
+                  ? _recoverSnapshot
+                  : null,
+              child: const Text('重新同步'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _status,
+          key: const ValueKey('v2-depth-sync-status'),
+          style: TextStyle(
+            color: state.isSynchronized
+                ? const Color(0xff0369a1)
+                : const Color(0xffbe123c),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -86,9 +233,9 @@ class V2DepthChartDemo extends StatelessWidget {
               );
               final snapshot = DepthRenderSnapshot<KChartTheme>(
                 book: book,
-                theme: theme,
+                theme: widget.theme,
                 layout: layout,
-                version: version,
+                version: state.version.value + widget.version,
               );
               return RepaintBoundary(
                 child: CustomPaint(

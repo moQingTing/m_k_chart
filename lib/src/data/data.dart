@@ -3,3 +3,4 @@ library;
 
 export 'kline_store.dart';
 export 'kline_realtime_coordinator.dart';
+export 'depth_realtime_coordinator.dart';
