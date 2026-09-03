@@ -508,7 +508,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 ### Phase 9：发布质量，5～7 人日
 
-- [ ] `P9-01` 全量 unit/widget/golden/integration/benchmark。
+- [x] `P9-01` 全量 unit/widget/golden/integration/benchmark。
 - [ ] `P9-02` Android/iOS/Web profile 和 release 构建。
 - [x] `P9-03` 无障碍、RTL、时区和国际化检查。
 - [ ] `P9-04` API diff、迁移指南、架构决策记录和完整 Example。
@@ -1034,6 +1034,17 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：新增阿拉伯语 RTL 语义、2 倍字体、UTC+05:30、格式回调、非法时区和 locale 定向重绘测试。
 - 证据：`lib/src/widget/chart_gesture_region.dart`、`lib/src/render/render_snapshot.dart`、`test/example/v2_chart_demo_test.dart`、`docs/architecture/KLINE_V2_ACCESSIBILITY_I18N.md`。
 - 后续：执行 `P9-01` 全量 unit/widget/golden/integration/benchmark 发布门禁。
+
+### 2026-09-03 / P9-01
+
+- 状态：全量 unit、widget、golden、integration 和 benchmark 发布门禁已通过，并新增可重复执行的串行 Host 门禁脚本。
+- 功能：根包 359 项通过，13 项显式 benchmark 默认跳过；Example 独立测试通过，6 个 V2 Golden 与基线一致。
+- 集成：新增离线确定性的 Android 真机流程，覆盖启动、全屏路由、详情十字线、历史拖动、返回最新、周期切换和销毁；Samsung SM-G986U1 / Android 13 执行通过。
+- 性能：九个 benchmark 文件逐进程串行通过；核心六指标、附加六指标和迁移十指标 10,000 根 last-update P95 分别为 6.350、4.234 和 2.760 ms。
+- 渲染：warm retained stack P95 0.917 ms、unchanged 0.196 ms、selection-only 0.334 ms；深度 1,000×2、10 Hz 端到端 P95 1.897 ms。
+- 执行约束：CPU 密集 benchmark 不允许作为一个目录并发运行；并发结果会测到 Host 争用。`tool/run_p9_host_gate.sh` 已固化逐文件串行顺序。
+- 证据：`example/integration_test/v2_chart_flow_test.dart`、`tool/run_p9_host_gate.sh`、`docs/P9_RELEASE_QUALITY_GATE.md`。
+- 后续：执行 `P9-02` Android/iOS/Web Profile 与 Release 构建，并处理或记录构建工具链兼容提示。
 
 ## 13. 参考资料
 
