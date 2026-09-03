@@ -91,6 +91,54 @@ void main() {
     );
   });
 
+  test('curve cache reuses identical books and isolates sampling policies', () {
+    final cache = DepthCurveCache(capacity: 2);
+    final book = _snapshot().book;
+    final sampled = DepthCurveSamplingPolicy(
+      maxRenderedPointsPerSide: 2,
+    );
+    DepthRenderSnapshot<DefaultChartRenderStyle> build(
+      DepthCurveSamplingPolicy policy,
+    ) =>
+        DepthRenderSnapshot<DefaultChartRenderStyle>(
+          book: book,
+          theme: DefaultChartRenderStyle(),
+          layout: DepthChartLayout(size: const Size(300, 180)),
+          samplingPolicy: policy,
+          curveCache: cache,
+        );
+
+    final first = build(sampled);
+    final second = build(sampled);
+    final unbounded = build(const DepthCurveSamplingPolicy.unbounded());
+
+    expect(second.curve, same(first.curve));
+    expect(unbounded.curve, isNot(same(first.curve)));
+    expect(cache.hitCount, 1);
+    expect(cache.missCount, 2);
+    expect(cache.length, 2);
+    cache.clear();
+    expect(cache.length, 0);
+    expect(() => DepthCurveCache(capacity: 0), throwsArgumentError);
+  });
+
+  test('curve cache is identity keyed and evicts the least recent entry', () {
+    final cache = DepthCurveCache(capacity: 1);
+    final firstBook = _snapshot().book;
+    final equalBook = _snapshot().book;
+
+    final first = cache.resolve(firstBook);
+    final equal = cache.resolve(equalBook);
+    final rebuilt = cache.resolve(firstBook);
+
+    expect(firstBook, equalBook);
+    expect(equal, isNot(same(first)));
+    expect(rebuilt, isNot(same(first)));
+    expect(cache.hitCount, 0);
+    expect(cache.missCount, 3);
+    expect(cache.length, 1);
+  });
+
   test('layout and snapshot reject impossible geometry or versions', () {
     expect(
       () => DepthChartLayout(size: const Size(10, 10), centerGap: 10),

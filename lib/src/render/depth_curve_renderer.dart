@@ -97,16 +97,23 @@ final class DepthRenderSnapshot<TTheme extends ChartRenderStyle> {
     required TTheme theme,
     required DepthChartLayout layout,
     int version = 0,
+    DepthCurveSamplingPolicy samplingPolicy =
+        const DepthCurveSamplingPolicy.unbounded(),
+    DepthCurveCache? curveCache,
   }) {
     if (version < 0) {
       throw ArgumentError.value(version, 'version', 'Must not be negative.');
     }
+    final curve = curveCache == null
+        ? DepthCurve.fromBook(book, policy: samplingPolicy)
+        : curveCache.resolve(book, policy: samplingPolicy);
     return DepthRenderSnapshot._(
       book: book,
-      curve: DepthCurve.fromBook(book),
+      curve: curve,
       theme: theme,
       layout: layout,
       version: version,
+      samplingPolicy: samplingPolicy,
     );
   }
 
@@ -116,6 +123,7 @@ final class DepthRenderSnapshot<TTheme extends ChartRenderStyle> {
     required this.theme,
     required this.layout,
     required this.version,
+    required this.samplingPolicy,
   });
 
   final DepthBook book;
@@ -123,6 +131,70 @@ final class DepthRenderSnapshot<TTheme extends ChartRenderStyle> {
   final TTheme theme;
   final DepthChartLayout layout;
   final int version;
+  final DepthCurveSamplingPolicy samplingPolicy;
+}
+
+/// Small instance-owned LRU for cumulative curves reused across layout/theme
+/// changes. Book keys use identity so cache hits never scan a large book.
+final class DepthCurveCache {
+  factory DepthCurveCache({int capacity = 4}) {
+    if (capacity <= 0) {
+      throw ArgumentError.value(capacity, 'capacity', 'Must be positive.');
+    }
+    return DepthCurveCache._(capacity);
+  }
+
+  DepthCurveCache._(this.capacity);
+
+  final int capacity;
+  final LinkedHashMap<_DepthCurveCacheKey, DepthCurve> _entries =
+      LinkedHashMap<_DepthCurveCacheKey, DepthCurve>();
+  int _hitCount = 0;
+  int _missCount = 0;
+
+  int get length => _entries.length;
+  int get hitCount => _hitCount;
+  int get missCount => _missCount;
+
+  DepthCurve resolve(
+    DepthBook book, {
+    DepthCurveSamplingPolicy policy =
+        const DepthCurveSamplingPolicy.unbounded(),
+  }) {
+    final key = _DepthCurveCacheKey(book, policy);
+    final cached = _entries.remove(key);
+    if (cached != null) {
+      _hitCount++;
+      _entries[key] = cached;
+      return cached;
+    }
+    _missCount++;
+    final curve = DepthCurve.fromBook(book, policy: policy);
+    _entries[key] = curve;
+    if (_entries.length > capacity) {
+      _entries.remove(_entries.keys.first);
+    }
+    return curve;
+  }
+
+  void clear() => _entries.clear();
+}
+
+final class _DepthCurveCacheKey {
+  const _DepthCurveCacheKey(this.book, this.policy);
+
+  final DepthBook book;
+  final DepthCurveSamplingPolicy policy;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _DepthCurveCacheKey &&
+          identical(book, other.book) &&
+          policy == other.policy;
+
+  @override
+  int get hashCode => Object.hash(identityHashCode(book), policy);
 }
 
 final class DepthCurvePoint {
@@ -300,10 +372,11 @@ void _drawAxes<TTheme extends ChartRenderStyle>(
   DepthRenderSnapshot<TTheme> snapshot,
 ) {
   final book = snapshot.book;
+  final curve = snapshot.curve;
   final theme = snapshot.theme;
   final layout = snapshot.layout;
-  final bidOuter = book.bids.isEmpty ? null : book.bids.last.price;
-  final askOuter = book.asks.isEmpty ? null : book.asks.last.price;
+  final bidOuter = curve.bids.isEmpty ? null : curve.bids.last.price;
+  final askOuter = curve.asks.isEmpty ? null : curve.asks.last.price;
   final middle = book.midPrice;
   if (bidOuter != null) {
     _drawText(

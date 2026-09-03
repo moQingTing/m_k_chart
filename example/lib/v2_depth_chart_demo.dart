@@ -19,19 +19,22 @@ DepthBook buildDemoDepthBook(double referencePrice, {int levelCount = 32}) {
       'Must be between 1 and 1000.',
     );
   }
-  final tick = referencePrice * 0.00045;
+  final tick = referencePrice * math.min(0.00045, 0.08 / levelCount);
+  final normalizationDivisor = math.max(1, levelCount - 1);
   return DepthBook(
     bids: [
       for (var index = 0; index < levelCount; index++)
         DepthLevel(
-          price: referencePrice - tick * (index + 1) * (1 + index * 0.012),
+          price: referencePrice -
+              tick * (index + 1) * (1 + index / normalizationDivisor * 0.38),
           quantity: 0.8 + (index % 7) * 0.31 + math.sqrt(index + 1) * 0.22,
         ),
     ],
     asks: [
       for (var index = 0; index < levelCount; index++)
         DepthLevel(
-          price: referencePrice + tick * (index + 1) * (1 + index * 0.017),
+          price: referencePrice +
+              tick * (index + 1) * (1 + index / normalizationDivisor * 0.53),
           quantity: 0.7 + (index % 5) * 0.37 + math.sqrt(index + 1) * 0.25,
         ),
     ],
@@ -56,6 +59,8 @@ class V2DepthChartDemo extends StatefulWidget {
 
 class _V2DepthChartDemoState extends State<V2DepthChartDemo> {
   late final DepthRealtimeCoordinator _coordinator;
+  late final DepthCurveCache _curveCache;
+  late final DepthCurveSamplingPolicy _samplingPolicy;
   var _nextSnapshotId = 1000;
   int? _recoverySnapshotId;
   var _status = '已应用初始深度快照';
@@ -64,6 +69,11 @@ class _V2DepthChartDemoState extends State<V2DepthChartDemo> {
   void initState() {
     super.initState();
     _coordinator = DepthRealtimeCoordinator();
+    _curveCache = DepthCurveCache();
+    _samplingPolicy = DepthCurveSamplingPolicy(
+      maxRetainedLevelsPerSide: 1000,
+      maxRenderedPointsPerSide: 160,
+    );
     _applyBaseSnapshot(widget.referencePrice, _nextSnapshotId);
   }
 
@@ -80,7 +90,7 @@ class _V2DepthChartDemoState extends State<V2DepthChartDemo> {
   }
 
   void _applyBaseSnapshot(double referencePrice, int updateId) {
-    final book = buildDemoDepthBook(referencePrice);
+    final book = buildDemoDepthBook(referencePrice, levelCount: 1000);
     _coordinator.applySnapshot(
       DepthBookSnapshotEvent(
         symbol: 'DEMO-USDT',
@@ -223,6 +233,15 @@ class _V2DepthChartDemoState extends State<V2DepthChartDemo> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        Text(
+          '盘口 ${book.bids.length} 买档 + ${book.asks.length} 卖档 · '
+          '每侧最多绘制 ${_samplingPolicy.maxRenderedPointsPerSide} 点',
+          key: const ValueKey('v2-depth-load-summary'),
+          style: const TextStyle(
+            color: Color(0xff64748b),
+            fontSize: 11,
+          ),
+        ),
         const SizedBox(height: 8),
         SizedBox(
           height: 220,
@@ -236,6 +255,8 @@ class _V2DepthChartDemoState extends State<V2DepthChartDemo> {
                 theme: widget.theme,
                 layout: layout,
                 version: state.version.value + widget.version,
+                samplingPolicy: _samplingPolicy,
+                curveCache: _curveCache,
               );
               return RepaintBoundary(
                 child: CustomPaint(

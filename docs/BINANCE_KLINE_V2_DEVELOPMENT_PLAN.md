@@ -199,7 +199,7 @@
 - [ ] `BN-O03` 长按查询价格和累计数量。
 - [x] `BN-O04` 快照与增量事件合并。
 - [x] `BN-O05` update ID 连续性验证和失步通知。
-- [ ] `BN-O06` 大档位数据裁剪与采样。
+- [x] `BN-O06` 大档位数据裁剪与采样。
 
 ## 4. 数据和公共 API 设计
 
@@ -502,7 +502,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P8-03` 交易叠加点击和拖动回调。
 - [x] `P8-04` 重构深度模型与累计曲线。
 - [x] `P8-05` 实现深度快照/增量合并和失步事件。
-- [ ] `P8-06` 深度高频更新性能测试。
+- [x] `P8-06` 深度高频更新性能测试。
 
 阶段门禁：插件不耦合交易 SDK；深度 10 Hz 更新达标；断流和失步可恢复。
 
@@ -1010,6 +1010,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 验证：增删改档、重复/旧事件、区间桥接、ID 缺口、`pu` 错误、缓冲溢出、交易对隔离、generation 隔离、交叉盘口和恢复测试通过。
 - 证据：`lib/src/data/depth_realtime_coordinator.dart`、`test/data/depth_realtime_coordinator_test.dart`、`docs/architecture/KLINE_V2_DEPTH_PROTOCOL.md`。
 - 后续：进入 `P8-06`，完成 1,000 买档 + 1,000 卖档的 10 Hz 性能、裁剪和采样门禁。
+
+### 2026-09-03 / P8-06
+
+- 状态：已完成大盘口裁剪、累计曲线采样、实例级 LRU 和深度 10 Hz Host/Android Profile 门禁，Phase 8 全部任务关闭。
+- 策略：每侧先保留最接近买一/卖一的配置档数，再对累计序列等距采样；首档、最外保留档和最外累计量保持精确，默认不裁剪以维持兼容。
+- 缓存：`DepthCurveCache` 按盘口对象 identity 与采样策略缓存累计曲线，布局或主题变化不重新扫描大盘口；容量有界且由实例持有，不引入跨图表静态状态。
+- Demo：中文深度示例实际持有 1,000 买档 + 1,000 卖档，每侧最多绘制 160 点，并继续支持正常增量、丢包与快照恢复。
+- Host：600 次连续事件模拟 10 Hz 持续 60 秒；端到端 P50/P95/P99 为 1.167/1.928/2.510 ms，稳定缓存重绘 P95 为 1.130 ms。
+- 真机：Samsung SM-G986U1 / Android 13 / Flutter Profile / Impeller，100 次 10 Hz 样本中 UI Build P95 5.309 ms、Raster P95 3.360 ms，均低于 16.7 ms；合并 P95 2.611 ms、曲线准备 P95 0.427 ms。
+- 内存：真机完整进程 Total PSS 140,100 KB、Total RSS 248,176 KB；该值包含 Engine、代码和图形缓冲，仅作整进程基线。
+- 证据：`test/benchmark/depth_pipeline_benchmark_test.dart`、`example/lib/v2_depth_performance_main.dart`、`docs/PERFORMANCE_P8_DEPTH_GATE.md`。
+- 后续：进入 Phase 9 发布质量任务，优先执行 `P9-03` 无障碍、RTL、时区和国际化检查。
 
 ## 13. 参考资料
 

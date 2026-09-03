@@ -2,6 +2,65 @@ import 'dart:collection';
 
 enum DepthSide { bid, ask }
 
+/// Bounds the source levels and cumulative points prepared for depth drawing.
+///
+/// Trimming always keeps levels nearest to the top of book. Sampling preserves
+/// the first and last retained cumulative points, so the displayed outer total
+/// remains exact even when intermediate steps are omitted.
+final class DepthCurveSamplingPolicy {
+  factory DepthCurveSamplingPolicy({
+    int? maxRetainedLevelsPerSide,
+    int? maxRenderedPointsPerSide,
+  }) {
+    if (maxRetainedLevelsPerSide != null && maxRetainedLevelsPerSide <= 0) {
+      throw ArgumentError.value(
+        maxRetainedLevelsPerSide,
+        'maxRetainedLevelsPerSide',
+        'Must be positive when supplied.',
+      );
+    }
+    if (maxRenderedPointsPerSide != null && maxRenderedPointsPerSide < 2) {
+      throw ArgumentError.value(
+        maxRenderedPointsPerSide,
+        'maxRenderedPointsPerSide',
+        'Must be at least two when supplied.',
+      );
+    }
+    return DepthCurveSamplingPolicy._(
+      maxRetainedLevelsPerSide: maxRetainedLevelsPerSide,
+      maxRenderedPointsPerSide: maxRenderedPointsPerSide,
+    );
+  }
+
+  const DepthCurveSamplingPolicy.unbounded()
+      : maxRetainedLevelsPerSide = null,
+        maxRenderedPointsPerSide = null;
+
+  const DepthCurveSamplingPolicy._({
+    required this.maxRetainedLevelsPerSide,
+    required this.maxRenderedPointsPerSide,
+  });
+
+  final int? maxRetainedLevelsPerSide;
+  final int? maxRenderedPointsPerSide;
+
+  bool get isUnbounded =>
+      maxRetainedLevelsPerSide == null && maxRenderedPointsPerSide == null;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DepthCurveSamplingPolicy &&
+          maxRetainedLevelsPerSide == other.maxRetainedLevelsPerSide &&
+          maxRenderedPointsPerSide == other.maxRenderedPointsPerSide;
+
+  @override
+  int get hashCode => Object.hash(
+        maxRetainedLevelsPerSide,
+        maxRenderedPointsPerSide,
+      );
+}
+
 /// One immutable positive quantity at an exact order-book price.
 final class DepthLevel {
   factory DepthLevel({required double price, required double quantity}) {
@@ -135,32 +194,83 @@ final class DepthCumulativeLevel {
 
 /// Cumulative bid/ask series derived once from an immutable [DepthBook].
 final class DepthCurve {
-  factory DepthCurve.fromBook(DepthBook book) {
-    final bids = _accumulate(book.bids, DepthSide.bid);
-    final asks = _accumulate(book.asks, DepthSide.ask);
-    final bidMaximum = bids.isEmpty ? 0.0 : bids.last.cumulativeQuantity;
-    final askMaximum = asks.isEmpty ? 0.0 : asks.last.cumulativeQuantity;
+  factory DepthCurve.fromBook(
+    DepthBook book, {
+    DepthCurveSamplingPolicy policy =
+        const DepthCurveSamplingPolicy.unbounded(),
+  }) {
+    final retainedBids = _retainedLevels(book.bids, policy);
+    final retainedAsks = _retainedLevels(book.asks, policy);
+    final accumulatedBids = _accumulate(retainedBids, DepthSide.bid);
+    final accumulatedAsks = _accumulate(retainedAsks, DepthSide.ask);
+    final bids = _sample(accumulatedBids, policy);
+    final asks = _sample(accumulatedAsks, policy);
+    final bidMaximum =
+        accumulatedBids.isEmpty ? 0.0 : accumulatedBids.last.cumulativeQuantity;
+    final askMaximum =
+        accumulatedAsks.isEmpty ? 0.0 : accumulatedAsks.last.cumulativeQuantity;
     return DepthCurve._(
       book: book,
+      policy: policy,
       bids: UnmodifiableListView(bids),
       asks: UnmodifiableListView(asks),
+      retainedBidLevelCount: retainedBids.length,
+      retainedAskLevelCount: retainedAsks.length,
       maxCumulativeQuantity: bidMaximum > askMaximum ? bidMaximum : askMaximum,
     );
   }
 
   const DepthCurve._({
     required this.book,
+    required this.policy,
     required this.bids,
     required this.asks,
+    required this.retainedBidLevelCount,
+    required this.retainedAskLevelCount,
     required this.maxCumulativeQuantity,
   });
 
   final DepthBook book;
+  final DepthCurveSamplingPolicy policy;
   final List<DepthCumulativeLevel> bids;
   final List<DepthCumulativeLevel> asks;
+  final int retainedBidLevelCount;
+  final int retainedAskLevelCount;
   final double maxCumulativeQuantity;
 
   bool get isEmpty => book.isEmpty;
+  int get sourceBidLevelCount => book.bids.length;
+  int get sourceAskLevelCount => book.asks.length;
+  bool get isTrimmed =>
+      retainedBidLevelCount < book.bids.length ||
+      retainedAskLevelCount < book.asks.length;
+  bool get isSampled =>
+      bids.length < retainedBidLevelCount ||
+      asks.length < retainedAskLevelCount;
+}
+
+List<DepthLevel> _retainedLevels(
+  List<DepthLevel> levels,
+  DepthCurveSamplingPolicy policy,
+) {
+  final maximum = policy.maxRetainedLevelsPerSide;
+  if (maximum == null || levels.length <= maximum) return levels;
+  return levels.sublist(0, maximum);
+}
+
+List<DepthCumulativeLevel> _sample(
+  List<DepthCumulativeLevel> levels,
+  DepthCurveSamplingPolicy policy,
+) {
+  final maximum = policy.maxRenderedPointsPerSide;
+  if (maximum == null || levels.length <= maximum) return levels;
+  final lastIndex = levels.length - 1;
+  final divisor = maximum - 1;
+  return List<DepthCumulativeLevel>.generate(
+    maximum,
+    (index) => levels[index * lastIndex ~/ divisor],
+    growable: false,
+  );
 }
 
 List<DepthCumulativeLevel> _accumulate(

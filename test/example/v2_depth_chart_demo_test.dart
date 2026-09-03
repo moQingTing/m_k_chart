@@ -47,6 +47,8 @@ void main() {
     expect(find.textContaining('价差'), findsOneWidget);
     expect(find.byKey(const ValueKey('v2-depth-canvas')), findsOneWidget);
     expect(find.text('已应用初始深度快照'), findsOneWidget);
+    expect(find.textContaining('盘口 1000 买档 + 1000 卖档'), findsOneWidget);
+    expect(find.textContaining('每侧最多绘制 160 点'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('depth-simulate-delta')));
     await tester.pump();

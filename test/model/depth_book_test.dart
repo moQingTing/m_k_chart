@@ -53,6 +53,73 @@ void main() {
     expect(curve.asks.first.side, DepthSide.ask);
   });
 
+  test('curve policy trims outward levels before cumulative sampling', () {
+    final curve = DepthCurve.fromBook(
+      _largeBook(10),
+      policy: DepthCurveSamplingPolicy(
+        maxRetainedLevelsPerSide: 6,
+        maxRenderedPointsPerSide: 3,
+      ),
+    );
+
+    expect(curve.retainedBidLevelCount, 6);
+    expect(curve.retainedAskLevelCount, 6);
+    expect(curve.sourceBidLevelCount, 10);
+    expect(curve.sourceAskLevelCount, 10);
+    expect(curve.bids.map((level) => level.price), [10000, 9998, 9995]);
+    expect(curve.asks.map((level) => level.price), [10002, 10004, 10007]);
+    expect(
+      curve.bids.map((level) => level.cumulativeQuantity),
+      [1, 3, 6],
+    );
+    expect(curve.bids.last.cumulativeQuantity, 6);
+    expect(curve.asks.last.cumulativeQuantity, 6);
+    expect(curve.maxCumulativeQuantity, 6);
+    expect(curve.isTrimmed, isTrue);
+    expect(curve.isSampled, isTrue);
+  });
+
+  test('curve sampling preserves full endpoints and bounds large books', () {
+    final book = _largeBook(1000);
+    final policy = DepthCurveSamplingPolicy(
+      maxRetainedLevelsPerSide: 800,
+      maxRenderedPointsPerSide: 160,
+    );
+    final curve = DepthCurve.fromBook(book, policy: policy);
+
+    expect(curve.bids, hasLength(160));
+    expect(curve.asks, hasLength(160));
+    expect(curve.bids.first.level, same(book.bids.first));
+    expect(curve.bids.last.level, same(book.bids[799]));
+    expect(curve.asks.first.level, same(book.asks.first));
+    expect(curve.asks.last.level, same(book.asks[799]));
+    expect(curve.bids.last.cumulativeQuantity, 800);
+    expect(curve.asks.last.cumulativeQuantity, 800);
+    expect(
+      curve.bids.map((level) => level.cumulativeQuantity),
+      orderedEquals(
+        [...curve.bids.map((level) => level.cumulativeQuantity)]..sort(),
+      ),
+    );
+  });
+
+  test('unbounded curve policy is value-stable and validates limits', () {
+    const first = DepthCurveSamplingPolicy.unbounded();
+    const second = DepthCurveSamplingPolicy.unbounded();
+
+    expect(first, second);
+    expect(first.hashCode, second.hashCode);
+    expect(first.isUnbounded, isTrue);
+    expect(
+      () => DepthCurveSamplingPolicy(maxRetainedLevelsPerSide: 0),
+      throwsArgumentError,
+    );
+    expect(
+      () => DepthCurveSamplingPolicy(maxRenderedPointsPerSide: 1),
+      throwsArgumentError,
+    );
+  });
+
   test('empty and one-sided books keep unavailable spread values null', () {
     final empty = DepthBook(bids: const [], asks: const []);
     final oneSided = DepthBook(
@@ -117,3 +184,14 @@ void main() {
     expect(() => DepthCurve.fromBook(book), throwsArgumentError);
   });
 }
+
+DepthBook _largeBook(int count) => DepthBook(
+      bids: List<DepthLevel>.generate(
+        count,
+        (index) => DepthLevel(price: 10000 - index.toDouble(), quantity: 1),
+      ),
+      asks: List<DepthLevel>.generate(
+        count,
+        (index) => DepthLevel(price: 10002 + index.toDouble(), quantity: 1),
+      ),
+    );
