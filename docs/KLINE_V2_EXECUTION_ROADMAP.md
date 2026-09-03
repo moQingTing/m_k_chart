@@ -229,7 +229,7 @@ P0 → P1 → P2 → P3/P4 → P5 → P6 → P7 → P8 → P9
 | ID | 开发项 | 前置 | 状态 |
 | --- | --- | --- | --- |
 | `P9-01` | 全量 unit/widget/golden/integration/benchmark | Phase 6～8 | 已完成 |
-| `P9-02` | Android/iOS/Web Profile 与 Release 构建 | P9-01 | 待开始 |
+| `P9-02` | Android/iOS/Web Profile 与 Release 构建 | P9-01 | 已完成 |
 | `P9-03` | 无障碍、RTL、时区和国际化 | Phase 6 | 已完成 |
 | `P9-04` | API diff、迁移指南、ADR 和完整 Example | P6-06、P9-01 | 待开始 |
 | `P9-05` | dev → alpha → beta → rc → stable 发布 | P9-01～P9-04 | 待开始 |

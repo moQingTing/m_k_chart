@@ -509,7 +509,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 ### Phase 9：发布质量，5～7 人日
 
 - [x] `P9-01` 全量 unit/widget/golden/integration/benchmark。
-- [ ] `P9-02` Android/iOS/Web profile 和 release 构建。
+- [x] `P9-02` Android/iOS/Web profile 和 release 构建。
 - [x] `P9-03` 无障碍、RTL、时区和国际化检查。
 - [ ] `P9-04` API diff、迁移指南、架构决策记录和完整 Example。
 - [ ] `P9-05` 发布 `dev → alpha → beta → rc → stable`。
@@ -1045,6 +1045,16 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 执行约束：CPU 密集 benchmark 不允许作为一个目录并发运行；并发结果会测到 Host 争用。`tool/run_p9_host_gate.sh` 已固化逐文件串行顺序。
 - 证据：`example/integration_test/v2_chart_flow_test.dart`、`tool/run_p9_host_gate.sh`、`docs/P9_RELEASE_QUALITY_GATE.md`。
 - 后续：执行 `P9-02` Android/iOS/Web Profile 与 Release 构建，并处理或记录构建工具链兼容提示。
+
+### 2026-09-03 / P9-02
+
+- 状态：Android、iOS、Web 的 Profile 与 Release 六项构建全部通过，并新增可重复执行的 macOS 构建门禁脚本。
+- Android：Profile/Release APK 分别为 73.5/51.6 MB；空壳 Activity 从 Kotlin 等价迁移为 Java，应用模块移除旧 Kotlin 插件接入并升级到 Java 17，重建后无 Kotlin/Java 8 迁移警告。
+- iOS：`--no-codesign` Profile/Release Runner.app 分别为 25.3/16.9 MB；接受 Flutter 3.44 自动生成的 Swift Package Manager 插件集成和 Scheme prepare pre-action。
+- Web：Profile/Release 均通过 WebAssembly dry run；动态数字解析统一为 `num.toDouble()`，并显式声明 Cupertino Icons，消除兼容和字体缺失提示。
+- 发布边界：Android 示例仍使用 debug signing，iOS 未签名；正式密钥、Archive、上传和部署由 P9-05 执行。
+- 证据：`tool/run_p9_build_gate.sh`、`docs/P9_CROSS_PLATFORM_BUILD_GATE.md`。
+- 后续：执行 `P9-04` API diff、迁移指南、ADR 和完整 Example 审查。
 
 ## 13. 参考资料
 

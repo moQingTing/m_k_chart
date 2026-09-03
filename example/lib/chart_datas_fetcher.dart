@@ -238,11 +238,9 @@ class ChartDatasFetcher {
   }
 
   /// 安全地解析 Double 值
-  /// 支持 String 和 double 类型，与 Swift 版本保持一致
+  /// 支持 String 和 num 类型，与 Swift 版本保持一致
   double _safeParseDouble(dynamic value) {
-    if (value is double) {
-      return value;
-    } else if (value is int) {
+    if (value is num) {
       return value.toDouble();
     } else if (value is String) {
       return double.tryParse(value) ?? 0.0;
