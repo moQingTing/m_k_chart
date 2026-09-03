@@ -1,9 +1,11 @@
 # m_k_chart 2.0 公共 API 草案
 
-> 状态：Phase 0 讨论稿，不代表最终兼容承诺
+> 状态：历史设计草案；当前已批准的正式 API 以 `m_k_chart.dart`、allowlist 和 P9 API diff 为准
 > 日期：2026-08-24
 
 ## 1. 设计原则
+
+本文件保留早期设计取舍，不能作为现行使用说明。当前可用的正式类型、兼容边界和禁止导入路径见 [P9 公共 API 差异](P9_PUBLIC_API_DIFF.md)、[迁移指南](MIGRATING_TO_V2.md) 与 [ADR-001](architecture/ADR-001_PUBLIC_API_TRANSITION.md)。其中草案中的 `KChart` 与 `KChartController` 尚未通过公共 API 准入，不能用于宿主集成。
 
 - 只有 `m_k_chart.dart` 是正式公共入口。
 - 原始 K 线不可变，不携带指标结果。

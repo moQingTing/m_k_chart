@@ -2,6 +2,8 @@
 
 一个功能强大的 Flutter K线图表库，支持多种技术指标和深度图展示。
 
+> 当前发布线保持 1.x Widget 的兼容性；V2 整改已经提供不可变主题、版本化用户配置和完整交易图 Demo。V2 的内部 Renderer/Controller 尚未作为稳定 Widget API 导出，请按 [迁移指南](docs/MIGRATING_TO_V2.md) 使用当前正式入口。
+
 ## 图片展示
 
 ![K线图表演示1](https://github.com/moQingTing/m_k_chart/raw/main/example/0d45c754e1d760926e2a97cdec01a464.jpg)
@@ -108,7 +110,18 @@ KChartWidget(
 
 ## 完整示例
 
-### 基础K线图
+### V2 交易图 Demo
+
+`example/` 默认启动 `V2TradingChartDemo` 中文交易图：它请求 OKX 公共 K 线，断网时自动回退到确定性本地数据，并可演示蜡烛/空心/OHLC/Heikin-Ashi/分时/面积主图、多主图和副图指标、独立数值格式、时区、十字光标详情、交易 Overlay 和买卖深度图。
+
+```bash
+cd example
+flutter run
+```
+
+Demo 通过仓库内部桥接层展示 V2 Renderer，不是可直接复制的公开 `KChart` Widget 集成方式。应用侧请继续使用本页的稳定 API，并参阅 [完整 Example 说明](docs/architecture/KLINE_V2_EXAMPLE_TOOLBAR.md)。
+
+### 基础 K 线图（1.x 兼容 API）
 
 ```dart
 import 'package:flutter/material.dart';
@@ -186,6 +199,25 @@ class _KLineChartPageState extends State<KLineChartPage> {
 ```
 
 ## 主要API
+
+当前唯一正式入口是 `package:m_k_chart/m_k_chart.dart`。`flutter_k_chart.dart` 仍可用，但已标记 deprecated；不要深路径导入 `src`、Renderer 或 Example 支持文件。完整差异见 [P9 公共 API 差异](docs/P9_PUBLIC_API_DIFF.md)。
+
+### KChartTheme
+
+`KChartTheme` 是 V2 的不可变视觉值对象，可独立采用，不会改变旧 `KChartWidget` 行为：
+
+```dart
+final theme = KChartTheme.light(
+  mainValueDecimalPlaces: 2,
+  mainValueUseThousandsSeparator: true,
+  secondaryValueDecimalPlaces: 4,
+  secondaryValueUseThousandsSeparator: false,
+);
+
+final compatibleTheme = chartColors.toKChartTheme(chartStyle: chartStyle);
+```
+
+主图和副图的数值格式、指标调色板与十字光标样式均可独立配置。详见 [主题协议](docs/architecture/KLINE_V2_THEME_PROTOCOL.md)。
 
 ### KChartUserConfig
 
@@ -285,6 +317,9 @@ K线图表主组件。
 
 - [m_k_chart 2.0：币安风格 K 线整改开发计划](docs/BINANCE_KLINE_V2_DEVELOPMENT_PLAN.md)
 - [m_k_chart 2.0：开发清单与时序线](docs/KLINE_V2_EXECUTION_ROADMAP.md)
+- [V2 迁移指南](docs/MIGRATING_TO_V2.md)
+- [P9 公共 API 差异](docs/P9_PUBLIC_API_DIFF.md)
+- [P9 跨平台构建门禁](docs/P9_CROSS_PLATFORM_BUILD_GATE.md)
 - [m_k_chart 1.x：性能基线](docs/PERFORMANCE_BASELINE.md)
 
 运行示例：
@@ -294,12 +329,12 @@ cd example
 flutter run
 ```
 
-示例功能包括：
-- 多种市场数据切换（BTC、ETH等）
-- 多种时间周期切换（1m、5m、15m、1H、4H、1D）
-- 主图指标切换（MA、BOLL、EMA、SAR）
-- 副图指标多选（MACD、KDJ、RSI、WR、VOL、OBV）
-- 实时数据更新
+默认 V2 示例功能包括：
+- OKX 公开行情与确定性离线回退；
+- 周期、主图模式、主图/副图指标、叠加或分面板布局；
+- 主图和副图独立小数位、千分位、时区与透明指标参数区；
+- 点击/长按十字光标、价格/时间标签、历史拖动和返回最新；
+- 仓位/挂单等交易 Overlay，以及可模拟增量、丢包和恢复的买卖深度图。
 
 ## 注意事项
 

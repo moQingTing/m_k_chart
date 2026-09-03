@@ -511,7 +511,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - [x] `P9-01` 全量 unit/widget/golden/integration/benchmark。
 - [x] `P9-02` Android/iOS/Web profile 和 release 构建。
 - [x] `P9-03` 无障碍、RTL、时区和国际化检查。
-- [ ] `P9-04` API diff、迁移指南、架构决策记录和完整 Example。
+- [x] `P9-04` API diff、迁移指南、架构决策记录和完整 Example。
 - [ ] `P9-05` 发布 `dev → alpha → beta → rc → stable`。
 - [ ] `P9-06` 每个预发布版本至少保留一轮真实项目接入反馈。
 
@@ -1055,6 +1055,17 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 发布边界：Android 示例仍使用 debug signing，iOS 未签名；正式密钥、Archive、上传和部署由 P9-05 执行。
 - 证据：`tool/run_p9_build_gate.sh`、`docs/P9_CROSS_PLATFORM_BUILD_GATE.md`。
 - 后续：执行 `P9-04` API diff、迁移指南、ADR 和完整 Example 审查。
+
+### 2026-09-03 / P9-04
+
+- 状态：公共 API 差异、兼容迁移指南、架构决策记录和完整 V2 Example 导航已完成，并加入可重复执行的发布文档门禁。
+- API：以 1.0.4 为基线，正式入口未删除旧导出；经批准新增 `KChartTheme`、`ChartColorsThemeAdapter`、`KChartUserConfig` 和 `KChartIndicatorPreference`。11 个导出文件与 26 个顶层符号由 allowlist 自动冻结。
+- 迁移：明确旧 Widget/实体/计算工具在 2.x 保持可用；提供唯一入口、主题适配、v0 偏好 JSON 自动迁移、深路径 import 禁止和升级检查表。
+- ADR：接受“完整 Demo 可使用内部桥接、宿主不能依赖内部 Renderer/Controller”的过渡边界；公开 V2 Widget/Controller 必须经过独立准入与真实项目反馈。
+- Example：README 指向默认 `V2TradingChartDemo`，覆盖 OKX 实时/离线回退、图表模式、指标、格式、时区、十字光标、交易 Overlay 和深度图。
+- 验证：`tool/check_p9_public_api.sh` 通过，覆盖 API allowlist、迁移资料、ADR 与默认 Example 导航。
+- 证据：`docs/P9_PUBLIC_API_DIFF.md`、`docs/MIGRATING_TO_V2.md`、`docs/architecture/ADR-001_PUBLIC_API_TRANSITION.md`。
+- 后续：进入 P9-05，按 `dev → alpha → beta → rc → stable` 设计版本、签名与发布流程。
 
 ## 13. 参考资料
 
