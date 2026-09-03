@@ -7,6 +7,17 @@ import '../model/model.dart';
 import '../viewport/viewport.dart';
 import 'chart_main_mode.dart';
 
+typedef ChartAxisTimeFormatter = String Function(
+  int epochMilliseconds,
+  Duration timeZoneOffset,
+);
+
+typedef ChartCrosshairTimeFormatter = String Function(
+  int epochMilliseconds,
+  String intervalCode,
+  Duration timeZoneOffset,
+);
+
 /// Renderer-facing state slices, mirrored without depending on Controller.
 enum RenderSnapshotSlice {
   data,
@@ -18,6 +29,7 @@ enum RenderSnapshotSlice {
   drawings,
   overlays,
   clock,
+  locale,
 }
 
 /// Immutable version vector used by Layers to declare invalidation inputs.
@@ -32,6 +44,7 @@ final class RenderSnapshotVersions {
     this.drawings = 0,
     this.overlays = 0,
     this.clock = 0,
+    this.locale = 0,
   })  : assert(data >= 0),
         assert(viewport >= 0),
         assert(selection >= 0),
@@ -40,7 +53,8 @@ final class RenderSnapshotVersions {
         assert(theme >= 0),
         assert(drawings >= 0),
         assert(overlays >= 0),
-        assert(clock >= 0);
+        assert(clock >= 0),
+        assert(locale >= 0);
 
   final int data;
   final int viewport;
@@ -51,6 +65,7 @@ final class RenderSnapshotVersions {
   final int drawings;
   final int overlays;
   final int clock;
+  final int locale;
 
   int versionOf(RenderSnapshotSlice slice) => switch (slice) {
         RenderSnapshotSlice.data => data,
@@ -62,6 +77,7 @@ final class RenderSnapshotVersions {
         RenderSnapshotSlice.drawings => drawings,
         RenderSnapshotSlice.overlays => overlays,
         RenderSnapshotSlice.clock => clock,
+        RenderSnapshotSlice.locale => locale,
       };
 }
 
@@ -249,6 +265,8 @@ final class RenderSnapshot<TTheme extends Object> {
     ChartMainMode mainMode = ChartMainMode.candlestick,
     Duration timeZoneOffset = Duration.zero,
     int? currentTime,
+    ChartAxisTimeFormatter? axisTimeFormatter,
+    ChartCrosshairTimeFormatter? crosshairTimeFormatter,
   }) {
     if (viewport.itemCount != data.data.length) {
       throw ArgumentError(
@@ -359,6 +377,7 @@ final class RenderSnapshot<TTheme extends Object> {
         'Must not be negative.',
       );
     }
+    _validateDisplayTimeZoneOffset(timeZoneOffset);
 
     return RenderSnapshot._(
       data: data,
@@ -383,6 +402,8 @@ final class RenderSnapshot<TTheme extends Object> {
       mainMode: mainMode,
       timeZoneOffset: timeZoneOffset,
       currentTime: resolvedCurrentTime,
+      axisTimeFormatter: axisTimeFormatter,
+      crosshairTimeFormatter: crosshairTimeFormatter,
     );
   }
 
@@ -406,6 +427,8 @@ final class RenderSnapshot<TTheme extends Object> {
     required this.mainMode,
     required this.timeZoneOffset,
     required this.currentTime,
+    required this.axisTimeFormatter,
+    required this.crosshairTimeFormatter,
   });
 
   final VersionedKlineData data;
@@ -435,6 +458,31 @@ final class RenderSnapshot<TTheme extends Object> {
 
   /// Host-supplied clock used to calculate the latest-candle countdown.
   final int currentTime;
+
+  /// Host-owned formatter for scrolling time-axis labels.
+  final ChartAxisTimeFormatter? axisTimeFormatter;
+
+  /// Host-owned formatter for the selected candle's time label.
+  final ChartCrosshairTimeFormatter? crosshairTimeFormatter;
+
+  String formatAxisTime(int epochMilliseconds) =>
+      axisTimeFormatter?.call(
+        epochMilliseconds,
+        timeZoneOffset,
+      ) ??
+      _defaultAxisTime(epochMilliseconds, timeZoneOffset);
+
+  String formatCrosshairTime(Kline candle) =>
+      crosshairTimeFormatter?.call(
+        candle.openTime,
+        candle.interval.code,
+        timeZoneOffset,
+      ) ??
+      _defaultCrosshairTime(
+        candle.openTime,
+        candle.interval.code,
+        timeZoneOffset,
+      );
 
   /// Remaining time until the next candle is expected from the latest two
   /// opening timestamps. It stays at zero when the interval is unknown or
@@ -489,6 +537,50 @@ final class RenderSnapshot<TTheme extends Object> {
     }
     return result;
   }
+}
+
+void _validateDisplayTimeZoneOffset(Duration offset) {
+  const minimum = Duration(hours: -12);
+  const maximum = Duration(hours: 14);
+  if (offset < minimum ||
+      offset > maximum ||
+      offset.inMicroseconds % Duration.microsecondsPerMinute != 0) {
+    throw ArgumentError.value(
+      offset,
+      'timeZoneOffset',
+      'Must be whole minutes from UTC-12:00 through UTC+14:00.',
+    );
+  }
+}
+
+String _defaultAxisTime(int epochMilliseconds, Duration timeZoneOffset) {
+  final date = DateTime.fromMillisecondsSinceEpoch(
+    epochMilliseconds + timeZoneOffset.inMilliseconds,
+    isUtc: true,
+  );
+  return '${date.hour.toString().padLeft(2, '0')}:'
+      '${date.minute.toString().padLeft(2, '0')}';
+}
+
+String _defaultCrosshairTime(
+  int epochMilliseconds,
+  String intervalCode,
+  Duration timeZoneOffset,
+) {
+  final date = DateTime.fromMillisecondsSinceEpoch(
+    epochMilliseconds + timeZoneOffset.inMilliseconds,
+    isUtc: true,
+  );
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  if (intervalCode.endsWith('d') ||
+      intervalCode.endsWith('w') ||
+      intervalCode.endsWith('M')) {
+    return '${date.year}-$month-$day';
+  }
+  return '${date.year}-$month-$day '
+      '${date.hour.toString().padLeft(2, '0')}:'
+      '${date.minute.toString().padLeft(2, '0')}';
 }
 
 int _nextExpectedOpenTime(List<Kline> data) {

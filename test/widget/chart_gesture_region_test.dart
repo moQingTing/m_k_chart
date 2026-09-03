@@ -1,3 +1,5 @@
+import 'dart:ui' show SemanticsAction;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +8,62 @@ import 'package:m_k_chart/src/viewport/viewport.dart';
 import 'package:m_k_chart/src/widget/widget.dart';
 
 void main() {
+  test('chart semantics rejects blank localized content', () {
+    expect(
+      () => ChartSemanticsConfiguration(label: ' ', value: '1', hint: 'hint'),
+      throwsArgumentError,
+    );
+    expect(
+      () =>
+          ChartSemanticsConfiguration(label: 'chart', value: '', hint: 'hint'),
+      throwsArgumentError,
+    );
+    expect(
+      () => ChartSemanticsConfiguration(label: 'chart', value: '1', hint: ''),
+      throwsArgumentError,
+    );
+    expect(
+      () => ChartSemanticsConfiguration(
+        label: 'chart',
+        value: '1',
+        hint: 'hint',
+        onIncrease: () {},
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  testWidgets('publishes host-localized RTL semantics and adjustable actions',
+      (tester) async {
+    final semanticsHandle = tester.ensureSemantics();
+    final harness = _Harness(
+      semantics: ChartSemanticsConfiguration(
+        label: 'مخطط السعر',
+        value: 'آخر سعر 80,000.00',
+        hint: 'زيادة أو خفض للتكبير',
+        textDirection: TextDirection.rtl,
+        onTap: () {},
+        onIncrease: () {},
+        onDecrease: () {},
+        increasedValue: 'تكبير الرسم',
+        decreasedValue: 'تصغير الرسم',
+      ),
+    );
+
+    await tester.pumpWidget(harness.build());
+    final node = tester.getSemantics(find.bySemanticsLabel('مخطط السعر'));
+    final data = node.getSemanticsData();
+
+    expect(data.label, 'مخطط السعر');
+    expect(data.value, 'آخر سعر 80,000.00');
+    expect(data.hint, 'زيادة أو خفض للتكبير');
+    expect(data.textDirection, TextDirection.rtl);
+    expect(data.hasAction(SemanticsAction.tap), isTrue);
+    expect(data.hasAction(SemanticsAction.increase), isTrue);
+    expect(data.hasAction(SemanticsAction.decrease), isTrue);
+    semanticsHandle.dispose();
+  });
+
   testWidgets('one pointer pans without producing scale or crosshair intent',
       (tester) async {
     final harness = _Harness();
@@ -112,7 +170,7 @@ void main() {
 }
 
 final class _Harness {
-  _Harness({this.crosshairIntentBuilder});
+  _Harness({this.crosshairIntentBuilder, this.semantics});
 
   static const targetKey = Key('gesture-target');
 
@@ -120,6 +178,7 @@ final class _Harness {
   final navigationMachine = ChartNavigationMachine();
   final ChartCrosshairIntent Function(double localX, double localY)?
       crosshairIntentBuilder;
+  final ChartSemanticsConfiguration? semantics;
   final intents = <ChartInteractionIntent>[];
   ChartViewport viewport = ChartViewport(
     itemCount: 100,
@@ -148,6 +207,7 @@ final class _Harness {
                 }
               },
               crosshairIntentBuilder: crosshairIntentBuilder,
+              semantics: semantics,
               child: const ColoredBox(color: Color(0xff000000)),
             ),
           ),

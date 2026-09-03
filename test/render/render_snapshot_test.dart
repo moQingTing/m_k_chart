@@ -46,6 +46,7 @@ void main() {
     expect(snapshot.selection.isSnapped, isTrue);
     expect(snapshot.history.phase, RenderHistoryPhase.loading);
     expect(snapshot.mainMode, ChartMainMode.area);
+    expect(snapshot.versions.versionOf(RenderSnapshotSlice.locale), 0);
     expect(
       () => snapshot.indicators.add(fixture.mainIndicator),
       throwsUnsupportedError,
@@ -201,6 +202,7 @@ void main() {
       drawings: 7,
       overlays: 8,
       clock: 9,
+      locale: 10,
     );
 
     expect(
@@ -208,7 +210,7 @@ void main() {
         for (final slice in RenderSnapshotSlice.values)
           versions.versionOf(slice),
       ],
-      [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     );
   });
 
@@ -396,6 +398,92 @@ void main() {
         versions: const RenderSnapshotVersions(),
         currentTime: -1,
       ),
+      throwsArgumentError,
+    );
+  });
+
+  test('snapshot localizes time labels and accepts minute timezone offsets',
+      () {
+    final fixture = _fixture();
+    final axisCalls = <Object>[];
+    final crosshairCalls = <Object>[];
+    final snapshot = RenderSnapshot<_Theme>(
+      data: fixture.data,
+      viewport: fixture.viewport,
+      layout: fixture.layout,
+      theme: const _Theme('dark'),
+      versions: const RenderSnapshotVersions(locale: 3),
+      timeZoneOffset: const Duration(hours: 5, minutes: 30),
+      axisTimeFormatter: (epoch, offset) {
+        axisCalls.add((epoch, offset));
+        return '时间轴';
+      },
+      crosshairTimeFormatter: (epoch, interval, offset) {
+        crosshairCalls.add((epoch, interval, offset));
+        return '选中时间';
+      },
+    );
+
+    expect(snapshot.formatAxisTime(1704067200000), '时间轴');
+    expect(snapshot.formatCrosshairTime(fixture.data.data.first), '选中时间');
+    expect(
+      axisCalls.single,
+      (1704067200000, const Duration(hours: 5, minutes: 30)),
+    );
+    expect(
+      crosshairCalls.single,
+      (
+        fixture.data.data.first.openTime,
+        fixture.data.data.first.interval.code,
+        const Duration(hours: 5, minutes: 30),
+      ),
+    );
+    expect(snapshot.versions.versionOf(RenderSnapshotSlice.locale), 3);
+  });
+
+  test('snapshot default time format uses UTC arithmetic without local zone',
+      () {
+    final fixture = _fixture();
+    final snapshot = RenderSnapshot<_Theme>(
+      data: fixture.data,
+      viewport: fixture.viewport,
+      layout: fixture.layout,
+      theme: const _Theme('dark'),
+      versions: const RenderSnapshotVersions(),
+      timeZoneOffset: const Duration(hours: 5, minutes: 30),
+    );
+
+    expect(snapshot.formatAxisTime(1704067200000), '05:30');
+    expect(
+      snapshot.formatCrosshairTime(fixture.data.data.first),
+      '2024-01-01 05:30',
+    );
+  });
+
+  test('snapshot rejects unsupported or sub-minute display timezones', () {
+    final fixture = _fixture();
+    RenderSnapshot<_Theme> build(Duration offset) => RenderSnapshot<_Theme>(
+          data: fixture.data,
+          viewport: fixture.viewport,
+          layout: fixture.layout,
+          theme: const _Theme('dark'),
+          versions: const RenderSnapshotVersions(),
+          timeZoneOffset: offset,
+        );
+
+    expect(() => build(const Duration(hours: -12)), returnsNormally);
+    expect(() => build(const Duration(hours: 14)), returnsNormally);
+    expect(
+      () => build(const Duration(hours: -12, minutes: -1)),
+      throwsArgumentError,
+    );
+    expect(
+      () => build(const Duration(hours: 14, minutes: 1)),
+      throwsArgumentError,
+    );
+    expect(() => build(const Duration(seconds: 30)), throwsArgumentError);
+    expect(
+      () => build(const Duration(minutes: 1, milliseconds: 1)),
       throwsArgumentError,
     );
   });

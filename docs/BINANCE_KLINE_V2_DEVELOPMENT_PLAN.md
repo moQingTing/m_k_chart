@@ -510,7 +510,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 
 - [ ] `P9-01` 全量 unit/widget/golden/integration/benchmark。
 - [ ] `P9-02` Android/iOS/Web profile 和 release 构建。
-- [ ] `P9-03` 无障碍、RTL、时区和国际化检查。
+- [x] `P9-03` 无障碍、RTL、时区和国际化检查。
 - [ ] `P9-04` API diff、迁移指南、架构决策记录和完整 Example。
 - [ ] `P9-05` 发布 `dev → alpha → beta → rc → stable`。
 - [ ] `P9-06` 每个预发布版本至少保留一轮真实项目接入反馈。
@@ -1022,6 +1022,18 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - 内存：真机完整进程 Total PSS 140,100 KB、Total RSS 248,176 KB；该值包含 Engine、代码和图形缓冲，仅作整进程基线。
 - 证据：`test/benchmark/depth_pipeline_benchmark_test.dart`、`example/lib/v2_depth_performance_main.dart`、`docs/PERFORMANCE_P8_DEPTH_GATE.md`。
 - 后续：进入 Phase 9 发布质量任务，优先执行 `P9-03` 无障碍、RTL、时区和国际化检查。
+
+### 2026-09-03 / P9-03
+
+- 状态：已完成 Canvas 图表无障碍语义、RTL 容器适配、分钟级时区和 Host 本地化时间格式入口。
+- 无障碍：`ChartGestureRegion` 可接收 Host 本地化的标签、当前行情摘要和操作提示，并暴露返回最新、放大、缩小语义动作；可调整动作同时提供对应播报值。
+- 时间：`RenderSnapshot` 接受时间轴与十字线格式回调；默认实现只使用 UTC 时间戳加显示偏移，不依赖设备本地时区。
+- 时区：显示偏移支持 UTC-12:00～UTC+14:00 的整分钟值，Demo 新增 UTC+05:30，覆盖非整点时区。
+- 重绘：新增独立 `locale` 版本切片；语言、格式或时区变化只重录 Axis 与 Crosshair，行情、指标和最新价 Layer 保持复用。
+- RTL：外围 Flutter 控件跟随 `Directionality`，金融时间轴仍按时间从左到右绘制，避免在 RTL 环境反转行情语义。
+- 验证：新增阿拉伯语 RTL 语义、2 倍字体、UTC+05:30、格式回调、非法时区和 locale 定向重绘测试。
+- 证据：`lib/src/widget/chart_gesture_region.dart`、`lib/src/render/render_snapshot.dart`、`test/example/v2_chart_demo_test.dart`、`docs/architecture/KLINE_V2_ACCESSIBILITY_I18N.md`。
+- 后续：执行 `P9-01` 全量 unit/widget/golden/integration/benchmark 发布门禁。
 
 ## 13. 参考资料
 

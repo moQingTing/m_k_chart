@@ -30,6 +30,82 @@ typedef ChartTradeOverlayDragCallback = void Function(
   Offset localPosition,
 );
 
+/// Host-localized semantics exposed for an otherwise canvas-only chart.
+final class ChartSemanticsConfiguration {
+  factory ChartSemanticsConfiguration({
+    required String label,
+    required String value,
+    required String hint,
+    TextDirection textDirection = TextDirection.ltr,
+    bool liveRegion = false,
+    VoidCallback? onTap,
+    VoidCallback? onIncrease,
+    VoidCallback? onDecrease,
+    String? increasedValue,
+    String? decreasedValue,
+  }) {
+    for (final entry in {
+      'label': label,
+      'value': value,
+      'hint': hint,
+    }.entries) {
+      if (entry.value.trim().isEmpty) {
+        throw ArgumentError.value(entry.value, entry.key, 'Must not be empty.');
+      }
+    }
+    if (onIncrease != null && (increasedValue?.trim().isEmpty ?? true)) {
+      throw ArgumentError.value(
+        increasedValue,
+        'increasedValue',
+        'Must not be empty when onIncrease is supplied.',
+      );
+    }
+    if (onDecrease != null && (decreasedValue?.trim().isEmpty ?? true)) {
+      throw ArgumentError.value(
+        decreasedValue,
+        'decreasedValue',
+        'Must not be empty when onDecrease is supplied.',
+      );
+    }
+    return ChartSemanticsConfiguration._(
+      label: label,
+      value: value,
+      hint: hint,
+      textDirection: textDirection,
+      liveRegion: liveRegion,
+      onTap: onTap,
+      onIncrease: onIncrease,
+      onDecrease: onDecrease,
+      increasedValue: increasedValue,
+      decreasedValue: decreasedValue,
+    );
+  }
+
+  const ChartSemanticsConfiguration._({
+    required this.label,
+    required this.value,
+    required this.hint,
+    required this.textDirection,
+    required this.liveRegion,
+    required this.onTap,
+    required this.onIncrease,
+    required this.onDecrease,
+    required this.increasedValue,
+    required this.decreasedValue,
+  });
+
+  final String label;
+  final String value;
+  final String hint;
+  final TextDirection textDirection;
+  final bool liveRegion;
+  final VoidCallback? onTap;
+  final VoidCallback? onIncrease;
+  final VoidCallback? onDecrease;
+  final String? increasedValue;
+  final String? decreasedValue;
+}
+
 /// Optional Overlay callbacks that participate in the chart gesture arena.
 final class ChartTradeOverlayGestureCallbacks {
   const ChartTradeOverlayGestureCallbacks({
@@ -65,6 +141,7 @@ final class ChartGestureRegion extends StatefulWidget {
     this.crosshairIntentBuilder,
     this.onTapUp,
     this.tradeOverlayGestures,
+    this.semantics,
     this.pointerInputPolicy = const ChartPointerInputPolicy(),
     this.behavior = HitTestBehavior.opaque,
     super.key,
@@ -79,6 +156,7 @@ final class ChartGestureRegion extends StatefulWidget {
       crosshairIntentBuilder;
   final ValueChanged<Offset>? onTapUp;
   final ChartTradeOverlayGestureCallbacks? tradeOverlayGestures;
+  final ChartSemanticsConfiguration? semantics;
   final ChartPointerInputPolicy pointerInputPolicy;
   final HitTestBehavior behavior;
 
@@ -102,83 +180,102 @@ final class _ChartGestureRegionState extends State<ChartGestureRegion>
   }
 
   @override
-  Widget build(BuildContext context) => MouseRegion(
-        onExit: _onPointerExit,
-        child: Listener(
+  Widget build(BuildContext context) {
+    final gestureRegion = MouseRegion(
+      onExit: _onPointerExit,
+      child: Listener(
+        behavior: widget.behavior,
+        onPointerDown: _onPointerDown,
+        onPointerHover: _onPointerHover,
+        onPointerSignal: _onPointerSignal,
+        onPointerPanZoomStart: _onPointerPanZoomStart,
+        onPointerPanZoomUpdate: _onPointerPanZoomUpdate,
+        onPointerPanZoomEnd: _onPointerPanZoomEnd,
+        child: RawGestureDetector(
           behavior: widget.behavior,
-          onPointerDown: _onPointerDown,
-          onPointerHover: _onPointerHover,
-          onPointerSignal: _onPointerSignal,
-          onPointerPanZoomStart: _onPointerPanZoomStart,
-          onPointerPanZoomUpdate: _onPointerPanZoomUpdate,
-          onPointerPanZoomEnd: _onPointerPanZoomEnd,
-          child: RawGestureDetector(
-            behavior: widget.behavior,
-            gestures: <Type, GestureRecognizerFactory>{
-              TapGestureRecognizer:
-                  GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-                () => TapGestureRecognizer(debugOwner: this),
-                (recognizer) => recognizer.onTapUp = _onTapUp,
-              ),
-              if (widget.tradeOverlayGestures != null)
-                _ChartTradeOverlayVerticalDragGestureRecognizer:
-                    GestureRecognizerFactoryWithHandlers<
-                        _ChartTradeOverlayVerticalDragGestureRecognizer>(
-                  () => _ChartTradeOverlayVerticalDragGestureRecognizer(
-                    debugOwner: this,
-                  ),
-                  (recognizer) {
-                    recognizer
-                      ..overlayHitTest = widget.tradeOverlayGestures?.hitTest
-                      ..dragStartBehavior = DragStartBehavior.down
-                      ..onStart = _onTradeOverlayDragStart
-                      ..onUpdate = _onTradeOverlayDragUpdate
-                      ..onEnd = _onTradeOverlayDragEnd
-                      ..onCancel = _onTradeOverlayDragCancel;
-                  },
-                ),
-              ChartAxisScaleGestureRecognizer:
+          gestures: <Type, GestureRecognizerFactory>{
+            TapGestureRecognizer:
+                GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+              () => TapGestureRecognizer(debugOwner: this),
+              (recognizer) => recognizer.onTapUp = _onTapUp,
+            ),
+            if (widget.tradeOverlayGestures != null)
+              _ChartTradeOverlayVerticalDragGestureRecognizer:
                   GestureRecognizerFactoryWithHandlers<
-                      ChartAxisScaleGestureRecognizer>(
-                () => ChartAxisScaleGestureRecognizer(
+                      _ChartTradeOverlayVerticalDragGestureRecognizer>(
+                () => _ChartTradeOverlayVerticalDragGestureRecognizer(
                   debugOwner: this,
-                  supportedDevices: const <PointerDeviceKind>{
-                    PointerDeviceKind.touch,
-                    PointerDeviceKind.stylus,
-                    PointerDeviceKind.invertedStylus,
-                    PointerDeviceKind.mouse,
-                  },
                 ),
                 (recognizer) {
                   recognizer
-                    ..onStart = _onScaleStart
-                    ..onUpdate = _onScaleUpdate
-                    ..onEnd = _onScaleEnd;
+                    ..overlayHitTest = widget.tradeOverlayGestures?.hitTest
+                    ..dragStartBehavior = DragStartBehavior.down
+                    ..onStart = _onTradeOverlayDragStart
+                    ..onUpdate = _onTradeOverlayDragUpdate
+                    ..onEnd = _onTradeOverlayDragEnd
+                    ..onCancel = _onTradeOverlayDragCancel;
                 },
               ),
-              LongPressGestureRecognizer: GestureRecognizerFactoryWithHandlers<
-                  LongPressGestureRecognizer>(
-                () => LongPressGestureRecognizer(
-                  debugOwner: this,
-                  supportedDevices: const <PointerDeviceKind>{
-                    PointerDeviceKind.touch,
-                    PointerDeviceKind.stylus,
-                    PointerDeviceKind.invertedStylus,
-                  },
-                ),
-                (recognizer) {
-                  recognizer
-                    ..onLongPressStart = _onLongPressStart
-                    ..onLongPressMoveUpdate = _onLongPressMoveUpdate
-                    ..onLongPressEnd = _onLongPressEnd
-                    ..onLongPressCancel = _onLongPressCancel;
+            ChartAxisScaleGestureRecognizer:
+                GestureRecognizerFactoryWithHandlers<
+                    ChartAxisScaleGestureRecognizer>(
+              () => ChartAxisScaleGestureRecognizer(
+                debugOwner: this,
+                supportedDevices: const <PointerDeviceKind>{
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.stylus,
+                  PointerDeviceKind.invertedStylus,
+                  PointerDeviceKind.mouse,
                 },
               ),
-            },
-            child: widget.child,
-          ),
+              (recognizer) {
+                recognizer
+                  ..onStart = _onScaleStart
+                  ..onUpdate = _onScaleUpdate
+                  ..onEnd = _onScaleEnd;
+              },
+            ),
+            LongPressGestureRecognizer: GestureRecognizerFactoryWithHandlers<
+                LongPressGestureRecognizer>(
+              () => LongPressGestureRecognizer(
+                debugOwner: this,
+                supportedDevices: const <PointerDeviceKind>{
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.stylus,
+                  PointerDeviceKind.invertedStylus,
+                },
+              ),
+              (recognizer) {
+                recognizer
+                  ..onLongPressStart = _onLongPressStart
+                  ..onLongPressMoveUpdate = _onLongPressMoveUpdate
+                  ..onLongPressEnd = _onLongPressEnd
+                  ..onLongPressCancel = _onLongPressCancel;
+              },
+            ),
+          },
+          child: widget.child,
         ),
-      );
+      ),
+    );
+    final semantics = widget.semantics;
+    if (semantics == null) return gestureRegion;
+    return Semantics(
+      container: true,
+      label: semantics.label,
+      value: semantics.value,
+      hint: semantics.hint,
+      textDirection: semantics.textDirection,
+      liveRegion: semantics.liveRegion,
+      button: semantics.onTap != null,
+      onTap: semantics.onTap,
+      onIncrease: semantics.onIncrease,
+      onDecrease: semantics.onDecrease,
+      increasedValue: semantics.increasedValue,
+      decreasedValue: semantics.decreasedValue,
+      child: gestureRegion,
+    );
+  }
 
   void _onTapUp(TapUpDetails details) {
     final overlayCallbacks = widget.tradeOverlayGestures;

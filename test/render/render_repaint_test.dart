@@ -21,6 +21,7 @@ void main() {
         RenderSnapshotSlice.selection,
         RenderSnapshotSlice.layout,
         RenderSnapshotSlice.theme,
+        RenderSnapshotSlice.locale,
       },
     );
     expect(() => first.repaintedLayerIds.clear(), throwsUnsupportedError);
@@ -140,6 +141,31 @@ void main() {
     );
     expect(theme.repaintedLayerIds, _standardLayerIds);
 
+    final locale = _paint(
+      pipeline,
+      _snapshot(
+        versions: const RenderSnapshotVersions(
+          data: 1,
+          viewport: 1,
+          selection: 1,
+          history: 1,
+          layout: 1,
+          theme: 1,
+          locale: 1,
+        ),
+        selection: RenderSelectionSnapshot.visible(localX: 50, localY: 60),
+      ),
+    );
+    expect(locale.repaintedLayerIds, ['axis', 'crosshair']);
+    expect(
+      locale.invalidatedSlices['axis'],
+      {RenderSnapshotSlice.locale},
+    );
+    expect(
+      locale.invalidatedSlices['crosshair'],
+      {RenderSnapshotSlice.locale},
+    );
+
     final clock = _paint(
       pipeline,
       _snapshot(
@@ -151,6 +177,7 @@ void main() {
           layout: 1,
           theme: 1,
           clock: 1,
+          locale: 1,
         ),
         selection: RenderSelectionSnapshot.visible(localX: 50, localY: 60),
       ),
@@ -173,6 +200,7 @@ void main() {
           theme: 1,
           drawings: 1,
           clock: 1,
+          locale: 1,
         ),
         selection: RenderSelectionSnapshot.visible(localX: 50, localY: 60),
       ),
@@ -196,6 +224,7 @@ void main() {
           drawings: 1,
           overlays: 1,
           clock: 1,
+          locale: 1,
         ),
         selection: RenderSelectionSnapshot.visible(localX: 50, localY: 60),
       ),
@@ -206,12 +235,13 @@ void main() {
       {RenderSnapshotSlice.overlays},
     );
 
-    expect(pipeline.repaintStats.frameCount, 11);
+    expect(pipeline.repaintStats.frameCount, 12);
     expect(pipeline.repaintStats.repaintCount('grid'), 5);
     expect(pipeline.repaintStats.repaintCount('main'), 5);
     expect(pipeline.repaintStats.repaintCount('marker'), 6);
     expect(pipeline.repaintStats.repaintCount('tradeOverlay'), 6);
-    expect(pipeline.repaintStats.repaintCount('crosshair'), 4);
+    expect(pipeline.repaintStats.repaintCount('axis'), 6);
+    expect(pipeline.repaintStats.repaintCount('crosshair'), 5);
     pipeline.dispose();
   });
 

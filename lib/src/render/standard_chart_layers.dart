@@ -214,6 +214,7 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
             RenderSnapshotSlice.viewport,
             RenderSnapshotSlice.layout,
             RenderSnapshotSlice.theme,
+            RenderSnapshotSlice.locale,
           },
         );
 
@@ -258,7 +259,7 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
       final time = xTransform.localXToTime(x - layout.drawingBounds.left);
       _drawText(
         canvas: context.canvas,
-        text: _formatTime(time, snapshot.timeZoneOffset),
+        text: snapshot.formatAxisTime(time),
         color: theme.axisTextColor,
         fontSize: theme.axisFontSize,
         x: x,
@@ -352,6 +353,7 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
             RenderSnapshotSlice.selection,
             RenderSnapshotSlice.layout,
             RenderSnapshotSlice.theme,
+            RenderSnapshotSlice.locale,
           },
         );
 
@@ -435,11 +437,7 @@ final class ChartCrosshairLayer<TTheme extends ChartRenderStyle>
     final candle = context.snapshot.data.data[selectedIndex];
     _drawCrosshairLabel(
       canvas: context.canvas,
-      text: _formatCrosshairTime(
-        candle.openTime,
-        candle.interval.code,
-        context.snapshot.timeZoneOffset,
-      ),
+      text: context.snapshot.formatCrosshairTime(candle),
       bounds: timeBounds,
       fontSize: context.snapshot.theme.axisFontSize,
       x: selection.localX,
@@ -1476,36 +1474,6 @@ void _drawText({
       y - painter.height * verticalAnchor,
     ),
   );
-}
-
-String _formatTime(int epochMilliseconds, Duration timeZoneOffset) {
-  final date = DateTime.fromMillisecondsSinceEpoch(
-    epochMilliseconds + timeZoneOffset.inMilliseconds,
-    isUtc: true,
-  );
-  return '${date.hour.toString().padLeft(2, '0')}:'
-      '${date.minute.toString().padLeft(2, '0')}';
-}
-
-String _formatCrosshairTime(
-  int epochMilliseconds,
-  String intervalCode,
-  Duration timeZoneOffset,
-) {
-  final date = DateTime.fromMillisecondsSinceEpoch(
-    epochMilliseconds + timeZoneOffset.inMilliseconds,
-    isUtc: true,
-  );
-  final month = date.month.toString().padLeft(2, '0');
-  final day = date.day.toString().padLeft(2, '0');
-  if (intervalCode.endsWith('d') ||
-      intervalCode.endsWith('w') ||
-      intervalCode.endsWith('M')) {
-    return '${date.year}-$month-$day';
-  }
-  return '${date.year}-$month-$day '
-      '${date.hour.toString().padLeft(2, '0')}:'
-      '${date.minute.toString().padLeft(2, '0')}';
 }
 
 Rect _rect(ChartLayoutRect bounds) => Rect.fromLTRB(

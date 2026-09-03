@@ -37,6 +37,7 @@ void main() {
         RenderSnapshotSlice.selection,
         RenderSnapshotSlice.layout,
         RenderSnapshotSlice.theme,
+        RenderSnapshotSlice.locale,
       },
     );
     expect(
@@ -55,6 +56,10 @@ void main() {
         RenderSnapshotSlice.layout,
         RenderSnapshotSlice.theme,
       },
+    );
+    expect(
+      stack.layer('axis').dependencies,
+      contains(RenderSnapshotSlice.locale),
     );
   });
 

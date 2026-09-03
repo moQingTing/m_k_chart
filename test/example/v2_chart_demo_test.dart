@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // The runnable demo is intentionally outside the package's public API.
@@ -288,5 +289,62 @@ void main() {
     await tester.pump();
     expect(find.byKey(const ValueKey('trade-overlay-actions')), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'supports RTL large text minute timezone and localized chart semantics',
+      (tester) async {
+    tester.view.physicalSize = const Size(900, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final semanticsHandle = tester.ensureSemantics();
+
+    try {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: V2TradingChartDemo(loadOnStart: false),
+            ),
+          ),
+        ),
+      );
+
+      final timeZone = find.byKey(const ValueKey('time-zone-offset'));
+      await tester.scrollUntilVisible(
+        timeZone,
+        500,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final dropdown = tester.widget<DropdownButton<int>>(timeZone);
+      dropdown.onChanged!(5 * 60 + 30);
+      await tester.pump();
+      expect(tester.widget<DropdownButton<int>>(timeZone).value, 330);
+
+      final chartCanvas = find.byKey(const ValueKey('v2-chart-canvas'));
+      await tester.scrollUntilVisible(
+        chartCanvas,
+        500,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pump();
+      final chartSemantics = find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            (widget.properties.label?.startsWith('V2 图表') ?? false),
+      );
+      final semantics = tester.getSemantics(chartSemantics).getSemanticsData();
+      expect(semantics.label, startsWith('V2 图表 1m 蜡烛图'));
+      expect(semantics.textDirection, TextDirection.rtl);
+      expect(semantics.value, contains('最新'));
+      expect(semantics.hasAction(SemanticsAction.increase), isTrue);
+      expect(semantics.hasAction(SemanticsAction.decrease), isTrue);
+      expect(tester.takeException(), isNull);
+    } finally {
+      semanticsHandle.dispose();
+    }
   });
 }
