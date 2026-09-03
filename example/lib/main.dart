@@ -171,10 +171,10 @@ class _ExamplePageState extends State<ExamplePage> {
     }
 
     // 使用单例获取数据
-    // symbol: 使用当前选择的市场，格式为 {SYMBOL}-USDT
+    // symbol: 使用当前选择的市场，格式为 Binance {SYMBOL}USDT
     // timeType: 使用当前选择的时间周期
     // size: 100 (获取100条数据)
-    final symbol = '$_currentSymbol-USDT';
+    final symbol = '${_currentSymbol}USDT';
     final loadChartData =
         widget.chartDataLoader ?? ChartDatasFetcher.shared.getRemoteChartData;
     await loadChartData(
@@ -548,7 +548,7 @@ class _ExamplePageState extends State<ExamplePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '$_currentSymbol-USDT',
+                  '${_currentSymbol}USDT',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -736,7 +736,7 @@ class _ExamplePageState extends State<ExamplePage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '$_currentSymbol-USDT',
+                                      '${_currentSymbol}USDT',
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,

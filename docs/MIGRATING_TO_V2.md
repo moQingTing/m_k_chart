@@ -68,7 +68,7 @@ final storedJson = config.toJson();
 
 ## 5. 使用完整交易图 Demo 进行验证
 
-`example/` 的默认页面是中文 V2 交易图 Demo：默认请求 OKX 的公开 BTC-USDT 1 分钟线，网络不可用时使用确定性离线数据。它覆盖主图模式、主图/副图指标、叠加/分面板、数值格式、时区、十字光标、交易 Overlay 和独立深度图。
+`example/` 的默认页面是中文 V2 交易图 Demo：默认请求 Binance 的公开 BTCUSDT 1 分钟线，并每 2 秒以最新两根 K 线替换当前柱或追加新柱；网络不可用时使用确定性离线数据。它覆盖主图模式、主图/副图指标、叠加/分面板、数值格式、时区、十字光标、交易 Overlay 和独立深度图。
 
 ```bash
 cd example

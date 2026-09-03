@@ -8,11 +8,11 @@ import 'package:m_k_chart/m_k_chart.dart';
 import 'package:m_k_chart/renderer/legacy_chart_viewport.dart';
 import 'package:m_k_chart/v2_example_support.dart';
 
-import 'okx_market_data_client.dart';
+import 'binance_market_data_client.dart';
 import 'v2_depth_chart_demo.dart';
 import 'v2_trade_overlay_examples.dart';
 
-/// Runnable trading-chart example backed by OKX public market data.
+/// Runnable trading-chart example backed by Binance public market data.
 ///
 /// The initial state remains useful offline: local candles render first, then
 /// the latest successful public response replaces them. Set [loadOnStart] to
@@ -158,10 +158,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   late final StandardChartRenderPipeline<KChartTheme> _pipeline;
   late final ChartInteractionMachine _interactionMachine;
   late final ChartNavigationMachine _navigationMachine;
-  late final OkxMarketDataClient _marketData;
+  late final BinanceMarketDataClient _marketData;
   late final IndicatorEngine _indicatorEngine;
   Timer? _clockTimer;
-  final _instrumentController = TextEditingController(text: 'BTC-USDT');
+  Timer? _marketTimer;
+  final _instrumentController = TextEditingController(text: 'BTCUSDT');
   KChartTheme _theme = KChartTheme.light(
     upColor: const Color(0xff0b9b69),
     downColor: const Color(0xffd93d56),
@@ -175,7 +176,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   final Set<String> _mainIndicators = {'ma'};
   final List<String> _secondaryIndicators = ['vol', 'macd'];
 
-  var _instrumentId = 'BTC-USDT';
+  var _instrumentId = 'BTCUSDT';
   var _interval = KlineInterval.oneMinute;
   var _mode = ChartMainMode.candlestick;
   var _candleLimit = 180;
@@ -211,7 +212,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _loadGeneration = 0;
   var _isLoading = false;
   String? _loadError;
-  OkxTicker? _ticker;
+  BinanceTicker? _ticker;
+  var _isRefreshingLatest = false;
+  String? _realtimeStatus;
   late _DemoData _data;
 
   @override
@@ -231,7 +234,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _pipeline = StandardChartRenderPipeline<KChartTheme>();
     _interactionMachine = ChartInteractionMachine();
     _navigationMachine = ChartNavigationMachine();
-    _marketData = OkxMarketDataClient();
+    _marketData = BinanceMarketDataClient();
     final registry = IndicatorRegistry();
     registerBuiltInIndicatorDefinitions(registry);
     _indicatorEngine = IndicatorEngine(registry: registry);
@@ -244,6 +247,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
           _clockRevision++;
         });
       });
+      _marketTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+        unawaited(_refreshLatestCandles());
+      });
       _loadCandles();
     }
   }
@@ -251,6 +257,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _marketTimer?.cancel();
     if (widget.fullscreen) {
       unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
       unawaited(
@@ -286,14 +293,15 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
 
   void _submitInstrument() {
     final instrument = _instrumentController.text.trim().toUpperCase();
-    if (!RegExp(r'^[A-Z0-9]+-[A-Z0-9]+(?:-[A-Z0-9]+)?$').hasMatch(instrument)) {
-      setState(() => _loadError = '请输入 OKX 交易对，例如 BTC-USDT。');
+    if (!RegExp(r'^[A-Z0-9]{5,20}$').hasMatch(instrument)) {
+      setState(() => _loadError = '请输入 Binance 现货交易对，例如 BTCUSDT。');
       return;
     }
     setState(() {
       _instrumentId = instrument;
       _instrumentController.text = instrument;
       _ticker = null;
+      _realtimeStatus = null;
       _clearTradeOverlayInteraction();
     });
     _loadCandles();
@@ -308,9 +316,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         ),
       );
 
-  Future<OkxTicker?> _loadTickerSafely(String instrumentId) async {
+  Future<BinanceTicker?> _loadTickerSafely(String instrumentId) async {
     try {
-      return await _marketData.ticker(instId: instrumentId);
+      return await _marketData.ticker(symbol: instrumentId);
     } on Object {
       // A ticker failure must never hide valid candles. The summary falls back
       // to the loaded K-line range until the next successful refresh.
@@ -328,7 +336,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     });
     try {
       final candles = await _marketData.candles(
-        instId: instrumentId,
+        symbol: instrumentId,
         interval: _interval,
         limit: _candleLimit,
       );
@@ -347,6 +355,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             preserveViewport ? candles.length - oldLatestIndex - 1 : 0,
         preserveViewport: preserveViewport,
         ticker: ticker,
+        realtimeStatus: 'Binance 历史数据已加载 · ${candles.length} 根 K 线',
       );
     } on Object catch (error) {
       if (!mounted || generation != _loadGeneration) return;
@@ -358,12 +367,68 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     }
   }
 
+  /// Polls the two newest Binance candles. The most recent entry is normally
+  /// still forming, so it replaces the existing last candle every two seconds;
+  /// when its open time advances, the window appends the new candle instead.
+  Future<void> _refreshLatestCandles() async {
+    if (_isLoading || _isRefreshingLatest || _data.data.isEmpty) return;
+    _isRefreshingLatest = true;
+    final generation = _loadGeneration;
+    final instrumentId = _instrumentId;
+    final interval = _interval;
+    try {
+      final tickerFuture = _loadTickerSafely(instrumentId);
+      final recent = await _marketData.candles(
+        symbol: instrumentId,
+        interval: interval,
+        limit: 2,
+      );
+      final ticker = await tickerFuture;
+      if (!mounted ||
+          generation != _loadGeneration ||
+          instrumentId != _instrumentId ||
+          interval != _interval) {
+        return;
+      }
+      final merged = mergeLatestBinanceCandles(
+        existing: _data.data,
+        updates: recent,
+        maxLength: _candleLimit,
+      );
+      final status = merged.changed
+          ? 'Binance 实时更新 · 替换 ${merged.replacedCount} 根 · '
+              '新增 ${merged.appendedCount} 根'
+          : 'Binance 实时已同步 · 当前 K 线持续更新中';
+      if (merged.changed) {
+        _applyDataWindow(
+          merged.candles,
+          appendedItemCount: merged.appendedCount,
+          preserveViewport: true,
+          ticker: ticker,
+          realtimeStatus: status,
+        );
+      } else {
+        setState(() {
+          _ticker = ticker ?? _ticker;
+          _realtimeStatus = status;
+        });
+      }
+    } on Object catch (error) {
+      if (mounted && generation == _loadGeneration) {
+        setState(() => _realtimeStatus = 'Binance 实时更新失败：$error');
+      }
+    } finally {
+      _isRefreshingLatest = false;
+    }
+  }
+
   void _applyDataWindow(
     List<Kline> candles, {
     required int appendedItemCount,
     required bool preserveViewport,
     String? simulationMessage,
-    OkxTicker? ticker,
+    BinanceTicker? ticker,
+    String? realtimeStatus,
   }) {
     final previousViewport = _latestViewport;
     final nextViewport = preserveViewport && previousViewport != null
@@ -395,6 +460,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       }
       _simulationMessage = simulationMessage;
       _ticker = ticker ?? _ticker;
+      _realtimeStatus = realtimeStatus ?? _realtimeStatus;
       _viewportRevision++;
       _clearSelection();
     });
@@ -985,7 +1051,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                   icon: const Icon(Icons.fullscreen),
                 ),
                 IconButton(
-                  tooltip: '刷新 OKX 行情',
+                  tooltip: '刷新 Binance 行情',
                   onPressed: _isLoading ? null : _loadCandles,
                   icon: const Icon(Icons.refresh),
                 ),
@@ -1027,12 +1093,25 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             const SizedBox(height: 8),
             Text(
               _isLoading
-                  ? '正在加载 OKX 行情…'
+                  ? '正在加载 Binance 行情…'
                   : _loadError == null
-                      ? 'OKX 公共行情 · ${_data.data.length} 根 K 线'
+                      ? 'Binance 公共行情 · ${_data.data.length} 根 K 线'
                       : '已使用离线数据 · $_loadError',
               style: const TextStyle(color: Color(0xff475569)),
             ),
+            if (_realtimeStatus case final status?)
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text(
+                  status,
+                  key: const ValueKey('binance-realtime-status'),
+                  style: const TextStyle(
+                    color: Color(0xff0369a1),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             if (!widget.fullscreen) ...[
               const SizedBox(height: 16),
               _ToolbarSection(
@@ -1046,8 +1125,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       textCapitalization: TextCapitalization.characters,
                       style: const TextStyle(color: Color(0xff0f172a)),
                       decoration: const InputDecoration(
-                          labelText: 'OKX 交易对',
-                          hintText: 'BTC-USDT',
+                          labelText: 'Binance 现货交易对',
+                          hintText: 'BTCUSDT',
                           isDense: true),
                       onSubmitted: (_) => _submitInstrument(),
                     ),
@@ -1356,7 +1435,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               ),
               const SizedBox(height: 12),
               _ToolbarSection(
-                title: '模拟实时数据（用于验证视口）',
+                title: '模拟实时数据（可与 Binance 实时轮询对照）',
                 children: [
                   OutlinedButton.icon(
                     key: const ValueKey('simulate-update-latest'),
@@ -1722,7 +1801,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'OKX 行情接口无需认证；网络不可用时，Demo 会继续展示本地确定性数据。',
+              'Binance 公共行情接口无需认证；每 2 秒替换或追加最新 K 线，网络不可用时继续展示本地确定性数据。',
               style: TextStyle(color: Color(0xff475569)),
             ),
             const SizedBox(height: 20),
@@ -1758,7 +1837,7 @@ class _ToolbarSection extends StatelessWidget {
 
 /// Compact, real-data-first 24-hour summary for the trading-chart example.
 ///
-/// OKX ticker values take priority. When the public ticker endpoint is
+/// Binance ticker values take priority. When the public ticker endpoint is
 /// temporarily unavailable, the same fields are derived from the visible
 /// candle window so the Demo remains useful offline.
 class _MarketSummary extends StatelessWidget {
@@ -1771,7 +1850,7 @@ class _MarketSummary extends StatelessWidget {
   });
 
   final String instrumentId;
-  final OkxTicker? ticker;
+  final BinanceTicker? ticker;
   final List<Kline> candles;
   final String Function(double value) priceFormatter;
 
@@ -1806,7 +1885,7 @@ class _MarketSummary extends StatelessWidget {
     final positive = change >= 0;
     final changeColor =
         positive ? const Color(0xff059669) : const Color(0xffdc2626);
-    final quote = instrumentId.split('-').last;
+    final quote = _binanceQuoteAsset(instrumentId);
 
     return Semantics(
       label: '24 小时行情摘要',
@@ -1843,7 +1922,7 @@ class _MarketSummary extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  source == null ? 'K 线估算' : 'OKX 24h',
+                  source == null ? 'K 线估算' : 'Binance 24h',
                   style:
                       const TextStyle(color: Color(0xff64748b), fontSize: 11),
                 ),
@@ -1906,6 +1985,24 @@ String _compactMarketValue(double value) {
     return '${(value / 1000).toStringAsFixed(2)}K';
   }
   return value.toStringAsFixed(2);
+}
+
+String _binanceQuoteAsset(String symbol) {
+  const knownQuotes = [
+    'USDT',
+    'USDC',
+    'FDUSD',
+    'BUSD',
+    'BTC',
+    'ETH',
+    'BNB',
+    'EUR',
+    'TRY',
+  ];
+  return knownQuotes.firstWhere(
+    symbol.endsWith,
+    orElse: () => symbol.length > 3 ? symbol.substring(symbol.length - 3) : '',
+  );
 }
 
 class _SliderSetting extends StatelessWidget {
@@ -2309,7 +2406,7 @@ _DemoData _createData(KlineInterval interval, int revision) {
     final close = open + ((index + seed) % 7 - 3) * .32;
     final openTime = 1704067200000 + index * step;
     return Kline(
-        symbol: 'BTC-USDT',
+        symbol: 'BTCUSDT',
         interval: interval,
         openTime: openTime,
         closeTime: openTime + step - 1,

@@ -49,7 +49,7 @@ P8-02 在 Example 支持层提供 `buildDemoTradeOverlays`，将确定性的演�
 - 买入挂单；
 - 多仓止盈和止损。
 
-价格从当前 K 线窗口推导并约束在数据高低范围内，确保真实 OKX 数据和离线数据都能看到示例。ID 使用 `demo-position-*` 与 `demo-order-*` 稳定命名，为 P8-03 的命中回调提供身份。组合器只导入内部 V2 Example 桥接库，不导入 OKX、Binance、HTTP 或账户 SDK。
+价格从当前 K 线窗口推导并约束在数据高低范围内，确保真实 Binance 数据和离线数据都能看到示例。ID 使用 `demo-position-*` 与 `demo-order-*` 稳定命名，为 P8-03 的命中回调提供身份。组合器只导入内部 V2 Example 桥接库，不导入 Binance 客户端、HTTP 或账户 SDK。
 
 Demo 的 `trade-overlay-examples` 开关只推进 overlays 版本；开关交易示例不会伪造 data、theme 或 indicator 变化。所有文案使用中文，并明确这是演示数据而非真实账户状态。
 

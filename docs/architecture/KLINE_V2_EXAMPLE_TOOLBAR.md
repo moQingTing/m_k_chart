@@ -6,7 +6,7 @@
 
 ## 1. 运行入口
 
-在 `example/` 目录执行 `flutter run`，默认入口为 `V2TradingChartDemo`。它默认请求 OKX 无鉴权 K 线接口，使用 `BTC-USDT`、`1m` 和 180 根数据；用户可以输入任意合法 OKX `instId`、选择周期和数据根数后刷新。网络失败时保留确定性的本地数据，便于离线演示与测试。
+在 `example/` 目录执行 `flutter run`，默认入口为 `V2TradingChartDemo`。它默认请求 Binance 无鉴权 Spot K 线接口，使用 `BTCUSDT`、`1m` 和 180 根数据；用户可以输入任意合法 Binance Spot `symbol`、选择周期和数据根数后刷新。首屏加载完整窗口，之后每 2 秒请求最新两根 K 线：同 openTime 替换正在形成的柱，新的 openTime 追加新柱。网络失败时保留确定性的本地数据，便于离线演示与测试。
 
 legacy `ExamplePage` 和现有网络数据示例仍保留在 `example/lib/main.dart`，但默认启动页现在优先展示 V2 Layer 体验。
 
@@ -14,8 +14,9 @@ legacy `ExamplePage` 和现有网络数据示例仍保留在 `example/lib/main.d
 
 | 工具栏 | 可选值 | 效果 |
 | --- | --- | --- |
-| Instrument & data window | OKX `instId`；100、180、300 根 | 请求 OKX 最新 K 线，校验交易对格式，并按时间升序映射为 `Kline` |
-| Period | `1m`、`5m`、`15m`、`1h`、`4h`、`1d` | 先切换本地回退数据，再请求对应 OKX 周期，并更新标题与语义标签 |
+| Instrument & data window | Binance `symbol`；100、180、300 根 | 请求 Binance 最新 K 线，校验交易对格式，并按时间升序映射为 `Kline` |
+| Period | `1m`、`5m`、`15m`、`1h`、`4h`、`1d` | 先切换本地回退数据，再请求对应 Binance 周期，并更新标题与语义标签 |
+| Realtime Kline | 2 秒轮询最新 2 根 | 当前 openTime 相同则替换最后一根；发生新 openTime 则追加，历史视口保持稳定 |
 | Main chart | Candle（默认）、Hollow、OHLC、Heikin-Ashi、Line、Area | 设置 `ChartMainMode` 并推进 visual version，触发 retained Layer 重录 |
 | Main overlays | MA、EMA、BOLL、SAR、VWAP | 将内置指标计算结果装配到 `main` panel，与 K 线叠加显示 |
 | Secondary indicators | VOL、MACD、KDJ、RSI、WR、OBV、ATR、CCI、DMI、ROC、Stoch RSI | 可以任意组合；默认 VOL + MACD |
@@ -42,7 +43,7 @@ legacy `ExamplePage` 和现有网络数据示例仍保留在 `example/lib/main.d
 
 ## 5. 回归门禁
 
-`example/test/okx_market_data_client_test.dart` 验证 OKX 请求参数、官方行结构到 `Kline` 的映射、时间排序，以及异常信封和参数校验。
+`example/test/binance_market_data_client_test.dart` 验证 Binance 请求参数、官方行结构到 `Kline` 的映射、时间排序、开合状态、ticker 和增量替换/追加合并。
 
 `test/example/v2_chart_demo_test.dart` 验证：
 

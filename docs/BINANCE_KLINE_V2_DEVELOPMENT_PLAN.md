@@ -970,8 +970,8 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 ### 2026-09-02 / P8-02
 
 - 状态：已完成仓位均价、强平价、买入挂单、止盈和止损五类交易叠加示例。
-- 组合：Example 支持层根据已加载 K 线范围生成五条稳定 ID 的通用 PriceLine；价格保持在行情高低范围内，真实 OKX 数据和离线回退数据均可展示。
-- 隔离：组合器不导入 OKX/Binance 客户端、HTTP 或账户 SDK；核心渲染仍只消费 P8-01 通用对象。
+- 组合：Example 支持层根据已加载 K 线范围生成五条稳定 ID 的通用 PriceLine；价格保持在行情高低范围内，真实 Binance 数据和离线回退数据均可展示。
+- 隔离：组合器不导入 Binance 客户端、HTTP 或账户 SDK；核心渲染仍只消费 P8-01 通用对象。
 - Demo：新增“交易叠加示例”中文开关，默认显示五类业务线；显隐只推进 overlays 版本，不误触发 data/theme/indicator 版本。
 - 验证：稳定 ID、中文标签、可见有限价格、集合不可变、空数据和依赖扫描测试通过；Widget 测试覆盖关闭与恢复。
 - 证据：`example/lib/v2_trade_overlay_examples.dart`、`docs/architecture/KLINE_V2_TRADE_OVERLAY_PROTOCOL.md`。
@@ -1062,7 +1062,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 - API：以 1.0.4 为基线，正式入口未删除旧导出；经批准新增 `KChartTheme`、`ChartColorsThemeAdapter`、`KChartUserConfig` 和 `KChartIndicatorPreference`。11 个导出文件与 26 个顶层符号由 allowlist 自动冻结。
 - 迁移：明确旧 Widget/实体/计算工具在 2.x 保持可用；提供唯一入口、主题适配、v0 偏好 JSON 自动迁移、深路径 import 禁止和升级检查表。
 - ADR：接受“完整 Demo 可使用内部桥接、宿主不能依赖内部 Renderer/Controller”的过渡边界；公开 V2 Widget/Controller 必须经过独立准入与真实项目反馈。
-- Example：README 指向默认 `V2TradingChartDemo`，覆盖 OKX 实时/离线回退、图表模式、指标、格式、时区、十字光标、交易 Overlay 和深度图。
+- Example：README 指向默认 `V2TradingChartDemo`，覆盖 Binance 实时/离线回退、图表模式、指标、格式、时区、十字光标、交易 Overlay 和深度图。
 - 验证：`tool/check_p9_public_api.sh` 通过，覆盖 API allowlist、迁移资料、ADR 与默认 Example 导航。
 - 证据：`docs/P9_PUBLIC_API_DIFF.md`、`docs/MIGRATING_TO_V2.md`、`docs/architecture/ADR-001_PUBLIC_API_TRANSITION.md`。
 - 后续：进入 P9-05，按 `dev → alpha → beta → rc → stable` 设计版本、签名与发布流程。

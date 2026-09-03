@@ -56,7 +56,7 @@ void main() {
       '${Directory.current.path}/example/lib/v2_trade_overlay_examples.dart',
     ).readAsStringSync();
 
-    expect(source, isNot(contains('okx_market_data_client')));
+    expect(source, isNot(contains('binance_market_data_client')));
     expect(source, isNot(contains('binance')));
     expect(source, isNot(contains('http')));
   });

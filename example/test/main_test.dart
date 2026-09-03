@@ -14,7 +14,7 @@ void main() {
       void Function(bool success, List<KLineEntity> data) callback,
     ) async {
       requestCount++;
-      expect(symbol, 'BTC-USDT');
+      expect(symbol, 'BTCUSDT');
       expect(timeType, '1m');
       expect(size, 100);
       callback(false, <KLineEntity>[]);
