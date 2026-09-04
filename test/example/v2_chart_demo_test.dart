@@ -83,7 +83,6 @@ void main() {
         isTrue,
       );
     }
-
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('secondary-indicator-rsi')),
       260,
@@ -208,6 +207,10 @@ void main() {
 
     await tester.ensureVisible(chartCanvas);
     await tester.pump();
+    expect(
+      find.textContaining('SUPERTREND(10,3)', findRichText: true),
+      findsOneWidget,
+    );
     final chartTopLeft = tester.getTopLeft(chartCanvas);
     final chartSize = tester.getSize(chartCanvas);
     await tester.tapAt(chartTopLeft + const Offset(100, 80));

@@ -932,6 +932,36 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     final entries = <_IndicatorLegendEntry>[];
     for (final indicator in snapshot.indicators) {
       if (indicator.panelId != panelId) continue;
+      if (indicator.definitionId ==
+          SuperTrendIndicatorDefinition.definitionId) {
+        final option = _indicatorOptionForInstance(indicator.instanceId);
+        final period = option?.parameters['period'] ?? 10;
+        final multiplier = option?.parameters['multiplier'] ?? 3;
+        final activeDescriptor = indicator.descriptor.series.firstWhere(
+          (descriptor) =>
+              indicator.seriesById(descriptor.id)!.values[dataIndex] != null,
+          orElse: () => indicator.descriptor.series.first,
+        );
+        final value =
+            indicator.seriesById(activeDescriptor.id)!.values[dataIndex];
+        entries.add(
+          _IndicatorLegendEntry(
+            label:
+                'SUPERTREND(${_formatIndicatorParameter(period)},${_formatIndicatorParameter(multiplier)})',
+            value: value,
+            color: _indicatorLegendColor(
+              snapshot,
+              indicator: indicator,
+              descriptor: activeDescriptor,
+              dataIndex: dataIndex,
+              value: value,
+            ),
+            labelColor: snapshot.theme.axisTextColor,
+            valueSeparator: ' ',
+          ),
+        );
+        continue;
+      }
       for (final descriptor in indicator.descriptor.series) {
         final value = indicator.seriesById(descriptor.id)!.values[dataIndex];
         entries.add(
@@ -950,6 +980,13 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       }
     }
     return entries;
+  }
+
+  _IndicatorOption? _indicatorOptionForInstance(String instanceId) {
+    for (final option in _indicators) {
+      if (instanceId == 'demo-${option.id}') return option;
+    }
+    return null;
   }
 
   Color _indicatorLegendColor(
@@ -2084,8 +2121,15 @@ class _PanelIndicatorLegend extends StatelessWidget {
         children: [
           for (final entry in entries) ...[
             TextSpan(
-              text: '${entry.label}: '
-                  '${entry.value == null ? '--' : valueFormatter(entry.value!)}',
+              text: '${entry.label}${entry.valueSeparator}',
+              style: TextStyle(
+                color: entry.labelColor ?? entry.color,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            TextSpan(
+              text: entry.value == null ? '--' : valueFormatter(entry.value!),
               style: TextStyle(
                 color: entry.color,
                 fontSize: 9.5,
@@ -2105,11 +2149,15 @@ final class _IndicatorLegendEntry {
     required this.label,
     required this.value,
     required this.color,
+    this.labelColor,
+    this.valueSeparator = ': ',
   });
 
   final String label;
   final double? value;
   final Color color;
+  final Color? labelColor;
+  final String valueSeparator;
 }
 
 class _IntermediateTimeAxis extends StatelessWidget {
@@ -2398,6 +2446,11 @@ String _formatUtcOffset(int totalMinutes) {
   return 'UTC$sign${hours.toString().padLeft(2, '0')}:'
       '${minutes.toString().padLeft(2, '0')}';
 }
+
+String _formatIndicatorParameter(num value) =>
+    value.toDouble() == value.toDouble().roundToDouble()
+        ? value.toInt().toString()
+        : value.toString();
 
 String _formatAxisTime(int epochMilliseconds, Duration timeZoneOffset) {
   final time = DateTime.fromMillisecondsSinceEpoch(
