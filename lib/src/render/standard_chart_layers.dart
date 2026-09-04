@@ -118,6 +118,16 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
       case ChartMainMode.hollowCandlestick:
       case ChartMainMode.ohlc:
       case ChartMainMode.heikinAshi:
+        _drawIndicators(
+          canvas: canvas,
+          snapshot: snapshot,
+          panelId: panel.spec.id,
+          bounds: panel.bounds,
+          window: window,
+          valueTransform: priceTransform,
+          cache: cache,
+          pass: _IndicatorPaintPass.area,
+        );
         _drawCandles(
           canvas: canvas,
           snapshot: snapshot,
@@ -133,6 +143,7 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
           window: window,
           valueTransform: priceTransform,
           cache: cache,
+          pass: _IndicatorPaintPass.series,
         );
       case ChartMainMode.line:
         _drawMainPriceSeries(
@@ -198,6 +209,7 @@ final class ChartSecondaryLayer<TTheme extends ChartRenderStyle>
         window: window,
         valueTransform: valueTransform,
         cache: cache,
+        pass: _IndicatorPaintPass.series,
       );
       context.canvas.restore();
     }
@@ -769,9 +781,11 @@ Path _buildLinePath({
   required VisibleIndexRange visible,
   required ChartXTransform xTransform,
   required ChartPriceTransform valueTransform,
+  required IndicatorLineStyle lineStyle,
 }) {
   final path = Path();
   var active = false;
+  double? previousY;
   for (var index = visible.start; index < visible.end; index++) {
     final value = series.values[index];
     if (value == null) {
@@ -780,13 +794,67 @@ Path _buildLinePath({
     }
     final x = xTransform.indexToLocalX(index);
     final y = valueTransform.priceToLocalY(value);
-    if (active) {
+    if (active && lineStyle == IndicatorLineStyle.stepped) {
+      path.lineTo(x, previousY!);
+      path.lineTo(x, y);
+    } else if (active) {
       path.lineTo(x, y);
     } else {
       path.moveTo(x, y);
       active = true;
     }
+    previousY = y;
   }
+  return path;
+}
+
+/// Builds independently closed areas between an indicator line and the
+/// matching candle closes. Null values deliberately end a run; this is what
+/// prevents a Supertrend reversal from filling diagonally across its two legs.
+Path _buildIndicatorAreaPath<TTheme extends ChartRenderStyle>({
+  required RenderSnapshot<TTheme> snapshot,
+  required IndicatorSeries series,
+  required VisibleIndexRange visible,
+  required ChartXTransform xTransform,
+  required ChartPriceTransform valueTransform,
+  required IndicatorLineStyle lineStyle,
+}) {
+  final path = Path();
+  var start = -1;
+
+  void closeRun(int end) {
+    if (start < 0 || start >= end) return;
+    final firstValue = series.values[start]!;
+    final firstX = xTransform.indexToLocalX(start);
+    var previousY = valueTransform.priceToLocalY(firstValue);
+    path.moveTo(firstX, previousY);
+    for (var index = start + 1; index < end; index++) {
+      final x = xTransform.indexToLocalX(index);
+      final y = valueTransform.priceToLocalY(series.values[index]!);
+      if (lineStyle == IndicatorLineStyle.stepped) {
+        path.lineTo(x, previousY);
+      }
+      path.lineTo(x, y);
+      previousY = y;
+    }
+    for (var index = end - 1; index >= start; index--) {
+      path.lineTo(
+        xTransform.indexToLocalX(index),
+        valueTransform.priceToLocalY(snapshot.data.data[index].close),
+      );
+    }
+    path.close();
+  }
+
+  for (var index = visible.start; index < visible.end; index++) {
+    if (series.values[index] != null) {
+      start = start < 0 ? index : start;
+    } else {
+      closeRun(index);
+      start = -1;
+    }
+  }
+  closeRun(visible.end);
   return path;
 }
 
@@ -951,6 +1019,8 @@ void _drawCandles<TTheme extends ChartRenderStyle>({
   }
 }
 
+enum _IndicatorPaintPass { area, series }
+
 void _drawIndicators<TTheme extends ChartRenderStyle>({
   required Canvas canvas,
   required RenderSnapshot<TTheme> snapshot,
@@ -959,6 +1029,7 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
   required ChartVisibleWindow window,
   required ChartPriceTransform valueTransform,
   required ChartRenderCache cache,
+  required _IndicatorPaintPass pass,
 }) {
   final visible = window.range;
   for (final indicator in snapshot.indicators) {
@@ -967,11 +1038,50 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
     }
     for (final descriptor in indicator.descriptor.series) {
       final series = indicator.seriesById(descriptor.id)!;
+      final seriesColor = snapshot.theme.indicatorColor(
+        indicator.instanceId,
+        descriptor.id,
+      );
+      if (pass == _IndicatorPaintPass.area) {
+        if (descriptor.drawingKind != IndicatorDrawingKind.line ||
+            descriptor.areaBaseline != IndicatorAreaBaseline.candleClose ||
+            descriptor.areaFillOpacity == 0) {
+          continue;
+        }
+        final areaPath = cache.path(
+          (
+            'indicator-area',
+            indicator.instanceId,
+            descriptor.id,
+            descriptor.lineStyle,
+            descriptor.areaBaseline,
+            descriptor.areaFillOpacity,
+            snapshot.data.version,
+            snapshot.versions.data,
+            snapshot.versions.viewport,
+            snapshot.versions.layout,
+            panelId,
+            valueTransform,
+          ),
+          () => _buildIndicatorAreaPath(
+            snapshot: snapshot,
+            series: series,
+            visible: visible,
+            xTransform: window.xTransform,
+            valueTransform: valueTransform,
+            lineStyle: descriptor.lineStyle,
+          ),
+        );
+        canvas.drawPath(
+          areaPath,
+          Paint()
+            ..color = seriesColor.withValues(alpha: descriptor.areaFillOpacity)
+            ..style = PaintingStyle.fill,
+        );
+        continue;
+      }
       final paint = Paint()
-        ..color = snapshot.theme.indicatorColor(
-          indicator.instanceId,
-          descriptor.id,
-        )
+        ..color = seriesColor
         ..strokeWidth = snapshot.theme.indicatorStrokeWidth
         ..style = PaintingStyle.stroke;
       switch (descriptor.drawingKind) {
@@ -986,12 +1096,14 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
               snapshot.versions.layout,
               panelId,
               valueTransform,
+              descriptor.lineStyle,
             ),
             () => _buildLinePath(
               series: series,
               visible: visible,
               xTransform: window.xTransform,
               valueTransform: valueTransform,
+              lineStyle: descriptor.lineStyle,
             ),
           );
           canvas.drawPath(path, paint);

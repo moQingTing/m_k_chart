@@ -90,9 +90,25 @@ final class SuperTrendIndicatorDefinition
   String get id => definitionId;
 
   @override
-  IndicatorRendererDescriptor get rendererDescriptor => _lines(
-        IndicatorPlacement.mainChart,
-        const [('up', 'SUPER↑'), ('down', 'SUPER↓')],
+  IndicatorRendererDescriptor get rendererDescriptor =>
+      IndicatorRendererDescriptor(
+        placement: IndicatorPlacement.mainChart,
+        series: [
+          IndicatorSeriesDescriptor(
+            id: 'up',
+            label: 'SUPER↑',
+            drawingKind: IndicatorDrawingKind.line,
+            lineStyle: IndicatorLineStyle.stepped,
+            areaBaseline: IndicatorAreaBaseline.candleClose,
+          ),
+          IndicatorSeriesDescriptor(
+            id: 'down',
+            label: 'SUPER↓',
+            drawingKind: IndicatorDrawingKind.line,
+            lineStyle: IndicatorLineStyle.stepped,
+            areaBaseline: IndicatorAreaBaseline.candleClose,
+          ),
+        ],
       );
 
   @override

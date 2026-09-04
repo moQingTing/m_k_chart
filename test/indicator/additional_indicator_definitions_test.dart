@@ -50,6 +50,17 @@ void main() {
             .map((item) => item.id),
         ['up', 'down'],
       );
+      final superDescriptor = registry
+          .find(SuperTrendIndicatorDefinition.definitionId)!
+          .rendererDescriptor;
+      expect(
+        superDescriptor.series.map((item) => item.lineStyle),
+        everyElement(IndicatorLineStyle.stepped),
+      );
+      expect(
+        superDescriptor.series.map((item) => item.areaBaseline),
+        everyElement(IndicatorAreaBaseline.candleClose),
+      );
 
       final allBuiltIns = IndicatorRegistry();
       registerBuiltInIndicatorDefinitions(allBuiltIns);

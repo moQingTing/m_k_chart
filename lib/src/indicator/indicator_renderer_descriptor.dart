@@ -14,6 +14,21 @@ enum IndicatorHistogramStyle {
   valueTrend,
 }
 
+/// The geometry used to connect adjacent values in a line series.
+enum IndicatorLineStyle {
+  straight,
+  stepped,
+}
+
+/// Optional lower/upper boundary used to create an area behind a line series.
+///
+/// [candleClose] is intended for price overlays such as Supertrend.  Each
+/// contiguous run is closed against the corresponding K-line close values.
+enum IndicatorAreaBaseline {
+  none,
+  candleClose,
+}
+
 /// Renderer-neutral description of one calculated series.
 final class IndicatorSeriesDescriptor {
   IndicatorSeriesDescriptor({
@@ -23,6 +38,9 @@ final class IndicatorSeriesDescriptor {
     this.includeInRange = true,
     this.colorStrategy = IndicatorColorStrategy.series,
     this.histogramStyle = IndicatorHistogramStyle.solid,
+    this.lineStyle = IndicatorLineStyle.straight,
+    this.areaBaseline = IndicatorAreaBaseline.none,
+    this.areaFillOpacity = 0.14,
   }) {
     _requireDescriptorText(id, 'id');
     _requireDescriptorText(label, 'label');
@@ -36,6 +54,25 @@ final class IndicatorSeriesDescriptor {
         'Only histogram Series can use a non-solid histogram style.',
       );
     }
+    if (drawingKind != IndicatorDrawingKind.line &&
+        lineStyle != IndicatorLineStyle.straight) {
+      throw ArgumentError(
+        'Only line Series can use a non-straight line style.',
+      );
+    }
+    if (drawingKind != IndicatorDrawingKind.line &&
+        areaBaseline != IndicatorAreaBaseline.none) {
+      throw ArgumentError('Only line Series can use an area baseline.');
+    }
+    if (!areaFillOpacity.isFinite ||
+        areaFillOpacity < 0 ||
+        areaFillOpacity > 1) {
+      throw ArgumentError.value(
+        areaFillOpacity,
+        'areaFillOpacity',
+        'Must be a finite value between 0 and 1.',
+      );
+    }
   }
 
   final String id;
@@ -44,6 +81,9 @@ final class IndicatorSeriesDescriptor {
   final bool includeInRange;
   final IndicatorColorStrategy colorStrategy;
   final IndicatorHistogramStyle histogramStyle;
+  final IndicatorLineStyle lineStyle;
+  final IndicatorAreaBaseline areaBaseline;
+  final double areaFillOpacity;
 }
 
 /// Declarative drawing contract. It deliberately contains no Canvas or Color.

@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/src/indicator/indicator.dart';
 import 'package:m_k_chart/src/model/model.dart';
+import 'package:m_k_chart/src/render/chart_layer_geometry.dart';
 import 'package:m_k_chart/src/render/render.dart';
 import 'package:m_k_chart/src/theme/theme.dart';
 import 'package:m_k_chart/src/viewport/viewport.dart';
@@ -227,6 +228,81 @@ void main() {
         fixture.style.downColor,
       ),
       isTrue,
+    );
+  });
+
+  test('main Layer fills stepped indicator runs behind candle bodies',
+      () async {
+    final fixture = _fixture();
+    final filledTrend = RenderIndicatorSnapshot.fromResult(
+      result: IndicatorResult(
+        instanceId: 'test-super',
+        definitionId: 'test.super',
+        dataVersion: fixture.data.version,
+        length: fixture.data.data.length,
+        series: [
+          IndicatorSeries(
+            id: 'trend',
+            values: const [109, 109, 109, null, null, null],
+          ),
+        ],
+      ),
+      descriptor: IndicatorRendererDescriptor(
+        placement: IndicatorPlacement.mainChart,
+        series: [
+          IndicatorSeriesDescriptor(
+            id: 'trend',
+            label: '趋势',
+            drawingKind: IndicatorDrawingKind.line,
+            lineStyle: IndicatorLineStyle.stepped,
+            areaBaseline: IndicatorAreaBaseline.candleClose,
+            areaFillOpacity: 0.4,
+          ),
+        ],
+      ),
+      panelId: 'main',
+    );
+    final snapshot = fixture.snapshotWithIndicators([filledTrend]);
+    final pixels = await _paint(
+      snapshot,
+      [ChartMainLayer<DefaultChartRenderStyle>(cache)],
+    );
+    final transform = ChartLayerGeometry.rangeFor(snapshot, 'main')
+        .transform(fixture.layout.mainPanel.bounds);
+    final window = cache.windowFor(snapshot);
+    final firstX = window.xTransform.indexToLocalX(0);
+    final secondX = window.xTransform.indexToLocalX(1);
+    final areaProbe = Offset(
+      (firstX + secondX) / 2,
+      transform.priceToLocalY(106),
+    );
+    final candleProbe = Offset(firstX, transform.priceToLocalY(102));
+
+    final fillPixel = _pixel(
+      pixels,
+      fixture.width,
+      areaProbe.dx.round(),
+      areaProbe.dy.round(),
+    ).toARGB32();
+    expect(
+      (fillPixel >> 24) & 0xff,
+      greaterThan(0),
+      reason: '趋势线与收盘价之间应填充同色半透明区域。',
+    );
+    expect(
+      (fillPixel & 0xff) > ((fillPixel >> 16) & 0xff),
+      isTrue,
+      reason: '透明区域应使用指标的系列颜色。',
+    );
+    expect(
+      _hasColor(
+        pixels,
+        fixture.width,
+        Rect.fromCenter(center: candleProbe, width: 3, height: 3),
+        fixture.style.upColor,
+      ),
+      isTrue,
+      reason: '透明趋势区域必须绘制在 K 线下方，不能覆盖蜡烛实体。',
     );
   });
 
@@ -968,6 +1044,11 @@ final class _Fixture {
   ) =>
       _snapshot(viewport: viewport);
 
+  RenderSnapshot<DefaultChartRenderStyle> snapshotWithIndicators(
+    Iterable<RenderIndicatorSnapshot> indicators,
+  ) =>
+      _snapshot(indicators: indicators);
+
   RenderSnapshot<DefaultChartRenderStyle> snapshotWithOverlays({
     Iterable<ChartPriceLine> priceLines = const [],
     Iterable<ChartEventOverlay> eventOverlays = const [],
@@ -985,6 +1066,7 @@ final class _Fixture {
     Iterable<ChartPriceLine> priceLines = const [],
     Iterable<ChartEventOverlay> eventOverlays = const [],
     Iterable<ChartValueMarker> valueMarkers = const [],
+    Iterable<RenderIndicatorSnapshot>? indicators,
     ChartMainMode mainMode = ChartMainMode.candlestick,
     ChartViewport? viewport,
   }) =>
@@ -994,7 +1076,7 @@ final class _Fixture {
         layout: layout,
         theme: style,
         versions: const RenderSnapshotVersions(),
-        indicators: indicators,
+        indicators: indicators ?? this.indicators,
         selection: selection,
         drawings: drawings,
         priceLines: priceLines,

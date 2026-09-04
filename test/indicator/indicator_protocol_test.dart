@@ -96,6 +96,24 @@ void main() {
       );
       expect(
         () => IndicatorSeriesDescriptor(
+          id: 'bars',
+          label: 'Bars',
+          drawingKind: IndicatorDrawingKind.histogram,
+          areaBaseline: IndicatorAreaBaseline.candleClose,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => IndicatorSeriesDescriptor(
+          id: 'line',
+          label: 'Line',
+          drawingKind: IndicatorDrawingKind.line,
+          areaFillOpacity: 1.1,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => IndicatorSeriesDescriptor(
           id: 'point',
           label: 'Point',
           drawingKind: IndicatorDrawingKind.points,

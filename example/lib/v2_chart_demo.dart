@@ -182,6 +182,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     upColor: const Color(0xff0b9b69),
     downColor: const Color(0xffd93d56),
   ).copyWith(
+    indicatorColors: const {
+      'demo-super:up': Color(0xff0b9b69),
+      'demo-super:down': Color(0xffd93d56),
+    },
     gridStrokeWidth: 0.5,
     dataStrokeWidth: 0.8,
     mainLineStrokeWidth: 1,
