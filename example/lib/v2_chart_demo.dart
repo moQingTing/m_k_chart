@@ -186,6 +186,14 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       'demo-super:up': Color(0xff0b9b69),
       'demo-super:down': Color(0xffd93d56),
     },
+    indicatorLineWidths: const {
+      'demo-super:up': 0.8,
+      'demo-super:down': 0.8,
+    },
+    indicatorAreaFillOpacities: const {
+      'demo-super:up': 0.3,
+      'demo-super:down': 0.3,
+    },
     gridStrokeWidth: 0.5,
     dataStrokeWidth: 0.8,
     mainLineStrokeWidth: 1,

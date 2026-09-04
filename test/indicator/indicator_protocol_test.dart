@@ -96,6 +96,15 @@ void main() {
       );
       expect(
         () => IndicatorSeriesDescriptor(
+          id: 'line',
+          label: 'Line',
+          drawingKind: IndicatorDrawingKind.line,
+          lineStrokeWidthMultiplier: 0,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => IndicatorSeriesDescriptor(
           id: 'bars',
           label: 'Bars',
           drawingKind: IndicatorDrawingKind.histogram,

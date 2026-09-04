@@ -61,6 +61,14 @@ void main() {
         superDescriptor.series.map((item) => item.areaBaseline),
         everyElement(IndicatorAreaBaseline.candleClose),
       );
+      expect(
+        superDescriptor.series.map((item) => item.lineStrokeWidthMultiplier),
+        everyElement(0.8),
+      );
+      expect(
+        superDescriptor.series.map((item) => item.areaFillOpacity),
+        everyElement(0.3),
+      );
 
       final allBuiltIns = IndicatorRegistry();
       registerBuiltInIndicatorDefinitions(allBuiltIns);

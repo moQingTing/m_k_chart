@@ -99,14 +99,18 @@ final class SuperTrendIndicatorDefinition
             label: 'SUPER↑',
             drawingKind: IndicatorDrawingKind.line,
             lineStyle: IndicatorLineStyle.stepped,
+            lineStrokeWidthMultiplier: 0.8,
             areaBaseline: IndicatorAreaBaseline.candleClose,
+            areaFillOpacity: 0.3,
           ),
           IndicatorSeriesDescriptor(
             id: 'down',
             label: 'SUPER↓',
             drawingKind: IndicatorDrawingKind.line,
             lineStyle: IndicatorLineStyle.stepped,
+            lineStrokeWidthMultiplier: 0.8,
             areaBaseline: IndicatorAreaBaseline.candleClose,
+            areaFillOpacity: 0.3,
           ),
         ],
       );

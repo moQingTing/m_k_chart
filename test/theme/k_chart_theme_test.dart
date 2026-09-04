@@ -47,6 +47,23 @@ void main() {
     );
   });
 
+  test('KChartTheme resolves per-series line width and area opacity', () {
+    final theme = KChartTheme(
+      indicatorLineWidths: const {'demo-super:up': 0.8},
+      indicatorAreaFillOpacities: const {'demo-super:up': 0.3},
+    );
+
+    expect(theme.indicatorStrokeWidthFor('demo-super', 'up', 1.5), 0.8);
+    expect(theme.indicatorStrokeWidthFor('other', 'line', 1.5), 1.5);
+    expect(theme.indicatorAreaFillOpacityFor('demo-super', 'up', 0.14), 0.3);
+    expect(theme.indicatorAreaFillOpacityFor('other', 'line', 0.14), 0.14);
+    expect(() => theme.indicatorLineWidths.clear(), throwsUnsupportedError);
+    expect(
+      () => KChartTheme(indicatorAreaFillOpacities: const {'super:up': 1.1}),
+      throwsArgumentError,
+    );
+  });
+
   test('KChartTheme formats main and secondary values independently', () {
     final defaults = KChartTheme.light();
     expect(defaults.formatMainValue(1234567.891), '1,234,567.89');

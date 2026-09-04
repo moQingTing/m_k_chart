@@ -39,6 +39,7 @@ final class IndicatorSeriesDescriptor {
     this.colorStrategy = IndicatorColorStrategy.series,
     this.histogramStyle = IndicatorHistogramStyle.solid,
     this.lineStyle = IndicatorLineStyle.straight,
+    this.lineStrokeWidthMultiplier = 1,
     this.areaBaseline = IndicatorAreaBaseline.none,
     this.areaFillOpacity = 0.14,
   }) {
@@ -64,6 +65,13 @@ final class IndicatorSeriesDescriptor {
         areaBaseline != IndicatorAreaBaseline.none) {
       throw ArgumentError('Only line Series can use an area baseline.');
     }
+    if (!lineStrokeWidthMultiplier.isFinite || lineStrokeWidthMultiplier <= 0) {
+      throw ArgumentError.value(
+        lineStrokeWidthMultiplier,
+        'lineStrokeWidthMultiplier',
+        'Must be finite and positive.',
+      );
+    }
     if (!areaFillOpacity.isFinite ||
         areaFillOpacity < 0 ||
         areaFillOpacity > 1) {
@@ -82,6 +90,10 @@ final class IndicatorSeriesDescriptor {
   final IndicatorColorStrategy colorStrategy;
   final IndicatorHistogramStyle histogramStyle;
   final IndicatorLineStyle lineStyle;
+
+  /// Multiplies the theme default line width unless the theme overrides this
+  /// particular `instanceId:seriesId` with an absolute width.
+  final double lineStrokeWidthMultiplier;
   final IndicatorAreaBaseline areaBaseline;
   final double areaFillOpacity;
 }

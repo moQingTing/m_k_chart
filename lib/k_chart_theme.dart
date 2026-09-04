@@ -37,6 +37,8 @@ final class KChartTheme implements ChartRenderStyle {
       Color(0xffff8f00),
     ],
     Map<String, Color> indicatorColors = const {},
+    Map<String, double> indicatorLineWidths = const {},
+    Map<String, double> indicatorAreaFillOpacities = const {},
     double gridStrokeWidth = 1,
     double dataStrokeWidth = 1,
     double mainLineStrokeWidth = 1.5,
@@ -61,6 +63,9 @@ final class KChartTheme implements ChartRenderStyle {
     final palette = List<Color>.unmodifiable(indicatorPalette);
     final fillColors = List<Color>.unmodifiable(areaFillColors);
     final colors = Map<String, Color>.unmodifiable(indicatorColors);
+    final lineWidths = Map<String, double>.unmodifiable(indicatorLineWidths);
+    final areaFillOpacities =
+        Map<String, double>.unmodifiable(indicatorAreaFillOpacities);
     if (palette.isEmpty) {
       throw ArgumentError('indicatorPalette must not be empty.');
     }
@@ -110,6 +115,8 @@ final class KChartTheme implements ChartRenderStyle {
         );
       }
     }
+    _validateIndicatorLineWidths(lineWidths);
+    _validateIndicatorAreaFillOpacities(areaFillOpacities);
     _validateDecimalPlaces(
       mainValueDecimalPlaces,
       'mainValueDecimalPlaces',
@@ -136,6 +143,8 @@ final class KChartTheme implements ChartRenderStyle {
       areaFillColors: fillColors,
       indicatorPalette: palette,
       indicatorColors: colors,
+      indicatorLineWidths: lineWidths,
+      indicatorAreaFillOpacities: areaFillOpacities,
       gridStrokeWidth: gridStrokeWidth,
       dataStrokeWidth: dataStrokeWidth,
       mainLineStrokeWidth: mainLineStrokeWidth,
@@ -177,6 +186,8 @@ final class KChartTheme implements ChartRenderStyle {
     required this.areaFillColors,
     required this.indicatorPalette,
     required this.indicatorColors,
+    required this.indicatorLineWidths,
+    required this.indicatorAreaFillOpacities,
     required this.gridStrokeWidth,
     required this.dataStrokeWidth,
     required this.mainLineStrokeWidth,
@@ -286,6 +297,15 @@ final class KChartTheme implements ChartRenderStyle {
   /// Entries take precedence over [indicatorPalette]; unspecified series use
   /// the stable palette hash so adding another series does not recolor peers.
   final Map<String, Color> indicatorColors;
+
+  /// Absolute line widths keyed as `instanceId:seriesId`.
+  ///
+  /// Entries override that series' descriptor/theme default without affecting
+  /// other indicators.
+  final Map<String, double> indicatorLineWidths;
+
+  /// Area alpha values keyed as `instanceId:seriesId`, each in `[0, 1]`.
+  final Map<String, double> indicatorAreaFillOpacities;
   @override
   final double gridStrokeWidth;
   @override
@@ -359,6 +379,8 @@ final class KChartTheme implements ChartRenderStyle {
     Iterable<Color>? areaFillColors,
     Iterable<Color>? indicatorPalette,
     Map<String, Color>? indicatorColors,
+    Map<String, double>? indicatorLineWidths,
+    Map<String, double>? indicatorAreaFillOpacities,
     double? gridStrokeWidth,
     double? dataStrokeWidth,
     double? mainLineStrokeWidth,
@@ -405,6 +427,9 @@ final class KChartTheme implements ChartRenderStyle {
         areaFillColors: areaFillColors ?? this.areaFillColors,
         indicatorPalette: indicatorPalette ?? this.indicatorPalette,
         indicatorColors: indicatorColors ?? this.indicatorColors,
+        indicatorLineWidths: indicatorLineWidths ?? this.indicatorLineWidths,
+        indicatorAreaFillOpacities:
+            indicatorAreaFillOpacities ?? this.indicatorAreaFillOpacities,
         gridStrokeWidth: gridStrokeWidth ?? this.gridStrokeWidth,
         dataStrokeWidth: dataStrokeWidth ?? this.dataStrokeWidth,
         mainLineStrokeWidth: mainLineStrokeWidth ?? this.mainLineStrokeWidth,
@@ -445,6 +470,22 @@ final class KChartTheme implements ChartRenderStyle {
           _stableIndex(instanceId, seriesId, indicatorPalette.length)];
 
   @override
+  double indicatorStrokeWidthFor(
+    String instanceId,
+    String seriesId,
+    double defaultWidth,
+  ) =>
+      indicatorLineWidths['$instanceId:$seriesId'] ?? defaultWidth;
+
+  @override
+  double indicatorAreaFillOpacityFor(
+    String instanceId,
+    String seriesId,
+    double defaultOpacity,
+  ) =>
+      indicatorAreaFillOpacities['$instanceId:$seriesId'] ?? defaultOpacity;
+
+  @override
   String formatMainValue(double value) =>
       mainValueFormatter?.call(value, mainValueDecimalPlaces) ??
       formatChartValue(
@@ -482,6 +523,8 @@ final class KChartTheme implements ChartRenderStyle {
       _sameList(areaFillColors, other.areaFillColors) &&
       _sameList(indicatorPalette, other.indicatorPalette) &&
       _sameMap(indicatorColors, other.indicatorColors) &&
+      _sameMap(indicatorLineWidths, other.indicatorLineWidths) &&
+      _sameMap(indicatorAreaFillOpacities, other.indicatorAreaFillOpacities) &&
       gridStrokeWidth == other.gridStrokeWidth &&
       dataStrokeWidth == other.dataStrokeWidth &&
       mainLineStrokeWidth == other.mainLineStrokeWidth &&
@@ -528,6 +571,16 @@ final class KChartTheme implements ChartRenderStyle {
             (entry) => Object.hash(entry.key, entry.value),
           ),
         ),
+        Object.hashAllUnordered(
+          indicatorLineWidths.entries.map(
+            (entry) => Object.hash(entry.key, entry.value),
+          ),
+        ),
+        Object.hashAllUnordered(
+          indicatorAreaFillOpacities.entries.map(
+            (entry) => Object.hash(entry.key, entry.value),
+          ),
+        ),
         gridStrokeWidth,
         dataStrokeWidth,
         mainLineStrokeWidth,
@@ -549,6 +602,33 @@ final class KChartTheme implements ChartRenderStyle {
         mainValueFormatter,
         secondaryValueFormatter,
       ]);
+}
+
+void _validateIndicatorLineWidths(Map<String, double> values) {
+  for (final entry in values.entries) {
+    if (entry.key.trim().isEmpty || !entry.value.isFinite || entry.value <= 0) {
+      throw ArgumentError.value(
+        entry.value,
+        'indicatorLineWidths',
+        'Keys must not be empty and widths must be finite and positive.',
+      );
+    }
+  }
+}
+
+void _validateIndicatorAreaFillOpacities(Map<String, double> values) {
+  for (final entry in values.entries) {
+    if (entry.key.trim().isEmpty ||
+        !entry.value.isFinite ||
+        entry.value < 0 ||
+        entry.value > 1) {
+      throw ArgumentError.value(
+        entry.value,
+        'indicatorAreaFillOpacities',
+        'Keys must not be empty and opacities must be between 0 and 1.',
+      );
+    }
+  }
 }
 
 void _validateDecimalPlaces(int value, String name) {

@@ -1043,9 +1043,14 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
         descriptor.id,
       );
       if (pass == _IndicatorPaintPass.area) {
+        final fillOpacity = snapshot.theme.indicatorAreaFillOpacityFor(
+          indicator.instanceId,
+          descriptor.id,
+          descriptor.areaFillOpacity,
+        );
         if (descriptor.drawingKind != IndicatorDrawingKind.line ||
             descriptor.areaBaseline != IndicatorAreaBaseline.candleClose ||
-            descriptor.areaFillOpacity == 0) {
+            fillOpacity == 0) {
           continue;
         }
         final areaPath = cache.path(
@@ -1075,14 +1080,19 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
         canvas.drawPath(
           areaPath,
           Paint()
-            ..color = seriesColor.withValues(alpha: descriptor.areaFillOpacity)
+            ..color = seriesColor.withValues(alpha: fillOpacity)
             ..style = PaintingStyle.fill,
         );
         continue;
       }
       final paint = Paint()
         ..color = seriesColor
-        ..strokeWidth = snapshot.theme.indicatorStrokeWidth
+        ..strokeWidth = snapshot.theme.indicatorStrokeWidthFor(
+          indicator.instanceId,
+          descriptor.id,
+          snapshot.theme.indicatorStrokeWidth *
+              descriptor.lineStrokeWidthMultiplier,
+        )
         ..style = PaintingStyle.stroke;
       switch (descriptor.drawingKind) {
         case IndicatorDrawingKind.line:

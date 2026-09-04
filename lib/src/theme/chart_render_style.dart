@@ -36,6 +36,16 @@ abstract interface class ChartRenderStyle {
   double get indicatorPointRadius;
 
   Color indicatorColor(String instanceId, String seriesId);
+  double indicatorStrokeWidthFor(
+    String instanceId,
+    String seriesId,
+    double defaultWidth,
+  );
+  double indicatorAreaFillOpacityFor(
+    String instanceId,
+    String seriesId,
+    double defaultOpacity,
+  );
   String formatMainValue(double value);
   String formatSecondaryValue(double value);
 }
@@ -295,6 +305,22 @@ final class DefaultChartRenderStyle implements ChartRenderStyle {
     }
     return indicatorPalette[hash % indicatorPalette.length];
   }
+
+  @override
+  double indicatorStrokeWidthFor(
+    String instanceId,
+    String seriesId,
+    double defaultWidth,
+  ) =>
+      defaultWidth;
+
+  @override
+  double indicatorAreaFillOpacityFor(
+    String instanceId,
+    String seriesId,
+    double defaultOpacity,
+  ) =>
+      defaultOpacity;
 
   @override
   String formatMainValue(double value) =>
