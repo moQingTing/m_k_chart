@@ -26,7 +26,7 @@ void registerLegacyIndicatorDefinitions(IndicatorRegistry registry) {
 final class MovingAverageIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.ma';
-  static const _periods = [5, 10, 20, 30];
+  static const _defaultPeriods = [5, 10, 20, 30];
 
   @override
   String get id => definitionId;
@@ -47,11 +47,13 @@ final class MovingAverageIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
+    final periods = _configuredPeriods(config, _defaultPeriods);
     final output = <IndicatorSeries>[];
-    for (final period in _periods) {
+    for (var index = 0; index < periods.length; index++) {
+      final period = periods[index];
       output.add(
         IndicatorSeries(
-          id: 'ma$period',
+          id: 'ma${_defaultPeriods[index]}',
           values: _simpleMovingAverage(
             input.data.map((item) => item.close).toList(growable: false),
             period,
@@ -73,9 +75,11 @@ final class MovingAverageIndicatorDefinition
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
+    final periods = _configuredPeriods(config, _defaultPeriods);
     final output = <IndicatorSeries>[];
-    for (final period in _periods) {
-      final id = 'ma$period';
+    for (var outputIndex = 0; outputIndex < periods.length; outputIndex++) {
+      final period = periods[outputIndex];
+      final id = 'ma${_defaultPeriods[outputIndex]}';
       final values =
           _resize(previous.seriesById(id)!.values, input.data.length);
       final end = math.min(
@@ -96,7 +100,7 @@ final class MovingAverageIndicatorDefinition
 final class ExponentialMovingAverageIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.ema';
-  static const _periods = [5, 10, 30];
+  static const _defaultPeriods = [5, 10, 30];
 
   @override
   String get id => definitionId;
@@ -112,8 +116,10 @@ final class ExponentialMovingAverageIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
+    final periods = _configuredPeriods(config, _defaultPeriods);
     final output = <IndicatorSeries>[];
-    for (final period in _periods) {
+    for (var outputIndex = 0; outputIndex < periods.length; outputIndex++) {
+      final period = periods[outputIndex];
       final values = List<double?>.filled(input.data.length, null);
       var ema = 0.0;
       final multiplier = 2.0 / (period + 1);
@@ -123,7 +129,10 @@ final class ExponentialMovingAverageIndicatorDefinition
         values[index] = ema;
       }
       output.add(
-        IndicatorSeries.takeOwnership(id: 'ema$period', values: values),
+        IndicatorSeries.takeOwnership(
+          id: 'ema${_defaultPeriods[outputIndex]}',
+          values: values,
+        ),
       );
     }
     return _result(this, input, config, output);
@@ -140,9 +149,11 @@ final class ExponentialMovingAverageIndicatorDefinition
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
+    final periods = _configuredPeriods(config, _defaultPeriods);
     final output = <IndicatorSeries>[];
-    for (final period in _periods) {
-      final id = 'ema$period';
+    for (var outputIndex = 0; outputIndex < periods.length; outputIndex++) {
+      final period = periods[outputIndex];
+      final id = 'ema${_defaultPeriods[outputIndex]}';
       final values =
           _resize(previous.seriesById(id)!.values, input.data.length);
       final multiplier = 2.0 / (period + 1);
@@ -510,12 +521,20 @@ final class VolumeIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
+    final fastPeriod = _positiveInt(config, 'fastPeriod', 5);
+    final slowPeriod = _positiveInt(config, 'slowPeriod', 10);
     final volumes =
         input.data.map((item) => item.baseVolume).toList(growable: false);
     return _result(this, input, config, [
       IndicatorSeries(id: 'volume', values: volumes),
-      IndicatorSeries(id: 'ma5', values: _simpleMovingAverage(volumes, 5)),
-      IndicatorSeries(id: 'ma10', values: _simpleMovingAverage(volumes, 10)),
+      IndicatorSeries(
+        id: 'ma5',
+        values: _simpleMovingAverage(volumes, fastPeriod),
+      ),
+      IndicatorSeries(
+        id: 'ma10',
+        values: _simpleMovingAverage(volumes, slowPeriod),
+      ),
     ]);
   }
 
@@ -530,18 +549,25 @@ final class VolumeIndicatorDefinition
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
+    final fastPeriod = _positiveInt(config, 'fastPeriod', 5);
+    final slowPeriod = _positiveInt(config, 'slowPeriod', 10);
     final volume =
         _resize(previous.seriesById('volume')!.values, input.data.length);
     final ma5 = _resize(previous.seriesById('ma5')!.values, input.data.length);
     final ma10 =
         _resize(previous.seriesById('ma10')!.values, input.data.length);
-    final end = math.min(input.data.length, change.currentEnd + 9);
+    final end = math.min(
+      input.data.length,
+      change.currentEnd + math.max(fastPeriod, slowPeriod) - 1,
+    );
     for (var index = change.currentStart; index < end; index++) {
       volume[index] = input.data[index].baseVolume;
-      ma5[index] =
-          index < 4 ? null : _averageVolume(input.data, index - 4, index);
-      ma10[index] =
-          index < 9 ? null : _averageVolume(input.data, index - 9, index);
+      ma5[index] = index < fastPeriod - 1
+          ? null
+          : _averageVolume(input.data, index - fastPeriod + 1, index);
+      ma10[index] = index < slowPeriod - 1
+          ? null
+          : _averageVolume(input.data, index - slowPeriod + 1, index);
     }
     return _result(this, input, config, [
       IndicatorSeries.takeOwnership(id: 'volume', values: volume),
@@ -588,23 +614,26 @@ final class MacdIndicatorDefinition implements IncrementalIndicatorDefinition {
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
+    final fastPeriod = _positiveInt(config, 'fastPeriod', 12);
+    final slowPeriod = _positiveInt(config, 'slowPeriod', 26);
+    final signalPeriod = _positiveInt(config, 'signalPeriod', 9);
     final macd = List<double?>.filled(input.data.length, null);
     final difValues = List<double?>.filled(input.data.length, null);
     final deaValues = List<double?>.filled(input.data.length, null);
-    var ema12 = 0.0;
-    var ema26 = 0.0;
+    var fastEma = 0.0;
+    var slowEma = 0.0;
     var dea = 0.0;
     for (var index = 0; index < input.data.length; index++) {
       final close = input.data[index].close;
       if (index == 0) {
-        ema12 = close;
-        ema26 = close;
+        fastEma = close;
+        slowEma = close;
       } else {
-        ema12 = ema12 * 11 / 13 + close * 2 / 13;
-        ema26 = ema26 * 25 / 27 + close * 2 / 27;
+        fastEma = _nextEma(fastEma, close, fastPeriod);
+        slowEma = _nextEma(slowEma, close, slowPeriod);
       }
-      final dif = ema12 - ema26;
-      dea = dea * 8 / 10 + dif * 2 / 10;
+      final dif = fastEma - slowEma;
+      dea = _nextEma(dea, dif, signalPeriod);
       difValues[index] = dif;
       deaValues[index] = dea;
       macd[index] = (dif - dea) * 2;
@@ -621,8 +650,8 @@ final class MacdIndicatorDefinition implements IncrementalIndicatorDefinition {
       computationState: IndicatorComputationState(
         length: input.data.length,
         series: [
-          IndicatorSeries(id: 'ema12', values: _ema(input.data, 12)),
-          IndicatorSeries(id: 'ema26', values: _ema(input.data, 26)),
+          IndicatorSeries(id: 'ema12', values: _ema(input.data, fastPeriod)),
+          IndicatorSeries(id: 'ema26', values: _ema(input.data, slowPeriod)),
         ],
       ),
     );
@@ -639,6 +668,9 @@ final class MacdIndicatorDefinition implements IncrementalIndicatorDefinition {
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
+    final fastPeriod = _positiveInt(config, 'fastPeriod', 12);
+    final slowPeriod = _positiveInt(config, 'slowPeriod', 26);
+    final signalPeriod = _positiveInt(config, 'signalPeriod', 9);
     final macd =
         _resize(previous.seriesById('macd')!.values, input.data.length);
     final difValues =
@@ -659,12 +691,15 @@ final class MacdIndicatorDefinition implements IncrementalIndicatorDefinition {
         ema12[index] = close;
         ema26[index] = close;
       } else {
-        ema12[index] = ema12[index - 1]! * 11 / 13 + close * 2 / 13;
-        ema26[index] = ema26[index - 1]! * 25 / 27 + close * 2 / 27;
+        ema12[index] = _nextEma(ema12[index - 1]!, close, fastPeriod);
+        ema26[index] = _nextEma(ema26[index - 1]!, close, slowPeriod);
       }
       final dif = ema12[index]! - ema26[index]!;
-      final dea =
-          (index == 0 ? 0 : deaValues[index - 1]!) * 8 / 10 + dif * 2 / 10;
+      final dea = _nextEma(
+        index == 0 ? 0 : deaValues[index - 1]!,
+        dif,
+        signalPeriod,
+      );
       difValues[index] = dif;
       deaValues[index] = dea;
       macd[index] = (dif - dea) * 2;
@@ -707,6 +742,8 @@ final class KdjIndicatorDefinition implements IncrementalIndicatorDefinition {
     IndicatorConfig config,
   ) {
     final period = _positiveInt(config, 'period', 14);
+    final kSmoothing = _positiveInt(config, 'kSmoothing', 3);
+    final dSmoothing = _positiveInt(config, 'dSmoothing', 3);
     final kValues = List<double?>.filled(input.data.length, null);
     final dValues = List<double?>.filled(input.data.length, null);
     final jValues = List<double?>.filled(input.data.length, null);
@@ -729,8 +766,8 @@ final class KdjIndicatorDefinition implements IncrementalIndicatorDefinition {
         k = 50;
         d = 50;
       } else {
-        k = (rsv + 2 * k) / 3;
-        d = (k + 2 * d) / 3;
+        k = _smoothed(rsv, k, kSmoothing);
+        d = _smoothed(k, d, dSmoothing);
       }
       if (index >= period - 1) {
         kValues[index] = k;
@@ -773,6 +810,8 @@ final class KdjIndicatorDefinition implements IncrementalIndicatorDefinition {
     IndicatorDataChange change,
   ) {
     final period = _positiveInt(config, 'period', 14);
+    final kSmoothing = _positiveInt(config, 'kSmoothing', 3);
+    final dSmoothing = _positiveInt(config, 'dSmoothing', 3);
     final kValues =
         _resize(previous.seriesById('k')!.values, input.data.length);
     final dValues =
@@ -798,8 +837,9 @@ final class KdjIndicatorDefinition implements IncrementalIndicatorDefinition {
       final range = highest - lowest;
       final rsv =
           range == 0 ? 0.0 : 100 * (input.data[index].close - lowest) / range;
-      final k = index == 0 ? 50.0 : (rsv + 2 * rawK[index - 1]!) / 3;
-      final d = index == 0 ? 50.0 : (k + 2 * rawD[index - 1]!) / 3;
+      final k =
+          index == 0 ? 50.0 : _smoothed(rsv, rawK[index - 1]!, kSmoothing);
+      final d = index == 0 ? 50.0 : _smoothed(k, rawD[index - 1]!, dSmoothing);
       rawK[index] = k;
       rawD[index] = d;
       kValues[index] = index >= period - 1 ? k : null;
@@ -1198,6 +1238,19 @@ List<double?> _simpleMovingAverage(List<double> values, int period) {
   }
   return result;
 }
+
+List<int> _configuredPeriods(IndicatorConfig config, List<int> defaults) => [
+      for (var index = 0; index < defaults.length; index++)
+        _positiveInt(config, 'period${index + 1}', defaults[index]),
+    ];
+
+double _nextEma(double previous, double value, int period) {
+  final multiplier = 2 / (period + 1);
+  return previous * (1 - multiplier) + value * multiplier;
+}
+
+double _smoothed(double value, double previous, int period) =>
+    (value + (period - 1) * previous) / period;
 
 int _positiveInt(IndicatorConfig config, String key, int defaultValue) {
   final value = config.parameter(key) ?? defaultValue;

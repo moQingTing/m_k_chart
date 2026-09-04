@@ -142,6 +142,85 @@ void main() {
       expect(_value(results, 'obv', 'ma', 9), isNull);
     });
 
+    test('accepts configurable periods and smoothing constants', () {
+      final registry = IndicatorRegistry();
+      registerLegacyIndicatorDefinitions(registry);
+      final snapshot = (KlineStore()..replace(_v2Fixture(60))).snapshot;
+
+      double? last(
+        String definitionId,
+        String seriesId,
+        Map<String, num> parameters,
+      ) =>
+          registry
+              .calculate(
+                snapshot,
+                IndicatorConfig(
+                  instanceId: '$definitionId-$seriesId-${parameters.hashCode}',
+                  definitionId: definitionId,
+                  parameters: parameters,
+                ),
+              )
+              .seriesById(seriesId)!
+              .values
+              .last;
+
+      expect(
+        last(MovingAverageIndicatorDefinition.definitionId, 'ma5', const {}),
+        isNot(
+          last(
+            MovingAverageIndicatorDefinition.definitionId,
+            'ma5',
+            const {'period1': 7},
+          ),
+        ),
+      );
+      expect(
+        last(
+          ExponentialMovingAverageIndicatorDefinition.definitionId,
+          'ema5',
+          const {},
+        ),
+        isNot(
+          last(
+            ExponentialMovingAverageIndicatorDefinition.definitionId,
+            'ema5',
+            const {'period1': 7},
+          ),
+        ),
+      );
+      expect(
+        last(VolumeIndicatorDefinition.definitionId, 'ma5', const {}),
+        isNot(
+          last(
+            VolumeIndicatorDefinition.definitionId,
+            'ma5',
+            const {'fastPeriod': 7},
+          ),
+        ),
+      );
+      expect(
+        last(MacdIndicatorDefinition.definitionId, 'dif', const {}),
+        isNot(
+          last(
+            MacdIndicatorDefinition.definitionId,
+            'dif',
+            const {'fastPeriod': 6, 'slowPeriod': 18, 'signalPeriod': 5},
+          ),
+        ),
+      );
+      expect(
+        last(KdjIndicatorDefinition.definitionId, 'k', const {}),
+        isNot(
+          last(
+            KdjIndicatorDefinition.definitionId,
+            'k',
+            const {'period': 9, 'kSmoothing': 2, 'dSmoothing': 4},
+          ),
+        ),
+      );
+    });
+
     test('cache append results match a fresh full calculation', () {
       final all = _v2Fixture(101);
       final store = KlineStore()..replace(all.take(100));

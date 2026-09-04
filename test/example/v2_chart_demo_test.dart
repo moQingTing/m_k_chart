@@ -7,6 +7,30 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../example/lib/v2_chart_demo.dart';
 
 void main() {
+  testWidgets('Demo accepts custom indicator calculation parameters',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: V2TradingChartDemo(loadOnStart: false)),
+    );
+
+    final parameter = find.byKey(
+      const ValueKey('indicator-param-ma-period1'),
+    );
+    await tester.scrollUntilVisible(
+      parameter,
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(parameter);
+    await tester.pump();
+    await tester.tap(parameter);
+    await tester.enterText(parameter, '7');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(find.textContaining('周期 1 7'), findsOneWidget);
+  });
+
   testWidgets('single main indicator legend keeps the secondary header height',
       (tester) async {
     await tester.pumpWidget(
@@ -282,8 +306,8 @@ void main() {
     );
     final chartTopLeft = tester.getTopLeft(chartCanvas);
     final chartSize = tester.getSize(chartCanvas);
-    final chartBodyY = 50.0;
-    await tester.tapAt(chartTopLeft + Offset(100, chartBodyY));
+    const chartBodyY = 50.0;
+    await tester.tapAt(chartTopLeft + const Offset(100, chartBodyY));
     await tester.pump();
     expect(
       find.byKey(const ValueKey('crosshair-details')),

@@ -53,8 +53,22 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   ];
 
   static const _indicators = <_IndicatorOption>[
-    _IndicatorOption('ma', 'MA', 'legacy.ma', true, '周期 5 / 10 / 20 / 30'),
-    _IndicatorOption('ema', 'EMA', 'legacy.ema', true, '周期 5 / 10 / 30'),
+    _IndicatorOption(
+      'ma',
+      'MA',
+      'legacy.ma',
+      true,
+      '周期 5 / 10 / 20 / 30',
+      parameters: {'period1': 5, 'period2': 10, 'period3': 20, 'period4': 30},
+    ),
+    _IndicatorOption(
+      'ema',
+      'EMA',
+      'legacy.ema',
+      true,
+      '周期 5 / 10 / 30',
+      parameters: {'period1': 5, 'period2': 10, 'period3': 30},
+    ),
     _IndicatorOption(
       'boll',
       'BOLL',
@@ -88,16 +102,29 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       'ATR 周期 10 · 倍数 3',
       parameters: {'period': 10, 'multiplier': 3},
     ),
-    _IndicatorOption('vol', 'VOL', 'legacy.vol', false, '均量周期 5 / 10'),
     _IndicatorOption(
-        'macd', 'MACD', 'legacy.macd', false, '快速 12 · 慢速 26 · 信号 9'),
+      'vol',
+      'VOL',
+      'legacy.vol',
+      false,
+      '均量周期 5 / 10',
+      parameters: {'fastPeriod': 5, 'slowPeriod': 10},
+    ),
+    _IndicatorOption(
+      'macd',
+      'MACD',
+      'legacy.macd',
+      false,
+      '快速 12 · 慢速 26 · 信号 9',
+      parameters: {'fastPeriod': 12, 'slowPeriod': 26, 'signalPeriod': 9},
+    ),
     _IndicatorOption(
       'kdj',
       'KDJ',
       'legacy.kdj',
       false,
       '周期 14 · 平滑 3 / 3',
-      parameters: {'period': 14},
+      parameters: {'period': 14, 'kSmoothing': 3, 'dSmoothing': 3},
     ),
     _IndicatorOption(
       'rsi',
@@ -202,6 +229,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   );
   final Set<String> _mainIndicators = {'ma'};
   final List<String> _secondaryIndicators = ['vol', 'macd'];
+  late final Map<String, Map<String, num>> _indicatorParameters;
 
   var _instrumentId = 'BTCUSDT';
   var _interval = KlineInterval.oneMinute;
@@ -269,6 +297,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     final registry = IndicatorRegistry();
     registerBuiltInIndicatorDefinitions(registry);
     _indicatorEngine = IndicatorEngine(registry: registry);
+    _indicatorParameters = {
+      for (final option in _indicators) option.id: Map.of(option.parameters),
+    };
     _data = _createData(_interval, _revision);
     if (widget.loadOnStart) {
       _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -933,6 +964,83 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   _IndicatorOption _indicator(String id) =>
       _indicators.singleWhere((option) => option.id == id);
 
+  Map<String, num> _parametersFor(_IndicatorOption option) =>
+      _indicatorParameters[option.id]!;
+
+  String _parameterSummaryFor(_IndicatorOption option) {
+    final parameters = _parametersFor(option);
+    if (parameters.isEmpty) return '此指标没有可调整的周期或常数';
+    return parameters.entries
+        .map(
+          (entry) =>
+              '${_indicatorParameterLabel(entry.key)} ${_formatIndicatorParameter(entry.value)}',
+        )
+        .join(' · ');
+  }
+
+  String _indicatorLegendLabel({
+    required _IndicatorOption? option,
+    required IndicatorSeriesDescriptor descriptor,
+  }) {
+    if (option == null) return descriptor.label;
+    final parameters = _parametersFor(option);
+    return switch ((option.id, descriptor.id)) {
+      ('ma', 'ma5') =>
+        'MA(${_formatIndicatorParameter(parameters['period1']!)})',
+      ('ma', 'ma10') =>
+        'MA(${_formatIndicatorParameter(parameters['period2']!)})',
+      ('ma', 'ma20') =>
+        'MA(${_formatIndicatorParameter(parameters['period3']!)})',
+      ('ma', 'ma30') =>
+        'MA(${_formatIndicatorParameter(parameters['period4']!)})',
+      ('ema', 'ema5') =>
+        'EMA(${_formatIndicatorParameter(parameters['period1']!)})',
+      ('ema', 'ema10') =>
+        'EMA(${_formatIndicatorParameter(parameters['period2']!)})',
+      ('ema', 'ema30') =>
+        'EMA(${_formatIndicatorParameter(parameters['period3']!)})',
+      ('vol', 'ma5') =>
+        'MA(${_formatIndicatorParameter(parameters['fastPeriod']!)})',
+      ('vol', 'ma10') =>
+        'MA(${_formatIndicatorParameter(parameters['slowPeriod']!)})',
+      _ => descriptor.label,
+    };
+  }
+
+  bool _isIntegerParameter(String key) =>
+      key.toLowerCase().contains('period') || key.endsWith('Smoothing');
+
+  void _updateIndicatorParameter(
+    _IndicatorOption option,
+    String key,
+    String rawValue,
+  ) {
+    final value = num.tryParse(rawValue.trim());
+    if (value == null ||
+        value <= 0 ||
+        (_isIntegerParameter(key) && value.toInt() != value)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isIntegerParameter(key)
+                ? '${_indicatorParameterLabel(key)}必须是正整数。'
+                : '${_indicatorParameterLabel(key)}必须是大于 0 的数字。',
+          ),
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _parametersFor(option)[key] = value;
+      _advanceRevision();
+    });
+  }
+
+  void _resetIndicatorParameters(_IndicatorOption option) => setState(() {
+        _indicatorParameters[option.id] = Map.of(option.parameters);
+        _advanceRevision();
+      });
+
   String _secondaryPanelId(String id) =>
       _overlaySecondaryIndicators ? 'secondary-overlay' : 'secondary-$id';
 
@@ -946,7 +1054,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         IndicatorConfig(
           instanceId: 'demo-${option.id}',
           definitionId: option.definitionId,
-          parameters: option.parameters,
+          parameters: _parametersFor(option),
         ),
     ];
     final batch = _indicatorEngine.resolveAll(_data, configs);
@@ -983,8 +1091,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       if (indicator.definitionId ==
           SuperTrendIndicatorDefinition.definitionId) {
         final option = _indicatorOptionForInstance(indicator.instanceId);
-        final period = option?.parameters['period'] ?? 10;
-        final multiplier = option?.parameters['multiplier'] ?? 3;
+        final parameters =
+            option == null ? const <String, num>{} : _parametersFor(option);
+        final period = parameters['period'] ?? 10;
+        final multiplier = parameters['multiplier'] ?? 3;
         final activeDescriptor = indicator.descriptor.series.firstWhere(
           (descriptor) =>
               indicator.seriesById(descriptor.id)!.values[dataIndex] != null,
@@ -1014,7 +1124,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         final value = indicator.seriesById(descriptor.id)!.values[dataIndex];
         entries.add(
           _IndicatorLegendEntry(
-            label: descriptor.label,
+            label: _indicatorLegendLabel(
+                option: _indicatorOptionForInstance(indicator.instanceId),
+                descriptor: descriptor),
             value: value,
             color: _indicatorLegendColor(
               snapshot,
@@ -1349,6 +1461,26 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                       selected: _secondaryIndicators.contains(option.id),
                       onSelected: (enabled) =>
                           _toggleSecondaryIndicator(option.id, enabled),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ToolbarSection(
+                title: '指标计算参数',
+                children: [
+                  const Text(
+                    '所有计算参数均可自定义；提交数值后立即重算图表与参数图例。',
+                    style: TextStyle(color: Color(0xff475569), fontSize: 12),
+                  ),
+                  for (final option in _indicators)
+                    _IndicatorParameterEditor(
+                      key: ValueKey('indicator-parameters-${option.id}'),
+                      option: option,
+                      values: _parametersFor(option),
+                      summary: _parameterSummaryFor(option),
+                      onSubmitted: (key, value) =>
+                          _updateIndicatorParameter(option, key, value),
+                      onReset: () => _resetIndicatorParameters(option),
                     ),
                 ],
               ),
@@ -1997,6 +2129,107 @@ class _ToolbarSection extends StatelessWidget {
       );
 }
 
+class _IndicatorParameterEditor extends StatelessWidget {
+  const _IndicatorParameterEditor({
+    super.key,
+    required this.option,
+    required this.values,
+    required this.summary,
+    required this.onSubmitted,
+    required this.onReset,
+  });
+
+  final _IndicatorOption option;
+  final Map<String, num> values;
+  final String summary;
+  final void Function(String key, String value) onSubmitted;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: 360,
+        child: Card(
+          key: ValueKey('indicator-parameters-toggle-${option.id}'),
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          color: const Color(0xfff8fafc),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: const BorderSide(color: Color(0xffe2e8f0)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  option.label,
+                  style: const TextStyle(
+                    color: Color(0xff0f172a),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  summary,
+                  style:
+                      const TextStyle(color: Color(0xff64748b), fontSize: 11),
+                ),
+                const SizedBox(height: 8),
+                if (values.isEmpty)
+                  const Text(
+                    '该指标按全部可见 K 线计算，没有周期或常数可设置。',
+                    style: TextStyle(color: Color(0xff64748b), fontSize: 12),
+                  )
+                else ...[
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final entry in values.entries)
+                        SizedBox(
+                          width: 102,
+                          child: TextFormField(
+                            key: ValueKey(
+                              'indicator-param-${option.id}-${entry.key}',
+                            ),
+                            initialValue: _formatIndicatorParameter(
+                              entry.value,
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (value) =>
+                                onSubmitted(entry.key, value),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              labelText: _indicatorParameterLabel(entry.key),
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      key: ValueKey('indicator-param-reset-${option.id}'),
+                      onPressed: onReset,
+                      icon: const Icon(Icons.restart_alt, size: 16),
+                      label: const Text('恢复默认'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
 /// Compact, real-data-first 24-hour summary for the trading-chart example.
 ///
 /// Binance ticker values take priority. When the public ticker endpoint is
@@ -2592,6 +2825,28 @@ String _formatIndicatorParameter(num value) =>
     value.toDouble() == value.toDouble().roundToDouble()
         ? value.toInt().toString()
         : value.toString();
+
+String _indicatorParameterLabel(String key) => switch (key) {
+      'period1' => '周期 1',
+      'period2' => '周期 2',
+      'period3' => '周期 3',
+      'period4' => '周期 4',
+      'period' => '周期',
+      'fastPeriod' => '快速周期',
+      'slowPeriod' => '慢速周期',
+      'signalPeriod' => '信号周期',
+      'kPeriod' || 'kSmoothing' => 'K 平滑',
+      'dPeriod' || 'dSmoothing' => 'D 平滑',
+      'rsiPeriod' => 'RSI 周期',
+      'stochPeriod' => '随机周期',
+      'adxPeriod' => 'ADX 周期',
+      'multiplier' => '倍数',
+      'constant' => '常数',
+      'afStart' => '起始加速',
+      'afIncrement' => '加速步长',
+      'afMax' => '最大加速',
+      _ => key,
+    };
 
 class _DemoPainter extends CustomPainter {
   const _DemoPainter({required this.pipeline, required this.snapshot});
