@@ -209,6 +209,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _candleLimit = 180;
   var _visibleCandles = 90;
   var _secondaryPanelHeight = 108.0;
+  // Match the secondary-panel legend baseline. Larger values still act as a
+  // manual minimum when a host needs additional breathing room.
   var _mainIndicatorHeaderHeight = 18.0;
   var _secondaryIndicatorHeaderHeight = 18.0;
   var _mainTimeAxisHeight = 18.0;
@@ -613,7 +615,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 
   double _effectiveMainIndicatorHeaderHeight(double availableWidth) {
-    if (_mainIndicatorHeaderHeight == 0) return 0;
+    if (_mainIndicators.isEmpty) return 0;
     final estimatedLegendWidth = _mainIndicators.fold<double>(
       0,
       (total, id) =>
@@ -633,7 +635,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       1,
       (estimatedLegendWidth / math.max(1, availableWidth - 16)).ceil(),
     );
-    return math.max(_mainIndicatorHeaderHeight, rows * 16.0);
+    // The legend uses a 9.5 px font. Keep a one-line baseline consistent
+    // with secondary panels, then expand only when Wrap creates more lines.
+    final automaticHeight = rows * 12.0 + 2.0;
+    return math.max(_mainIndicatorHeaderHeight, automaticHeight);
   }
 
   void _clearSelection() {
@@ -1405,9 +1410,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               ),
               _SliderSetting(
                 key: const ValueKey('main-header-height-setting'),
-                label: '主图指标参数区域高度',
+                label: '主图指标参数区域最小高度',
                 value: _mainIndicatorHeaderHeight,
-                min: 0,
+                min: 18,
                 max: 40,
                 divisions: 20,
                 valueLabel: '${_mainIndicatorHeaderHeight.round()} px',
