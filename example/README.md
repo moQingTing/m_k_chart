@@ -24,7 +24,7 @@ This is an example Flutter application demonstrating how to use the `m_k_chart` 
 - **V2 Trading Chart** (default): a V2 Layer trading demo backed by Binance
   public Spot candlestick data, with an automatic deterministic offline fallback. It
   defaults to a candlestick chart and lets you select a Binance Spot symbol,
-  period, request size, chart mode, main overlays (MA/EMA/BOLL/SAR/VWAP), and
+  period, request size, chart mode, main overlays (MA/EMA/BOLL/SAR/VWAP/AVL/SUPER), and
   secondary indicators (VOL/MACD/KDJ/RSI/WR/OBV/ATR/CCI/DMI/ROC/Stoch RSI).
   Secondary indicators can be independently ordered and sized or overlaid in
   a single panel. The light, Chinese-language UI also supports horizontal

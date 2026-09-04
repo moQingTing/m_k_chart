@@ -13,7 +13,7 @@ const _runBenchmark =
 
 void main() {
   test(
-    'records six additional indicators with 10000 Klines',
+    'records eight additional indicators with 10000 Klines',
     () {
       final registry = IndicatorRegistry();
       registerAdditionalIndicatorDefinitions(registry);
@@ -25,7 +25,7 @@ void main() {
           registry.calculate(store.snapshot, config);
         }
       });
-      _metric('six_additional_indicators_full_10000', fullSamples);
+      _metric('eight_additional_indicators_full_10000', fullSamples);
 
       final cache = IndicatorCache(registry);
       for (final config in configs) {
@@ -40,7 +40,7 @@ void main() {
           cache.resolve(store.snapshot, config);
         }
       });
-      _metric('six_additional_indicators_last_update_10000', updateSamples);
+      _metric('eight_additional_indicators_last_update_10000', updateSamples);
       for (final config in configs) {
         final singleStore = KlineStore()
           ..replace(buildV2KlineFixture(10000, startIndex: 20000));
@@ -63,7 +63,7 @@ void main() {
       expect(
         _percentile(updateSamples, 0.95),
         lessThanOrEqualTo(8000),
-        reason: 'Combined six-indicator update must remain within 8 ms.',
+        reason: 'Combined eight-indicator update must remain within 8 ms.',
       );
     },
     skip: !_runBenchmark,
@@ -75,6 +75,14 @@ List<IndicatorConfig> _configs() => [
       IndicatorConfig(
         instanceId: 'vwap',
         definitionId: VwapIndicatorDefinition.definitionId,
+      ),
+      IndicatorConfig(
+        instanceId: 'avl',
+        definitionId: AverageValueLineIndicatorDefinition.definitionId,
+      ),
+      IndicatorConfig(
+        instanceId: 'super',
+        definitionId: SuperTrendIndicatorDefinition.definitionId,
       ),
       IndicatorConfig(
         instanceId: 'atr',

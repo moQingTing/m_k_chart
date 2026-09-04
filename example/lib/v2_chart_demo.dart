@@ -73,6 +73,21 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     ),
     _IndicatorOption(
         'vwap', 'VWAP', 'builtin.vwap', true, '典型价 (高 + 低 + 收) / 3'),
+    _IndicatorOption(
+      'avl',
+      'AVL',
+      'builtin.avl',
+      true,
+      '累计成交额 / 累计成交量',
+    ),
+    _IndicatorOption(
+      'super',
+      'SUPER',
+      'builtin.super',
+      true,
+      'ATR 周期 10 · 倍数 3',
+      parameters: {'period': 10, 'multiplier': 3},
+    ),
     _IndicatorOption('vol', 'VOL', 'legacy.vol', false, '均量周期 5 / 10'),
     _IndicatorOption(
         'macd', 'MACD', 'legacy.macd', false, '快速 12 · 慢速 26 · 信号 9'),
@@ -1014,8 +1029,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     id: 'secondary-overlay',
                     minHeight: _secondaryPanelHeight,
                     headerHeight: _secondaryIndicatorHeaderHeight,
-                    gridRows: 1,
-                    showHorizontalGrid: false)
+                    gridRows: 2)
               ]
             : [
                 for (final id in _secondaryIndicators)
@@ -1023,8 +1037,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     id: _secondaryPanelId(id),
                     minHeight: _secondaryPanelHeight,
                     headerHeight: _secondaryIndicatorHeaderHeight,
-                    gridRows: 1,
-                    showHorizontalGrid: false,
+                    gridRows: 2,
                   ),
               ];
     final chartHeight = math.max(

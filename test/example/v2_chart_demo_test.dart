@@ -71,6 +71,18 @@ void main() {
           .selected,
       isTrue,
     );
+    for (final id in ['avl', 'super']) {
+      await tester.tap(find.byKey(ValueKey('main-indicator-$id')));
+      await tester.pump();
+      expect(
+        tester
+            .widget<FilterChip>(
+              find.byKey(ValueKey('main-indicator-$id')),
+            )
+            .selected,
+        isTrue,
+      );
+    }
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('secondary-indicator-rsi')),

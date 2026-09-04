@@ -18,7 +18,7 @@ legacy `ExamplePage` 和现有网络数据示例仍保留在 `example/lib/main.d
 | Period | `1m`、`5m`、`15m`、`1h`、`4h`、`1d` | 先切换本地回退数据，再请求对应 Binance 周期，并更新标题与语义标签 |
 | Realtime Kline | 2 秒轮询最新 2 根 | 当前 openTime 相同则替换最后一根；发生新 openTime 则追加，历史视口保持稳定 |
 | Main chart | Candle（默认）、Hollow、OHLC、Heikin-Ashi、Line、Area | 设置 `ChartMainMode` 并推进 visual version，触发 retained Layer 重录 |
-| Main overlays | MA、EMA、BOLL、SAR、VWAP | 将内置指标计算结果装配到 `main` panel，与 K 线叠加显示 |
+| Main overlays | MA、EMA、BOLL、SAR、VWAP、AVL、SUPER | 将内置指标计算结果装配到 `main` panel，与 K 线叠加显示；AVL 为累计成交均价，SUPER 默认 ATR 10、倍数 3 |
 | Secondary indicators | VOL、MACD、KDJ、RSI、WR、OBV、ATR、CCI、DMI、ROC、Stoch RSI | 可以任意组合；默认 VOL + MACD |
 | Secondary layout | 合并为一个面板、分面板排序、72～180 px 最小高度 | 允许副图指标叠加，或按用户顺序拥有独立面板 |
 | Panel legends | 当前主图和副图指标 | 在每个面板左上角的透明专用标题区显示当前序列值；计算参数会传入 `IndicatorConfig` |
@@ -27,7 +27,7 @@ legacy `ExamplePage` 和现有网络数据示例仍保留在 `example/lib/main.d
 | Trade overlays | 仓位均价、强平价、买入挂单、止盈、止损 | 将五种 SDK 无关的业务示例映射为通用 PriceLine，可整体显示或隐藏 |
 | Viewport | 20～300 根可见 K 线 | 将可见根数换算成 viewport 的 item extent |
 
-界面采用高对比浅色主题，标题和操作文案均为中文。指标缩写沿用交易软件的行业通用写法。图表每个面板的左上角均在网格首行内预留透明参数区，显示与线条同色的 `系列名称: 当前值` 图例；该行不参与蜡烛或指标数据绘制，因此文字不会与图形重叠。默认使用当前视图最后一根 K 线，点击或长按后切换为所选 K 线的数值。主图与首个副图之间另预留时间轴区域，展示当前视图的起止时间且不绘制网格。
+界面采用高对比浅色主题，标题和操作文案均为中文。指标缩写沿用交易软件的行业通用写法。图表每个面板的左上角均在网格首行内预留透明参数区，显示与线条同色的 `系列名称: 当前值` 图例；该行不参与蜡烛或指标数据绘制，因此文字不会与图形重叠。默认使用当前视图最后一根 K 线，点击或长按后切换为所选 K 线的数值。主图与首个副图之间另预留时间轴区域，展示当前视图的起止时间且不绘制网格。副图网格保留上、中、下三条横线，方便判断指标相对位置。
 
 ## 3. 图表手势与坐标详情
 

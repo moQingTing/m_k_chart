@@ -11,11 +11,181 @@ import 'indicator_series.dart';
 void registerAdditionalIndicatorDefinitions(IndicatorRegistry registry) {
   registry
     ..register(VwapIndicatorDefinition())
+    ..register(AverageValueLineIndicatorDefinition())
+    ..register(SuperTrendIndicatorDefinition())
     ..register(AtrIndicatorDefinition())
     ..register(CciIndicatorDefinition())
     ..register(DmiIndicatorDefinition())
     ..register(RocIndicatorDefinition())
     ..register(StochRsiIndicatorDefinition());
+}
+
+/// Cumulative average value line (AVL).
+///
+/// AVL uses the exchange-provided quote turnover divided by base turnover,
+/// rather than substituting the candle's typical price. This makes the value
+/// the exact volume-weighted average available from an OHLCV source.
+final class AverageValueLineIndicatorDefinition
+    implements IncrementalIndicatorDefinition {
+  static const definitionId = 'builtin.avl';
+
+  @override
+  String get id => definitionId;
+
+  @override
+  IndicatorRendererDescriptor get rendererDescriptor => _lines(
+        IndicatorPlacement.mainChart,
+        const [('avl', 'AVL')],
+      );
+
+  @override
+  IndicatorResult calculate(
+    VersionedKlineData input,
+    IndicatorConfig config,
+  ) {
+    final values = List<double?>.filled(input.data.length, null);
+    final quoteVolume = List<double?>.filled(input.data.length, 0);
+    final baseVolume = List<double?>.filled(input.data.length, 0);
+    var cumulativeQuoteVolume = 0.0;
+    var cumulativeBaseVolume = 0.0;
+    for (var index = 0; index < input.data.length; index++) {
+      final item = input.data[index];
+      cumulativeQuoteVolume += item.quoteVolume;
+      cumulativeBaseVolume += item.baseVolume;
+      quoteVolume[index] = cumulativeQuoteVolume;
+      baseVolume[index] = cumulativeBaseVolume;
+      values[index] = cumulativeBaseVolume == 0
+          ? null
+          : cumulativeQuoteVolume / cumulativeBaseVolume;
+    }
+    return _statefulResult(this, input, config, [
+      IndicatorSeries.takeOwnership(id: 'avl', values: values),
+    ], [
+      IndicatorSeries.takeOwnership(id: 'quoteVolume', values: quoteVolume),
+      IndicatorSeries.takeOwnership(id: 'baseVolume', values: baseVolume),
+    ]);
+  }
+
+  @override
+  bool supportsIncremental(IndicatorDataChange change) =>
+      _supportsTailChange(change);
+
+  @override
+  IndicatorResult calculateIncrementally(
+    VersionedKlineData input,
+    IndicatorConfig config,
+    IndicatorResult previous,
+    IndicatorDataChange change,
+  ) {
+    final values = _buffer(previous.seriesById('avl')!.values, input);
+    final quoteVolume = _stateBuffer(previous, 'quoteVolume', input);
+    final baseVolume = _stateBuffer(previous, 'baseVolume', input);
+    for (var index = change.currentStart; index < input.data.length; index++) {
+      final item = input.data[index];
+      final previousQuoteVolume = index == 0 ? 0.0 : quoteVolume[index - 1]!;
+      final previousBaseVolume = index == 0 ? 0.0 : baseVolume[index - 1]!;
+      quoteVolume[index] = previousQuoteVolume + item.quoteVolume;
+      baseVolume[index] = previousBaseVolume + item.baseVolume;
+      values[index] = baseVolume[index] == 0
+          ? null
+          : quoteVolume[index]! / baseVolume[index]!;
+    }
+    return _statefulResult(this, input, config, [
+      IndicatorSeries.takeOwnership(id: 'avl', values: values),
+    ], [
+      IndicatorSeries.takeOwnership(id: 'quoteVolume', values: quoteVolume),
+      IndicatorSeries.takeOwnership(id: 'baseVolume', values: baseVolume),
+    ]);
+  }
+}
+
+/// Supertrend overlay using Wilder ATR and trailing upper/lower bands.
+///
+/// The two output series intentionally break at a trend reversal so the
+/// renderer does not draw a diagonal bridge between bullish and bearish legs.
+final class SuperTrendIndicatorDefinition
+    implements IncrementalIndicatorDefinition {
+  static const definitionId = 'builtin.super';
+
+  @override
+  String get id => definitionId;
+
+  @override
+  IndicatorRendererDescriptor get rendererDescriptor => _lines(
+        IndicatorPlacement.mainChart,
+        const [('up', 'SUPER↑'), ('down', 'SUPER↓')],
+      );
+
+  @override
+  IndicatorResult calculate(
+    VersionedKlineData input,
+    IndicatorConfig config,
+  ) {
+    final period = _positiveInt(config, 'period', 10);
+    final multiplier = _positiveDouble(config, 'multiplier', 3);
+    final state = _calculateSuperTrend(input.data, period, multiplier);
+    return _statefulResult(this, input, config, [
+      IndicatorSeries.takeOwnership(id: 'up', values: state.up),
+      IndicatorSeries.takeOwnership(id: 'down', values: state.down),
+    ], [
+      IndicatorSeries.takeOwnership(id: 'atr', values: state.atr),
+      IndicatorSeries.takeOwnership(id: 'upperBand', values: state.upperBand),
+      IndicatorSeries.takeOwnership(id: 'lowerBand', values: state.lowerBand),
+      IndicatorSeries.takeOwnership(id: 'isUpTrend', values: state.isUpTrend),
+    ]);
+  }
+
+  @override
+  bool supportsIncremental(IndicatorDataChange change) =>
+      _supportsTailChange(change);
+
+  @override
+  IndicatorResult calculateIncrementally(
+    VersionedKlineData input,
+    IndicatorConfig config,
+    IndicatorResult previous,
+    IndicatorDataChange change,
+  ) {
+    final period = _positiveInt(config, 'period', 10);
+    final multiplier = _positiveDouble(config, 'multiplier', 3);
+    final firstReadyIndex = period - 1;
+    if (change.currentStart <= firstReadyIndex) {
+      return calculate(input, config);
+    }
+
+    final up = _buffer(previous.seriesById('up')!.values, input);
+    final down = _buffer(previous.seriesById('down')!.values, input);
+    final atr = _stateBuffer(previous, 'atr', input);
+    final upperBand = _stateBuffer(previous, 'upperBand', input);
+    final lowerBand = _stateBuffer(previous, 'lowerBand', input);
+    final isUpTrend = _stateBuffer(previous, 'isUpTrend', input);
+
+    for (var index = change.currentStart; index < input.data.length; index++) {
+      atr[index] =
+          (atr[index - 1]! * (period - 1) + _trueRange(input.data, index)) /
+              period;
+      _writeSuperTrend(
+        input.data,
+        index,
+        multiplier,
+        atr,
+        upperBand,
+        lowerBand,
+        isUpTrend,
+        up,
+        down,
+      );
+    }
+    return _statefulResult(this, input, config, [
+      IndicatorSeries.takeOwnership(id: 'up', values: up),
+      IndicatorSeries.takeOwnership(id: 'down', values: down),
+    ], [
+      IndicatorSeries.takeOwnership(id: 'atr', values: atr),
+      IndicatorSeries.takeOwnership(id: 'upperBand', values: upperBand),
+      IndicatorSeries.takeOwnership(id: 'lowerBand', values: lowerBand),
+      IndicatorSeries.takeOwnership(id: 'isUpTrend', values: isUpTrend),
+    ]);
+  }
 }
 
 final class VwapIndicatorDefinition implements IncrementalIndicatorDefinition {
@@ -481,6 +651,103 @@ final class StochRsiIndicatorDefinition
       IndicatorSeries.takeOwnership(id: 'raw', values: raw),
     ]);
   }
+}
+
+final class _SuperTrendState {
+  const _SuperTrendState({
+    required this.up,
+    required this.down,
+    required this.atr,
+    required this.upperBand,
+    required this.lowerBand,
+    required this.isUpTrend,
+  });
+
+  final List<double?> up;
+  final List<double?> down;
+  final List<double?> atr;
+  final List<double?> upperBand;
+  final List<double?> lowerBand;
+  final List<double?> isUpTrend;
+}
+
+_SuperTrendState _calculateSuperTrend(
+  List<Kline> data,
+  int period,
+  double multiplier,
+) {
+  final up = List<double?>.filled(data.length, null);
+  final down = List<double?>.filled(data.length, null);
+  final atr = _wilderAverage(_trueRanges(data), period);
+  final upperBand = List<double?>.filled(data.length, null);
+  final lowerBand = List<double?>.filled(data.length, null);
+  final isUpTrend = List<double?>.filled(data.length, null);
+  for (var index = period - 1; index < data.length; index++) {
+    _writeSuperTrend(
+      data,
+      index,
+      multiplier,
+      atr,
+      upperBand,
+      lowerBand,
+      isUpTrend,
+      up,
+      down,
+    );
+  }
+  return _SuperTrendState(
+    up: up,
+    down: down,
+    atr: atr,
+    upperBand: upperBand,
+    lowerBand: lowerBand,
+    isUpTrend: isUpTrend,
+  );
+}
+
+void _writeSuperTrend(
+  List<Kline> data,
+  int index,
+  double multiplier,
+  List<double?> atr,
+  List<double?> upperBand,
+  List<double?> lowerBand,
+  List<double?> isUpTrend,
+  List<double?> up,
+  List<double?> down,
+) {
+  final item = data[index];
+  final midpoint = (item.high + item.low) / 2;
+  final basicUpperBand = midpoint + multiplier * atr[index]!;
+  final basicLowerBand = midpoint - multiplier * atr[index]!;
+  if (index == 0 || upperBand[index - 1] == null) {
+    upperBand[index] = basicUpperBand;
+    lowerBand[index] = basicLowerBand;
+    isUpTrend[index] = 0;
+    up[index] = null;
+    down[index] = basicUpperBand;
+    return;
+  }
+
+  final previous = data[index - 1];
+  final previousUpperBand = upperBand[index - 1]!;
+  final previousLowerBand = lowerBand[index - 1]!;
+  upperBand[index] =
+      basicUpperBand < previousUpperBand || previous.close > previousUpperBand
+          ? basicUpperBand
+          : previousUpperBand;
+  lowerBand[index] =
+      basicLowerBand > previousLowerBand || previous.close < previousLowerBand
+          ? basicLowerBand
+          : previousLowerBand;
+
+  final previousIsUpTrend = isUpTrend[index - 1] == 1;
+  final nextIsUpTrend = previousIsUpTrend
+      ? item.close >= lowerBand[index]!
+      : item.close > upperBand[index]!;
+  isUpTrend[index] = nextIsUpTrend ? 1 : 0;
+  up[index] = nextIsUpTrend ? lowerBand[index] : null;
+  down[index] = nextIsUpTrend ? null : upperBand[index];
 }
 
 IndicatorRendererDescriptor _lines(

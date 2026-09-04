@@ -91,7 +91,7 @@ void main() {
       expect(throwing.calls, 2, reason: 'Failures must not poison the cache.');
     });
 
-    test('all sixteen built-ins remain finite on short and flat inputs', () {
+    test('all eighteen built-ins remain finite on short and flat inputs', () {
       final registry = IndicatorRegistry();
       registerBuiltInIndicatorDefinitions(registry);
       final engine = IndicatorEngine(registry: registry);
@@ -105,7 +105,7 @@ void main() {
           _allBuiltInConfigs(),
         );
         expect(batch.failures, isEmpty);
-        expect(batch.results, hasLength(16));
+        expect(batch.results, hasLength(18));
         for (final result in batch.results.values) {
           for (final series in [
             ...result.series,
@@ -207,6 +207,14 @@ List<IndicatorConfig> _allBuiltInConfigs() => [
       IndicatorConfig(
         instanceId: 'vwap',
         definitionId: VwapIndicatorDefinition.definitionId,
+      ),
+      IndicatorConfig(
+        instanceId: 'avl',
+        definitionId: AverageValueLineIndicatorDefinition.definitionId,
+      ),
+      IndicatorConfig(
+        instanceId: 'super',
+        definitionId: SuperTrendIndicatorDefinition.definitionId,
       ),
       IndicatorConfig(
         instanceId: 'atr',

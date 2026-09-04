@@ -61,6 +61,8 @@ P3-03 为递归指标补充 `IndicatorComputationState`。MACD 的 EMA12/26、RS
 
 P3-04 增加六个内置定义并冻结默认口径：VWAP 累计典型价成交量加权、ATR Wilder 14、CCI 20/0.015、DMI 14+14、ROC 12、Stoch RSI 14/14/3/3。`registerBuiltInIndicatorDefinitions` 一次注册 10 个 legacy 和 6 个新增定义，仍不使用核心 enum/switch。
 
+后续扩展新增 AVL 与 SUPER：AVL 使用 K 线提供的累计成交额/成交量，SUPER 使用 Wilder ATR(10) 与乘数 3 的追踪上下轨。二者同样通过注册接入，支持 append 与最新柱 update，不给核心模块添加 enum/switch。
+
 P3-05 增加实例级 `IndicatorEngine.resolveAll`。一个批次要求 instanceId 唯一；每个配置独立经过 Cache/Registry，异常被记录为 `IndicatorCalculationFailure`，其他实例继续。失败结果不写缓存，下一批可重试。Engine 不使用全局注册表或缓存，因此双图表之间不会传播定义、结果或 failure。
 
 缓存协议性能见 `PERFORMANCE_P3_INDICATOR_CACHE_BASELINE.md`，十类迁移指标性能见 `PERFORMANCE_P3_LEGACY_INDICATORS_BASELINE.md`，六类新增指标性能见 `PERFORMANCE_P3_ADDITIONAL_INDICATORS_BASELINE.md`，多实例与内存见 `PERFORMANCE_P3_INDICATOR_ENGINE_BASELINE.md`。

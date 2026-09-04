@@ -9,15 +9,17 @@ const _tolerance = 1e-9;
 
 void main() {
   group('additional indicator definitions', () {
-    test('registers all six definitions and renderer contracts', () {
+    test('registers all eight definitions and renderer contracts', () {
       final registry = IndicatorRegistry();
       registerAdditionalIndicatorDefinitions(registry);
 
-      expect(registry.definitions, hasLength(6));
+      expect(registry.definitions, hasLength(8));
       expect(
         registry.definitions.keys,
         containsAll([
           VwapIndicatorDefinition.definitionId,
+          AverageValueLineIndicatorDefinition.definitionId,
+          SuperTrendIndicatorDefinition.definitionId,
           AtrIndicatorDefinition.definitionId,
           CciIndicatorDefinition.definitionId,
           DmiIndicatorDefinition.definitionId,
@@ -40,16 +42,27 @@ void main() {
             .map((item) => item.id),
         ['plusDi', 'minusDi', 'adx'],
       );
+      expect(
+        registry
+            .find(SuperTrendIndicatorDefinition.definitionId)!
+            .rendererDescriptor
+            .series
+            .map((item) => item.id),
+        ['up', 'down'],
+      );
 
       final allBuiltIns = IndicatorRegistry();
       registerBuiltInIndicatorDefinitions(allBuiltIns);
-      expect(allBuiltIns.definitions, hasLength(16));
+      expect(allBuiltIns.definitions, hasLength(18));
     });
 
     test('matches analytically known flat and rising series', () {
       final flatResults = _calculate(_snapshot(_linearKlines(50, step: 0)));
 
       expect(_last(flatResults, 'vwap', 'vwap'), 10);
+      expect(_last(flatResults, 'avl', 'avl'), 10);
+      expect(_last(flatResults, 'super', 'up'), isNull);
+      expect(_last(flatResults, 'super', 'down'), 16);
       expect(_last(flatResults, 'atr', 'atr'), 2);
       expect(_last(flatResults, 'cci', 'cci'), 0);
       expect(_last(flatResults, 'dmi', 'plusDi'), 0);
@@ -86,6 +99,23 @@ void main() {
         _last(results, 'vwap', 'vwap'),
         closeTo((10 + 40 + 90) / 6, _tolerance),
       );
+    });
+
+    test('uses cumulative exchange turnover for AVL and splits SUPER trends',
+        () {
+      final avl = _calculate(
+        _snapshot([
+          _kline(0, 10, volume: 2, quoteVolume: 30),
+          _kline(1, 20, volume: 3, quoteVolume: 45),
+        ]),
+      );
+      expect(_last(avl, 'avl', 'avl'), 15);
+
+      final superTrend = _calculate(_snapshot(_linearKlines(30)));
+      expect(_value(superTrend, 'super', 'down', 8), isNull);
+      expect(_value(superTrend, 'super', 'down', 9), 25);
+      expect(_value(superTrend, 'super', 'up', 16), 20);
+      expect(_value(superTrend, 'super', 'down', 16), isNull);
     });
 
     test('keeps zero-volume and zero-price denominators finite', () {
@@ -134,7 +164,7 @@ void main() {
 
       store.append([all.last]);
       _expectCacheMatchesFresh(cache, store.snapshot, configs);
-      expect(cache.incrementalCalculations, 6);
+      expect(cache.incrementalCalculations, 8);
 
       final last = store.snapshot.lastOrNull!;
       store.update(
@@ -146,7 +176,7 @@ void main() {
         ),
       );
       _expectCacheMatchesFresh(cache, store.snapshot, configs);
-      expect(cache.incrementalCalculations, 12);
+      expect(cache.incrementalCalculations, 16);
     });
 
     test('rejects fractional, zero, and negative parameters', () {
@@ -195,6 +225,14 @@ List<IndicatorConfig> _configs() => [
       IndicatorConfig(
         instanceId: 'vwap',
         definitionId: VwapIndicatorDefinition.definitionId,
+      ),
+      IndicatorConfig(
+        instanceId: 'avl',
+        definitionId: AverageValueLineIndicatorDefinition.definitionId,
+      ),
+      IndicatorConfig(
+        instanceId: 'super',
+        definitionId: SuperTrendIndicatorDefinition.definitionId,
       ),
       IndicatorConfig(
         instanceId: 'atr',
@@ -265,7 +303,12 @@ List<Kline> _linearKlines(int count, {double step = 1}) => List<Kline>.generate(
       growable: false,
     );
 
-Kline _kline(int index, double price, {double volume = 1}) {
+Kline _kline(
+  int index,
+  double price, {
+  double volume = 1,
+  double? quoteVolume,
+}) {
   final openTime = 1704067200000 + index * 60000;
   return Kline(
     symbol: 'TEST',
@@ -277,7 +320,7 @@ Kline _kline(int index, double price, {double volume = 1}) {
     low: price - 1,
     close: price,
     baseVolume: volume,
-    quoteVolume: volume * price,
+    quoteVolume: quoteVolume ?? volume * price,
     tradeCount: 1,
     isClosed: true,
   );
