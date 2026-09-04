@@ -212,6 +212,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _mainIndicatorHeaderHeight = 18.0;
   var _secondaryIndicatorHeaderHeight = 18.0;
   var _mainTimeAxisHeight = 18.0;
+  var _superLineWidth = 0.8;
+  var _superAreaOpacity = 0.3;
   var _timeZoneOffsetMinutes = 8 * 60;
   var _localeRevision = 0;
   var _overlaySecondaryIndicators = false;
@@ -595,6 +597,20 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 
   void _advanceRevision() => _revision++;
+
+  void _applySuperStyle() {
+    _theme = _theme.copyWith(
+      indicatorLineWidths: {
+        'demo-super:up': _superLineWidth,
+        'demo-super:down': _superLineWidth,
+      },
+      indicatorAreaFillOpacities: {
+        'demo-super:up': _superAreaOpacity,
+        'demo-super:down': _superAreaOpacity,
+      },
+    );
+    _advanceRevision();
+  }
 
   void _clearSelection() {
     _selectedIndex = null;
@@ -1252,6 +1268,40 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     ),
                 ],
               ),
+              if (_mainIndicators.contains('super')) ...[
+                const SizedBox(height: 12),
+                _ToolbarSection(
+                  title: 'SUPER 样式',
+                  children: [
+                    _SliderSetting(
+                      key: const ValueKey('super-line-width-setting'),
+                      label: 'SUPER 线宽',
+                      value: _superLineWidth,
+                      min: 0.4,
+                      max: 3,
+                      divisions: 26,
+                      valueLabel: _superLineWidth.toStringAsFixed(1),
+                      onChanged: (value) => setState(() {
+                        _superLineWidth = value;
+                        _applySuperStyle();
+                      }),
+                    ),
+                    _SliderSetting(
+                      key: const ValueKey('super-area-opacity-setting'),
+                      label: 'SUPER 区域不透明度',
+                      value: _superAreaOpacity,
+                      min: 0,
+                      max: 1,
+                      divisions: 20,
+                      valueLabel: _superAreaOpacity.toStringAsFixed(2),
+                      onChanged: (value) => setState(() {
+                        _superAreaOpacity = value;
+                        _applySuperStyle();
+                      }),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 12),
               _ToolbarSection(
                 title: '副图指标',

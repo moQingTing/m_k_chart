@@ -55,7 +55,6 @@ void main() {
         isTrue,
       );
     }
-
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('main-indicator-boll')),
       260,
@@ -83,6 +82,15 @@ void main() {
         isTrue,
       );
     }
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('super-area-opacity-setting')),
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.byKey(const ValueKey('super-area-opacity-setting')),
+      findsOneWidget,
+    );
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('secondary-indicator-rsi')),
       260,
