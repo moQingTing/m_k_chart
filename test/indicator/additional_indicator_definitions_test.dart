@@ -67,7 +67,7 @@ void main() {
       );
       expect(
         superDescriptor.series.map((item) => item.areaFillOpacity),
-        everyElement(0.3),
+        everyElement(0.1),
       );
 
       final allBuiltIns = IndicatorRegistry();

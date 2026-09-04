@@ -191,8 +191,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       'demo-super:down': 0.8,
     },
     indicatorAreaFillOpacities: const {
-      'demo-super:up': 0.3,
-      'demo-super:down': 0.3,
+      'demo-super:up': 0.1,
+      'demo-super:down': 0.1,
     },
     gridStrokeWidth: 0.5,
     dataStrokeWidth: 0.8,
@@ -213,7 +213,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _secondaryIndicatorHeaderHeight = 18.0;
   var _mainTimeAxisHeight = 18.0;
   var _superLineWidth = 0.8;
-  var _superAreaOpacity = 0.3;
+  var _superAreaOpacity = 0.1;
   var _timeZoneOffsetMinutes = 8 * 60;
   var _localeRevision = 0;
   var _overlaySecondaryIndicators = false;

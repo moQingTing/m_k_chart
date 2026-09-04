@@ -101,7 +101,7 @@ final class SuperTrendIndicatorDefinition
             lineStyle: IndicatorLineStyle.stepped,
             lineStrokeWidthMultiplier: 0.8,
             areaBaseline: IndicatorAreaBaseline.candleClose,
-            areaFillOpacity: 0.3,
+            areaFillOpacity: 0.1,
           ),
           IndicatorSeriesDescriptor(
             id: 'down',
@@ -110,7 +110,7 @@ final class SuperTrendIndicatorDefinition
             lineStyle: IndicatorLineStyle.stepped,
             lineStrokeWidthMultiplier: 0.8,
             areaBaseline: IndicatorAreaBaseline.candleClose,
-            areaFillOpacity: 0.3,
+            areaFillOpacity: 0.1,
           ),
         ],
       );
