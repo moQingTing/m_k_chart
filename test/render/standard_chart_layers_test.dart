@@ -632,6 +632,60 @@ void main() {
     );
   });
 
+  test('marker links extrema values with guide lines instead of circles',
+      () async {
+    final fixture = _fixture();
+    final snapshot = fixture.snapshot;
+    final extrema = cache.extremaFor(snapshot)!;
+    final panel = fixture.layout.mainPanel;
+    final transform = cache.panelRangeFor(snapshot, panel.spec.id).transform(
+          panel.bounds,
+        );
+    final xTransform = cache.windowFor(snapshot).xTransform;
+    final pixels = await _paint(
+      snapshot,
+      [ChartMarkerLayer<DefaultChartRenderStyle>(cache)],
+    );
+
+    for (final point in <(int, double)>[
+      (extrema.minIndex, extrema.min),
+      (extrema.maxIndex, extrema.max),
+    ]) {
+      final x = xTransform.indexToLocalX(point.$1);
+      final y = transform.priceToLocalY(point.$2);
+      final guideDirection =
+          x < (panel.bounds.left + panel.bounds.right) / 2 ? 1.0 : -1.0;
+
+      expect(
+        _hasColor(
+          pixels,
+          fixture.width,
+          Rect.fromCenter(
+            center: Offset(x + guideDirection * 10, y),
+            width: 4,
+            height: 3,
+          ),
+          fixture.style.markerColor,
+        ),
+        isTrue,
+        reason: '极值应以连接数值的水平引导线标注。',
+      );
+      expect(
+        _nonTransparentCount(
+          pixels,
+          fixture.width,
+          Rect.fromCenter(
+            center: Offset(x, y + 3),
+            width: 2,
+            height: 2,
+          ),
+        ),
+        0,
+        reason: '极值点不应再绘制圆圈标记。',
+      );
+    }
+  });
+
   test('hidden or out-of-bounds crosshair produces no Canvas output', () async {
     final fixture = _fixture();
     final layer = ChartCrosshairLayer<DefaultChartRenderStyle>(cache);

@@ -317,31 +317,24 @@ final class ChartMarkerLayer<TTheme extends ChartRenderStyle>
         .transform(panel.bounds);
     final xTransform = window.xTransform;
     final midpoint = (panel.bounds.left + panel.bounds.right) / 2;
-    final paint = Paint()
-      ..color = snapshot.theme.markerColor
-      ..strokeWidth = snapshot.theme.overlayStrokeWidth
-      ..style = PaintingStyle.stroke;
     final extrema = cache.extremaFor(snapshot);
     if (extrema != null) {
-      for (final point in <(int, double, String)>[
-        (extrema.maxIndex, extrema.max, 'H'),
-        (extrema.minIndex, extrema.min, 'L'),
+      for (final point in <(int, double)>[
+        (extrema.maxIndex, extrema.max),
+        (extrema.minIndex, extrema.min),
       ]) {
         final x = xTransform.indexToLocalX(point.$1);
         final y = transform.priceToLocalY(point.$2);
-        context.canvas.drawCircle(
-          Offset(x, y),
-          3,
-          paint,
-        );
+        final text = snapshot.theme.formatMainValue(point.$2);
+        final drawToRight = x < midpoint;
         _drawText(
           canvas: context.canvas,
-          text: '${point.$3} ${snapshot.theme.formatMainValue(point.$2)}',
+          text: drawToRight ? '── $text' : '$text ──',
           color: snapshot.theme.markerColor,
           fontSize: snapshot.theme.axisFontSize,
-          x: x < midpoint ? x + 5 : x - 5,
+          x: x,
           y: y,
-          horizontalAnchor: x < midpoint ? 0 : 1,
+          horizontalAnchor: drawToRight ? 0 : 1,
           verticalAnchor: 0.5,
           cache: cache,
         );
