@@ -616,6 +616,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
 
   double _effectiveMainIndicatorHeaderHeight(double availableWidth) {
     if (_mainIndicators.isEmpty) return 0;
+    if (_mainIndicators.length == 1) {
+      return _mainIndicatorHeaderHeight;
+    }
     final estimatedLegendWidth = _mainIndicators.fold<double>(
       0,
       (total, id) =>
@@ -1808,6 +1811,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                                       panel.spec.kind == ChartPanelKind.main
                                           ? _theme.formatMainValue
                                           : _theme.formatSecondaryValue,
+                                  compactSingleLine:
+                                      panel.spec.kind == ChartPanelKind.main &&
+                                          _mainIndicators.length == 1,
                                 ),
                               ),
                             ),
@@ -2189,46 +2195,64 @@ class _PanelIndicatorLegend extends StatelessWidget {
   const _PanelIndicatorLegend({
     required this.entries,
     required this.valueFormatter,
+    this.compactSingleLine = false,
   });
 
   final List<_IndicatorLegendEntry> entries;
   final String Function(double value) valueFormatter;
+  final bool compactSingleLine;
 
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty) return const SizedBox.shrink();
+    if (compactSingleLine) {
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var index = 0; index < entries.length; index++)
+              Padding(
+                padding: EdgeInsets.only(left: index == 0 ? 0 : 12),
+                child: _entry(entries[index]),
+              ),
+          ],
+        ),
+      );
+    }
     return Wrap(
       spacing: 12,
       runSpacing: 0,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        for (final entry in entries)
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: '${entry.label}${entry.valueSeparator}',
-                  style: TextStyle(
-                    color: entry.labelColor ?? entry.color,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                TextSpan(
-                  text:
-                      entry.value == null ? '--' : valueFormatter(entry.value!),
-                  style: TextStyle(
-                    color: entry.color,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        for (final entry in entries) _entry(entry),
       ],
     );
   }
+
+  Widget _entry(_IndicatorLegendEntry entry) => RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '${entry.label}${entry.valueSeparator}',
+              style: TextStyle(
+                color: entry.labelColor ?? entry.color,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            TextSpan(
+              text: entry.value == null ? '--' : valueFormatter(entry.value!),
+              style: TextStyle(
+                color: entry.color,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 final class _IndicatorLegendEntry {

@@ -7,6 +7,33 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../example/lib/v2_chart_demo.dart';
 
 void main() {
+  testWidgets('single main indicator legend keeps the secondary header height',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: V2TradingChartDemo(loadOnStart: false)),
+    );
+
+    final mainLegend =
+        find.byKey(const ValueKey('panel-indicator-legend-main'));
+    await tester.scrollUntilVisible(
+      mainLegend,
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final secondaryLegend = find.byKey(
+      const ValueKey('panel-indicator-legend-secondary-vol'),
+      skipOffstage: false,
+    );
+
+    expect(mainLegend, findsOneWidget);
+    expect(secondaryLegend, findsOneWidget);
+    expect(
+      tester.getSize(mainLegend).height,
+      tester.getSize(secondaryLegend).height,
+      reason: '单个主图指标的参数区应与副图使用相同的单行高度。',
+    );
+  });
+
   testWidgets('V2 example switches periods and all chart modes offline',
       (tester) async {
     await tester.pumpWidget(
