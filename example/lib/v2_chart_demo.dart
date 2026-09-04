@@ -612,6 +612,30 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _advanceRevision();
   }
 
+  double _effectiveMainIndicatorHeaderHeight(double availableWidth) {
+    if (_mainIndicatorHeaderHeight == 0) return 0;
+    final estimatedLegendWidth = _mainIndicators.fold<double>(
+      0,
+      (total, id) =>
+          total +
+          switch (id) {
+            'ma' => 380,
+            'ema' => 285,
+            'boll' => 300,
+            'sar' => 120,
+            'vwap' => 120,
+            'avl' => 110,
+            'super' => 190,
+            _ => 110,
+          },
+    );
+    final rows = math.max(
+      1,
+      (estimatedLegendWidth / math.max(1, availableWidth - 16)).ceil(),
+    );
+    return math.max(_mainIndicatorHeaderHeight, rows * 16.0);
+  }
+
   void _clearSelection() {
     _selectedIndex = null;
     _selectedPanelId = null;
@@ -1086,6 +1110,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
 
   @override
   Widget build(BuildContext context) {
+    final mainIndicatorHeaderHeight =
+        _effectiveMainIndicatorHeaderHeight(MediaQuery.sizeOf(context).width);
     final secondaryPanels = _secondaryIndicators.isEmpty
         ? const <ChartPanelSpec>[]
         : _overlaySecondaryIndicators
@@ -1108,7 +1134,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     final chartHeight = math.max(
       460.0,
       220 +
-          _mainIndicatorHeaderHeight +
+          mainIndicatorHeaderHeight +
           secondaryPanels.length *
               (_secondaryPanelHeight + _secondaryIndicatorHeaderHeight) +
           _mainTimeAxisHeight +
@@ -1582,6 +1608,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final width = math.max(1.0, constraints.maxWidth);
+                  final resolvedMainIndicatorHeaderHeight =
+                      _effectiveMainIndicatorHeaderHeight(width);
                   final layout = ChartLayoutModel(
                     width: width,
                     height: chartHeight,
@@ -1593,7 +1621,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     gridColumns: 2,
                     mainPanel: ChartPanelSpec.main(
                       minHeight: 220,
-                      headerHeight: _mainIndicatorHeaderHeight,
+                      headerHeight: resolvedMainIndicatorHeaderHeight,
                       gridRows: 4,
                     ),
                     secondaryPanels: secondaryPanels,
@@ -2164,32 +2192,36 @@ class _PanelIndicatorLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty) return const SizedBox.shrink();
-    return RichText(
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      text: TextSpan(
-        children: [
-          for (final entry in entries) ...[
-            TextSpan(
-              text: '${entry.label}${entry.valueSeparator}',
-              style: TextStyle(
-                color: entry.labelColor ?? entry.color,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-              ),
+    return Wrap(
+      spacing: 12,
+      runSpacing: 0,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final entry in entries)
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: '${entry.label}${entry.valueSeparator}',
+                  style: TextStyle(
+                    color: entry.labelColor ?? entry.color,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                TextSpan(
+                  text:
+                      entry.value == null ? '--' : valueFormatter(entry.value!),
+                  style: TextStyle(
+                    color: entry.color,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            TextSpan(
-              text: entry.value == null ? '--' : valueFormatter(entry.value!),
-              style: TextStyle(
-                color: entry.color,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const TextSpan(text: '   '),
-          ],
-        ],
-      ),
+          ),
+      ],
     );
   }
 }

@@ -219,11 +219,27 @@ void main() {
       find.textContaining('SUPERTREND(10,3)', findRichText: true),
       findsOneWidget,
     );
+    final mainLegendHeight = tester
+        .getSize(
+          find.byKey(const ValueKey('panel-indicator-legend-main')),
+        )
+        .height;
+    expect(
+      mainLegendHeight,
+      greaterThan(18),
+      reason: '多个主图指标参数应换行并扩大专用参数区域。',
+    );
     final chartTopLeft = tester.getTopLeft(chartCanvas);
     final chartSize = tester.getSize(chartCanvas);
-    await tester.tapAt(chartTopLeft + const Offset(100, 80));
+    final chartBodyY = 50.0;
+    await tester.tapAt(chartTopLeft + Offset(100, chartBodyY));
     await tester.pump();
-    expect(find.byKey(const ValueKey('crosshair-details')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('crosshair-details')),
+      findsOneWidget,
+      reason:
+          'chart=$chartTopLeft size=$chartSize legend=$mainLegendHeight localY=$chartBodyY',
+    );
     expect(find.byKey(const ValueKey('crosshair-time-label')), findsOneWidget);
     expect(find.text('时间'), findsOneWidget);
     expect(find.text('命中值'), findsOneWidget);
@@ -233,7 +249,7 @@ void main() {
     );
 
     await tester.tapAt(
-      chartTopLeft + Offset(chartSize.width * 0.7, 80),
+      chartTopLeft + Offset(chartSize.width * 0.7, chartBodyY),
     );
     await tester.pump();
     expect(
