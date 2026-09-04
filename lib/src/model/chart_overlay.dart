@@ -1,6 +1,9 @@
 /// Semantic direction for trading overlays, independent of any exchange SDK.
 enum ChartOverlaySide { buy, sell, neutral }
 
+/// Visual treatment for a horizontal trade price reference.
+enum ChartPriceLineStyle { solid, dashed }
+
 /// A horizontal price reference line with optional label and action identity.
 final class ChartPriceLine {
   factory ChartPriceLine({
@@ -9,11 +12,12 @@ final class ChartPriceLine {
     ChartOverlaySide side = ChartOverlaySide.neutral,
     String? label,
     bool visible = true,
+    ChartPriceLineStyle style = ChartPriceLineStyle.solid,
   }) {
     if (id.trim().isEmpty || !price.isFinite) {
       throw ArgumentError('Invalid price line.');
     }
-    return ChartPriceLine._(id, price, side, label, visible);
+    return ChartPriceLine._(id, price, side, label, visible, style);
   }
   const ChartPriceLine._(
     this.id,
@@ -21,19 +25,27 @@ final class ChartPriceLine {
     this.side,
     this.label,
     this.visible,
+    this.style,
   );
   final String id;
   final double price;
   final ChartOverlaySide side;
   final String? label;
   final bool visible;
+  final ChartPriceLineStyle style;
 
-  ChartPriceLine copyWith({double? price, bool? visible}) => ChartPriceLine(
+  ChartPriceLine copyWith({
+    double? price,
+    bool? visible,
+    ChartPriceLineStyle? style,
+  }) =>
+      ChartPriceLine(
         id: id,
         price: price ?? this.price,
         side: side,
         label: label,
         visible: visible ?? this.visible,
+        style: style ?? this.style,
       );
 }
 

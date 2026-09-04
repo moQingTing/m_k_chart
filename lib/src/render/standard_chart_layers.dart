@@ -488,6 +488,7 @@ final class ChartTradeOverlayLayer<TTheme extends ChartRenderStyle>
     final xTransform = window.xTransform;
     final panelMidY = (panel.bounds.top + panel.bounds.bottom) / 2;
     final canvas = context.canvas;
+    final priceLineLabels = <_TradePriceLineLabel>[];
     canvas.save();
     canvas.clipRect(_rect(panel.bounds));
 
@@ -495,28 +496,49 @@ final class ChartTradeOverlayLayer<TTheme extends ChartRenderStyle>
       if (!line.visible) continue;
       final color = _tradeOverlayColor(snapshot.theme, line.side);
       final y = priceTransform.priceToLocalY(line.price);
-      canvas.drawLine(
-        Offset(panel.bounds.left, y),
-        Offset(panel.bounds.right, y),
-        Paint()
-          ..color = color
-          ..strokeWidth = snapshot.theme.overlayStrokeWidth
-          ..style = PaintingStyle.stroke,
-      );
-      _drawText(
-        canvas: canvas,
-        text: line.label == null
-            ? snapshot.theme.formatMainValue(line.price)
-            : '${line.label} ${snapshot.theme.formatMainValue(line.price)}',
-        color: color,
-        fontSize: snapshot.theme.axisFontSize,
-        x: panel.bounds.right - 3,
-        y: y,
-        horizontalAnchor: 1,
-        verticalAnchor: y < panelMidY ? 0 : 1,
-        cache: cache,
+      if (y < panel.bounds.top || y > panel.bounds.bottom) continue;
+      final linePaint = Paint()
+        ..color = color
+        ..strokeWidth = snapshot.theme.overlayStrokeWidth
+        ..style = PaintingStyle.stroke;
+      if (line.style == ChartPriceLineStyle.dashed) {
+        _drawLatestPriceDashedHorizontalLine(
+          canvas: canvas,
+          startX: panel.bounds.left,
+          length: panel.bounds.width,
+          y: y,
+          paint: linePaint,
+          dashWidth: 5,
+          dashSpace: 4,
+        );
+      } else {
+        canvas.drawLine(
+          Offset(panel.bounds.left, y),
+          Offset(panel.bounds.right, y),
+          linePaint,
+        );
+      }
+      final text = line.label == null
+          ? snapshot.theme.formatMainValue(line.price)
+          : '${line.label} ${snapshot.theme.formatMainValue(line.price)}';
+      priceLineLabels.add(
+        _TradePriceLineLabel(
+          sourceY: y,
+          color: color,
+          painter: cache.textPainter(
+            text: text,
+            color: color,
+            fontSize: snapshot.theme.axisFontSize,
+          ),
+        ),
       );
     }
+    _drawTradePriceLineLabels(
+      canvas: canvas,
+      labels: priceLineLabels,
+      panel: panel.bounds,
+      theme: snapshot.theme,
+    );
 
     for (final marker in snapshot.valueMarkers) {
       final color = _tradeOverlayColor(snapshot.theme, marker.side);
@@ -577,6 +599,97 @@ Color _tradeOverlayColor(
       ChartOverlaySide.sell => theme.downColor,
       ChartOverlaySide.neutral => theme.markerColor,
     };
+
+final class _TradePriceLineLabel {
+  _TradePriceLineLabel({
+    required this.sourceY,
+    required this.color,
+    required this.painter,
+  }) : labelY = sourceY;
+
+  final double sourceY;
+  final Color color;
+  final TextPainter painter;
+  double labelY;
+}
+
+void _drawTradePriceLineLabels<TTheme extends ChartRenderStyle>({
+  required Canvas canvas,
+  required List<_TradePriceLineLabel> labels,
+  required ChartLayoutRect panel,
+  required TTheme theme,
+}) {
+  if (labels.isEmpty) return;
+  const horizontalPadding = 5.0;
+  const verticalPadding = 2.0;
+  const verticalGap = 2.0;
+  const edgeInset = 4.0;
+  labels.sort((left, right) => left.sourceY.compareTo(right.sourceY));
+
+  var nextTop = panel.top + edgeInset;
+  for (final label in labels) {
+    final height = label.painter.height + verticalPadding * 2;
+    final top = math.max(label.sourceY - height / 2, nextTop);
+    label.labelY = top + height / 2;
+    nextTop = top + height + verticalGap;
+  }
+  final last = labels.last;
+  final lastHeight = last.painter.height + verticalPadding * 2;
+  final overflow = last.labelY + lastHeight / 2 - (panel.bottom - edgeInset);
+  if (overflow > 0) {
+    for (final label in labels) {
+      final height = label.painter.height + verticalPadding * 2;
+      label.labelY = (label.labelY - overflow)
+          .clamp(
+            panel.top + edgeInset + height / 2,
+            panel.bottom - edgeInset - height / 2,
+          )
+          .toDouble();
+    }
+  }
+
+  for (final label in labels) {
+    final height = label.painter.height + verticalPadding * 2;
+    final maxWidth = math.max(0.0, panel.width - edgeInset * 2);
+    final width = math.min(
+      label.painter.width + horizontalPadding * 2,
+      maxWidth,
+    );
+    final left = panel.left + edgeInset;
+    final top = label.labelY - height / 2;
+    final rect = Rect.fromLTWH(left, top, width, height);
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(3));
+    canvas.drawRRect(
+      rrect,
+      Paint()..color = theme.backgroundColor.withAlpha(235),
+    );
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = label.color.withAlpha(190)
+        ..strokeWidth = 0.7
+        ..style = PaintingStyle.stroke,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(rect.left, rect.top, 2, rect.height),
+      Paint()..color = label.color,
+    );
+    if ((label.labelY - label.sourceY).abs() > 0.5) {
+      final leaderX = rect.right + 2;
+      canvas.drawLine(
+        Offset(leaderX, label.labelY),
+        Offset(leaderX, label.sourceY),
+        Paint()
+          ..color = label.color.withAlpha(180)
+          ..strokeWidth = 0.7,
+      );
+    }
+    label.painter.paint(
+      canvas,
+      Offset(rect.left + horizontalPadding, rect.top + verticalPadding),
+    );
+  }
+}
 
 /// Paints legacy local lines and P7 time/price-anchored drawing tools.
 final class ChartDrawingLayer<TTheme extends ChartRenderStyle>

@@ -8,6 +8,10 @@ void main() {
       ChartOverlaySide.neutral,
     );
     expect(
+      ChartPriceLine(id: 'entry', price: 100).style,
+      ChartPriceLineStyle.solid,
+    );
+    expect(
       ChartEventOverlay(id: 'fill', epochMilliseconds: 1, price: 2).price,
       2,
     );
@@ -25,6 +29,7 @@ void main() {
       price: 100,
       side: ChartOverlaySide.buy,
       label: '限价买入',
+      style: ChartPriceLineStyle.dashed,
     );
 
     final changed = source.copyWith(price: 101, visible: false);
@@ -34,5 +39,6 @@ void main() {
     expect(changed.label, source.label);
     expect(changed.price, 101);
     expect(changed.visible, isFalse);
+    expect(changed.style, ChartPriceLineStyle.dashed);
   });
 }

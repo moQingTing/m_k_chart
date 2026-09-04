@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:m_k_chart/src/model/model.dart';
 
 // The example composer is intentionally outside the stable package API.
 // ignore: avoid_relative_lib_imports
@@ -31,6 +32,12 @@ void main() {
     expect(
       result.priceLines.map((line) => line.label),
       ['多仓均价', '强平价', '买入挂单', '止盈', '止损'],
+    );
+    expect(
+      result.priceLines.every(
+        (line) => line.style == ChartPriceLineStyle.dashed,
+      ),
+      isTrue,
     );
     expect(
       result.priceLines.every(
