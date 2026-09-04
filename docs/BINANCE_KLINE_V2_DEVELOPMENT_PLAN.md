@@ -144,7 +144,7 @@
 - [x] `BN-I04` SAR。
 - [x] `BN-I05` VWAP。
 - [ ] `BN-I06` Ichimoku。
-- [x] `BN-I07` AVL（累计成交额 / 累计成交量）。
+- [x] `BN-I07` AVL（每根 K 线成交额 / 成交量）。
 - [x] `BN-I08` SUPER（Wilder ATR 趋势线）。
 
 副图指标：
@@ -1072,7 +1072,7 @@ Phase 3 和 Phase 4 可在 Phase 1 契约冻结、Phase 2 核心模型稳定后�
 ### 2026-09-04 / 指标扩展
 
 - 状态：AVL、SUPER 已作为主图可选叠加指标接入完整 V2 链路。
-- 口径：AVL 累计 Binance `quoteVolume / baseVolume`，SUPER 使用 Wilder ATR(10) 与乘数 3 的追踪上下轨，并在反转点断开不同趋势的绘制序列。
+- 口径：AVL 使用每根 Binance K 线的 `quoteVolume / baseVolume`，SUPER 使用 Wilder ATR(10) 与乘数 3 的追踪上下轨，并在反转点断开不同趋势的绘制序列。
 - 增量：两项都支持末项更新和追加，复用此前缀状态；全量/增量等价由指标测试覆盖。
 - 布局：每个副图由原有上下边界扩展为上、中、下三条横线，图例专用顶部区域保持不绘制数据。
 - 证据：`lib/src/indicator/additional_indicator_definitions.dart`、`test/indicator/additional_indicator_definitions_test.dart`、`test/example/v2_chart_demo_test.dart`。

@@ -78,7 +78,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       'AVL',
       'builtin.avl',
       true,
-      '累计成交额 / 累计成交量',
+      '每根 K 线成交额 / 成交量',
     ),
     _IndicatorOption(
       'super',

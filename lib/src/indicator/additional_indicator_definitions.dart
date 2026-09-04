@@ -20,11 +20,12 @@ void registerAdditionalIndicatorDefinitions(IndicatorRegistry registry) {
     ..register(StochRsiIndicatorDefinition());
 }
 
-/// Cumulative average value line (AVL).
+/// Average value line (AVL) for each Kline.
 ///
-/// AVL uses the exchange-provided quote turnover divided by base turnover,
-/// rather than substituting the candle's typical price. This makes the value
-/// the exact volume-weighted average available from an OHLCV source.
+/// Binance supplies both quote and base turnover for every Kline, so
+/// `quoteVolume / baseVolume` is that bar's actual average execution price.
+/// Unlike VWAP, AVL must not accumulate the earlier bars; doing so produces a
+/// slow anchor line rather than the price-following line shown in the chart.
 final class AverageValueLineIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'builtin.avl';
@@ -43,26 +44,14 @@ final class AverageValueLineIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final values = List<double?>.filled(input.data.length, null);
-    final quoteVolume = List<double?>.filled(input.data.length, 0);
-    final baseVolume = List<double?>.filled(input.data.length, 0);
-    var cumulativeQuoteVolume = 0.0;
-    var cumulativeBaseVolume = 0.0;
-    for (var index = 0; index < input.data.length; index++) {
-      final item = input.data[index];
-      cumulativeQuoteVolume += item.quoteVolume;
-      cumulativeBaseVolume += item.baseVolume;
-      quoteVolume[index] = cumulativeQuoteVolume;
-      baseVolume[index] = cumulativeBaseVolume;
-      values[index] = cumulativeBaseVolume == 0
-          ? null
-          : cumulativeQuoteVolume / cumulativeBaseVolume;
-    }
-    return _statefulResult(this, input, config, [
-      IndicatorSeries.takeOwnership(id: 'avl', values: values),
-    ], [
-      IndicatorSeries.takeOwnership(id: 'quoteVolume', values: quoteVolume),
-      IndicatorSeries.takeOwnership(id: 'baseVolume', values: baseVolume),
+    return _result(this, input, config, [
+      IndicatorSeries.takeOwnership(
+        id: 'avl',
+        values: [
+          for (final item in input.data)
+            item.baseVolume == 0 ? null : item.quoteVolume / item.baseVolume,
+        ],
+      ),
     ]);
   }
 
@@ -78,23 +67,13 @@ final class AverageValueLineIndicatorDefinition
     IndicatorDataChange change,
   ) {
     final values = _buffer(previous.seriesById('avl')!.values, input);
-    final quoteVolume = _stateBuffer(previous, 'quoteVolume', input);
-    final baseVolume = _stateBuffer(previous, 'baseVolume', input);
     for (var index = change.currentStart; index < input.data.length; index++) {
       final item = input.data[index];
-      final previousQuoteVolume = index == 0 ? 0.0 : quoteVolume[index - 1]!;
-      final previousBaseVolume = index == 0 ? 0.0 : baseVolume[index - 1]!;
-      quoteVolume[index] = previousQuoteVolume + item.quoteVolume;
-      baseVolume[index] = previousBaseVolume + item.baseVolume;
-      values[index] = baseVolume[index] == 0
-          ? null
-          : quoteVolume[index]! / baseVolume[index]!;
+      values[index] =
+          item.baseVolume == 0 ? null : item.quoteVolume / item.baseVolume;
     }
-    return _statefulResult(this, input, config, [
+    return _result(this, input, config, [
       IndicatorSeries.takeOwnership(id: 'avl', values: values),
-    ], [
-      IndicatorSeries.takeOwnership(id: 'quoteVolume', values: quoteVolume),
-      IndicatorSeries.takeOwnership(id: 'baseVolume', values: baseVolume),
     ]);
   }
 }

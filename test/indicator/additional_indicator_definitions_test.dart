@@ -101,15 +101,17 @@ void main() {
       );
     });
 
-    test('uses cumulative exchange turnover for AVL and splits SUPER trends',
+    test(
+        'uses each Kline exchange average price for AVL and splits SUPER trends',
         () {
       final avl = _calculate(
         _snapshot([
           _kline(0, 10, volume: 2, quoteVolume: 30),
-          _kline(1, 20, volume: 3, quoteVolume: 45),
+          _kline(1, 20, volume: 3, quoteVolume: 120),
         ]),
       );
-      expect(_last(avl, 'avl', 'avl'), 15);
+      expect(_value(avl, 'avl', 'avl', 0), 15);
+      expect(_last(avl, 'avl', 'avl'), 40);
 
       final superTrend = _calculate(_snapshot(_linearKlines(30)));
       expect(_value(superTrend, 'super', 'down', 8), isNull);
