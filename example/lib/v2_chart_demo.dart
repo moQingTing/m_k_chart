@@ -2483,7 +2483,7 @@ class _PanelIndicatorLegend extends StatelessWidget {
               style: TextStyle(
                 color: entry.labelColor ?? entry.color,
                 fontSize: 9.5,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.normal,
               ),
             ),
             TextSpan(
@@ -2491,7 +2491,7 @@ class _PanelIndicatorLegend extends StatelessWidget {
               style: TextStyle(
                 color: entry.color,
                 fontSize: 9.5,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.normal,
               ),
             ),
           ],
