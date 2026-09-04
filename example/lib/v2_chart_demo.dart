@@ -1082,6 +1082,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
           text: _formatAxisTime(
             xTransform.localXToTime(chartX - layout.drawingBounds.left),
             timeZoneOffset,
+            _interval,
           ),
           horizontalAnchor: chartX <= layout.drawingBounds.left
               ? 0
@@ -1677,7 +1678,12 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     priceLines: tradeOverlays.priceLines,
                     mainMode: _mode,
                     timeZoneOffset: Duration(minutes: _timeZoneOffsetMinutes),
-                    axisTimeFormatter: _formatAxisTime,
+                    axisTimeFormatter: (epochMilliseconds, timeZoneOffset) =>
+                        _formatAxisTime(
+                      epochMilliseconds,
+                      timeZoneOffset,
+                      _interval,
+                    ),
                     crosshairTimeFormatter: _formatRendererCrosshairTime,
                     currentTime: _currentTime,
                   );
@@ -1701,7 +1707,12 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     selection: _selectionFor(baseSnapshot),
                     mainMode: _mode,
                     timeZoneOffset: Duration(minutes: _timeZoneOffsetMinutes),
-                    axisTimeFormatter: _formatAxisTime,
+                    axisTimeFormatter: (epochMilliseconds, timeZoneOffset) =>
+                        _formatAxisTime(
+                      epochMilliseconds,
+                      timeZoneOffset,
+                      _interval,
+                    ),
                     crosshairTimeFormatter: _formatRendererCrosshairTime,
                     currentTime: _currentTime,
                   );
@@ -2505,18 +2516,11 @@ class _DetailRow extends StatelessWidget {
 }
 
 String _formatDetailTime(Kline candle, Duration timeZoneOffset) {
-  final time = DateTime.fromMillisecondsSinceEpoch(
-    candle.openTime + timeZoneOffset.inMilliseconds,
-    isUtc: true,
+  return _formatIntervalTime(
+    candle.openTime,
+    timeZoneOffset,
+    candle.interval.code,
   );
-  String twoDigits(int value) => value.toString().padLeft(2, '0');
-  if (candle.interval.code.endsWith('d') ||
-      candle.interval.code.endsWith('w') ||
-      candle.interval.code.endsWith('M')) {
-    return '${twoDigits(time.month)}-${twoDigits(time.day)}';
-  }
-  return '${twoDigits(time.month)}-${twoDigits(time.day)} '
-      '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
 }
 
 String _formatCrosshairSelectionTime(
@@ -2533,6 +2537,20 @@ String _formatRendererCrosshairTime(
   int epochMilliseconds,
   String intervalCode,
   Duration timeZoneOffset,
+) =>
+    _formatIntervalTime(epochMilliseconds, timeZoneOffset, intervalCode);
+
+String _formatAxisTime(
+  int epochMilliseconds,
+  Duration timeZoneOffset,
+  KlineInterval interval,
+) =>
+    _formatIntervalTime(epochMilliseconds, timeZoneOffset, interval.code);
+
+String _formatIntervalTime(
+  int epochMilliseconds,
+  Duration timeZoneOffset,
+  String intervalCode,
 ) {
   final time = DateTime.fromMillisecondsSinceEpoch(
     epochMilliseconds + timeZoneOffset.inMilliseconds,
@@ -2540,10 +2558,22 @@ String _formatRendererCrosshairTime(
   );
   String twoDigits(int value) => value.toString().padLeft(2, '0');
   final date = '${time.year}-${twoDigits(time.month)}-${twoDigits(time.day)}';
-  if (intervalCode.endsWith('d') ||
-      intervalCode.endsWith('w') ||
-      intervalCode.endsWith('M')) {
+  final code = intervalCode.trim();
+  if (code.endsWith('M')) {
+    return '${time.year}-${twoDigits(time.month)}';
+  }
+  if (code.endsWith('d') || code.endsWith('w')) {
     return date;
+  }
+  if (code.endsWith('h')) {
+    return '$date ${twoDigits(time.hour)}:00';
+  }
+  if (code.endsWith('m')) {
+    return '$date ${twoDigits(time.hour)}:${twoDigits(time.minute)}';
+  }
+  if (code.endsWith('s')) {
+    return '$date ${twoDigits(time.hour)}:${twoDigits(time.minute)}:'
+        '${twoDigits(time.second)}';
   }
   return '$date ${twoDigits(time.hour)}:${twoDigits(time.minute)}';
 }
@@ -2562,16 +2592,6 @@ String _formatIndicatorParameter(num value) =>
     value.toDouble() == value.toDouble().roundToDouble()
         ? value.toInt().toString()
         : value.toString();
-
-String _formatAxisTime(int epochMilliseconds, Duration timeZoneOffset) {
-  final time = DateTime.fromMillisecondsSinceEpoch(
-    epochMilliseconds + timeZoneOffset.inMilliseconds,
-    isUtc: true,
-  );
-  String twoDigits(int value) => value.toString().padLeft(2, '0');
-  return '${time.year}-${twoDigits(time.month)}-${twoDigits(time.day)} '
-      '${twoDigits(time.hour)}:${twoDigits(time.minute)}';
-}
 
 class _DemoPainter extends CustomPainter {
   const _DemoPainter({required this.pipeline, required this.snapshot});

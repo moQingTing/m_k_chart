@@ -34,6 +34,30 @@ void main() {
     );
   });
 
+  testWidgets('daily candles show date-only crosshair time', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: V2TradingChartDemo(loadOnStart: false)),
+    );
+    await tester.tap(find.byKey(const ValueKey('period-1d')));
+    await tester.pump();
+
+    final chartCanvas = find.byKey(const ValueKey('v2-chart-canvas'));
+    await tester.scrollUntilVisible(
+      chartCanvas,
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final chartTopLeft = tester.getTopLeft(chartCanvas);
+    await tester.tapAt(chartTopLeft + const Offset(100, 50));
+    await tester.pump();
+
+    final timeLabel = find.byKey(const ValueKey('crosshair-time-label'));
+    final timeText = tester.widget<Text>(
+      find.descendant(of: timeLabel, matching: find.byType(Text)),
+    );
+    expect(timeText.data, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')));
+  });
+
   testWidgets('V2 example switches periods and all chart modes offline',
       (tester) async {
     await tester.pumpWidget(
