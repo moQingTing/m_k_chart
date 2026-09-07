@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +5,7 @@ import 'chart_style.dart';
 import 'entity/info_window_entity.dart';
 import 'entity/k_line_entity.dart';
 import 'renderer/chart_painter.dart';
+import 'renderer/legacy_chart_viewport.dart';
 import 'utils/data_util.dart';
 
 enum MainState { ma, boll, ema, sar, none }
@@ -57,6 +56,7 @@ class KChartWidget extends StatefulWidget {
   final ChartColors chartColors;
   final ChartStyle chartStyle;
   final List<SecondaryState> secondaryStates;
+
   /// 自定义信息窗口构建器，如果提供则使用此回调构建信息窗口
   /// 参数：context - 构建上下文
   ///      entity - 信息窗口实体，包含K线数据和位置信息
@@ -89,8 +89,10 @@ class KChartWidgetState extends State<KChartWidget>
   late AnimationController _controller;
   late Animation<double> _animation;
   double mScaleX = 1.0, mScrollX = 0.0, mSelectX = 0.0;
-  late StreamController<InfoWindowEntity?> mInfoWindowStream;
-  double mWidth = 0;
+  final ValueNotifier<int> _chartRepaint = ValueNotifier(0);
+  final ValueNotifier<InfoWindowEntity?> _infoWindow = ValueNotifier(null);
+  double _layoutWidth = 0;
+  double _maxScrollX = 0;
 
   late AnimationController _scrollXController;
 
@@ -107,12 +109,11 @@ class KChartWidgetState extends State<KChartWidget>
     if (kDebugMode) {
       print('KChartWidgetState initState $mScrollX');
     }
-    mInfoWindowStream = StreamController();
     _controller = AnimationController(
         duration: const Duration(milliseconds: 850), vsync: this);
 
     _animation = Tween(begin: 0.9, end: 0.1).animate(_controller)
-      ..addListener(() => setState(() {}));
+      ..addListener(notifyChanged);
 
     _scrollXController = AnimationController(
         vsync: this,
@@ -128,8 +129,8 @@ class KChartWidgetState extends State<KChartWidget>
       if (mScrollX <= 0) {
         mScrollX = 0;
         _stopAnimation();
-      } else if (mScrollX >= ChartPainter.maxScrollX) {
-        mScrollX = ChartPainter.maxScrollX;
+      } else if (mScrollX >= _maxScrollX) {
+        mScrollX = _maxScrollX;
         _stopAnimation();
       } else {
         notifyChanged();
@@ -153,20 +154,20 @@ class KChartWidgetState extends State<KChartWidget>
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    mWidth = MediaQuery.of(context).size.width;
-  }
-
-  @override
   void didUpdateWidget(KChartWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // if (oldWidget.datas != widget.datas) mScrollX = mSelectX = 0.0;
+    if (widget.datas == null) {
+      mScrollX = mSelectX = 0.0;
+      mScaleX = 1.0;
+      _infoWindow.value = null;
+    }
+    _updateViewportMetrics();
   }
 
   @override
   void dispose() {
-    mInfoWindowStream.close();
+    _chartRepaint.dispose();
+    _infoWindow.dispose();
     _controller.dispose();
     _scrollXController.dispose();
     super.dispose();
@@ -177,87 +178,93 @@ class KChartWidgetState extends State<KChartWidget>
     if (kDebugMode) {
       // print('mScrollX $mScrollX');
     }
-    if (widget.datas == null) {
-      mScrollX = mSelectX = 0.0;
-      mScaleX = 1.0;
-    }
-
-    return RawGestureDetector(
-      gestures: {
-        // 为了解决缩放和水平滚动冲突
-        CustomScaleGestureRecognizer:
-            GestureRecognizerFactoryWithHandlers<CustomScaleGestureRecognizer>(
-          () =>
-              CustomScaleGestureRecognizer(_shouldInterceptParentScrollByScale),
-          (CustomScaleGestureRecognizer instance) {
+    return LayoutBuilder(builder: (context, constraints) {
+      _layoutWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : 0;
+      _updateViewportMetrics();
+      return RawGestureDetector(
+        gestures: {
+          // 为了解决缩放和水平滚动冲突
+          CustomScaleGestureRecognizer: GestureRecognizerFactoryWithHandlers<
+              CustomScaleGestureRecognizer>(
+            () => CustomScaleGestureRecognizer(
+                _shouldInterceptParentScrollByScale),
+            (CustomScaleGestureRecognizer instance) {
+              instance
+                ..onStart = _onScaleStart
+                ..onUpdate = _onScaleUpdate
+                ..onEnd = _onScaleEnd;
+            },
+          ),
+          // 为了解决缩放和水平滚动冲突
+          CustomHorizontalDragGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<
+                  CustomHorizontalDragGestureRecognizer>(
+            () => CustomHorizontalDragGestureRecognizer(
+                __shouldInterceptParentScrollByDrag),
+            (CustomHorizontalDragGestureRecognizer instance) {
+              instance
+                ..onDown = _onHorizontalDragDown
+                ..onUpdate = _onHorizontalDragUpdate
+                ..onEnd = _onHorizontalDragEnd
+                ..onCancel = _onHorizontalDragCancel;
+            },
+          ),
+          CustomLongGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<CustomLongGestureRecognizer>(
+                  () => CustomLongGestureRecognizer(),
+                  (CustomLongGestureRecognizer instance) {
             instance
-              ..onStart = _onScaleStart
-              ..onUpdate = _onScaleUpdate
-              ..onEnd = _onScaleEnd;
-          },
-        ),
-        // 为了解决缩放和水平滚动冲突
-        CustomHorizontalDragGestureRecognizer:
-            GestureRecognizerFactoryWithHandlers<
-                CustomHorizontalDragGestureRecognizer>(
-          () => CustomHorizontalDragGestureRecognizer(
-              __shouldInterceptParentScrollByDrag),
-          (CustomHorizontalDragGestureRecognizer instance) {
-            instance
-              ..onDown = _onHorizontalDragDown
-              ..onUpdate = _onHorizontalDragUpdate
-              ..onEnd = _onHorizontalDragEnd
-              ..onCancel = _onHorizontalDragCancel;
-          },
-        ),
-        CustomLongGestureRecognizer:
-            GestureRecognizerFactoryWithHandlers<CustomLongGestureRecognizer>(
-                () => CustomLongGestureRecognizer(),
-                (CustomLongGestureRecognizer instance) {
-          instance
-            ..onLongPressStart = _onLongPressStart
-            ..onLongPressMoveUpdate = _onLongPressMoveUpdate
-            ..onLongPressEnd = _onLongPressEnd;
-        })
-      },
-      child: Listener(
-        onPointerSignal: (PointerSignalEvent event) {
-          if (event is PointerScrollEvent) {
-            // Handle horizontal scroll
-            _onHorizontalDragUpdate(DragUpdateDetails(
-              delta: Offset(event.scrollDelta.dx, 0),
-              primaryDelta: event.scrollDelta.dx,
-              globalPosition: event.position,
-            ));
-          }
+              ..onLongPressStart = _onLongPressStart
+              ..onLongPressMoveUpdate = _onLongPressMoveUpdate
+              ..onLongPressEnd = _onLongPressEnd;
+          })
         },
-        child: Stack(
-          children: <Widget>[
-            CustomPaint(
-              size: const Size(double.infinity, double.infinity),
-              painter: ChartPainter(
-                  chartStyle: widget.chartStyle,
-                  chartColors: widget.chartColors,
-                  secondaryStates: widget.secondaryStates,
-                  datas: widget.datas,
-                  scaleX: mScaleX,
-                  scrollX: mScrollX,
-                  selectX: mSelectX,
-                  isLongPass: isLongPress,
-                  mainState: widget.mainState,
-                  isLine: widget.isLine,
-                  sink: mInfoWindowStream.sink,
-                  opacity: _animation.value,
-                  controller: _controller),
-            ),
-            _buildInfoDialog()
-          ],
+        child: Listener(
+          onPointerSignal: (PointerSignalEvent event) {
+            if (event is PointerScrollEvent) {
+              // Handle horizontal scroll
+              _onHorizontalDragUpdate(DragUpdateDetails(
+                delta: Offset(event.scrollDelta.dx, 0),
+                primaryDelta: event.scrollDelta.dx,
+                globalPosition: event.position,
+              ));
+            }
+          },
+          child: Stack(
+            children: <Widget>[
+              RepaintBoundary(
+                child: ListenableBuilder(
+                  listenable: _chartRepaint,
+                  builder: (context, child) => CustomPaint(
+                    size: const Size(double.infinity, double.infinity),
+                    painter: ChartPainter(
+                      chartStyle: widget.chartStyle,
+                      chartColors: widget.chartColors,
+                      secondaryStates: widget.secondaryStates,
+                      datas: widget.datas,
+                      scaleX: mScaleX,
+                      scrollX: mScrollX,
+                      selectX: mSelectX,
+                      isLongPass: isLongPress,
+                      mainState: widget.mainState,
+                      isLine: widget.isLine,
+                      opacity: _animation.value,
+                      controller: _controller,
+                    ),
+                  ),
+                ),
+              ),
+              _buildInfoDialog()
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
-  void notifyChanged() => setState(() {});
+  void notifyChanged() {
+    _chartRepaint.value++;
+  }
 
   // List<String> infoNames = ["Date", "Open", "High", "Low", "Close", "Change", "Change%", "Vol"];
   List<String> infoNames = [
@@ -271,39 +278,37 @@ class KChartWidgetState extends State<KChartWidget>
   ];
 
   Widget _buildInfoDialog() {
-    return StreamBuilder<InfoWindowEntity?>(
-        stream: mInfoWindowStream.stream,
-        builder: (context, snapshot) {
-          if (!isLongPress ||
-              widget.isLine == true ||
-              !snapshot.hasData ||
-              snapshot.data == null) {
+    return ValueListenableBuilder<InfoWindowEntity?>(
+        valueListenable: _infoWindow,
+        builder: (context, infoWindow, child) {
+          if (!isLongPress || widget.isLine == true || infoWindow == null) {
             return Container();
           }
-          
+
           // 如果提供了自定义构建器，使用自定义构建器
           if (widget.infoWindowBuilder != null) {
             return widget.infoWindowBuilder!(
               context,
-              snapshot.data!,
+              infoWindow,
               widget.chartStyle,
               widget.chartColors,
             );
           }
-          
+
           // 否则使用默认实现
-          return _buildDefaultInfoDialog(context, snapshot.data!);
+          return _buildDefaultInfoDialog(context, infoWindow);
         });
   }
 
-  Widget _buildDefaultInfoDialog(BuildContext context, InfoWindowEntity entity) {
+  Widget _buildDefaultInfoDialog(
+      BuildContext context, InfoWindowEntity entity) {
     List<TextSpan>? infos;
     KLineEntity kLineEntity = entity.kLineEntity;
     double upDown = kLineEntity.close - kLineEntity.open;
     double upDownPercent = upDown / kLineEntity.open * 100;
     TextStyle defaultStyle = TextStyle(
         color: Colors.white, fontSize: widget.chartStyle.defaultTextSize);
-    
+
     // 格式化价格和数量，保持原来的颜色逻辑
     // Open, High, Low, Close 使用白色
     TextSpan openSpan = widget.chartStyle.priceFormatter != null
@@ -321,15 +326,19 @@ class KChartWidgetState extends State<KChartWidget>
     TextSpan volSpan = widget.chartStyle.volumeFormatter != null
         ? widget.chartStyle.volumeFormatter!(kLineEntity.vol, defaultStyle)
         : widget.chartStyle.defaultFormatVolume(kLineEntity.vol, defaultStyle);
-    
+
     infos ??= [
-      TextSpan(text: DataUtil.getDate(kLineEntity.id, widget.chartStyle.dateFormatter), style: defaultStyle),
+      TextSpan(
+          text:
+              DataUtil.getDate(kLineEntity.id, widget.chartStyle.dateFormatter),
+          style: defaultStyle),
       openSpan,
       highSpan,
       lowSpan,
       closeSpan,
       TextSpan(
-          text: "${upDownPercent > 0 ? "+" : ''}${upDownPercent.toStringAsFixed(2)}%",
+          text:
+              "${upDownPercent > 0 ? "+" : ''}${upDownPercent.toStringAsFixed(2)}%",
           style: defaultStyle.copyWith(
               color: upDownPercent > 0
                   ? widget.chartColors.upColor
@@ -347,8 +356,8 @@ class KChartWidgetState extends State<KChartWidget>
                 color: widget.chartColors.markerBorderColor, width: 0.5)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: List.generate(infoNames.length,
-              (i) => _buildItem(infos![i], infoNames[i])),
+          children: List.generate(
+              infoNames.length, (i) => _buildItem(infos![i], infoNames[i])),
         ),
       ),
     );
@@ -377,7 +386,6 @@ class KChartWidgetState extends State<KChartWidget>
     );
   }
 
-
   void _onHorizontalDragDown(DragDownDetails details) {
     if (kDebugMode) {
       print('KChartWidgetState onHorizontalDragDown');
@@ -392,7 +400,7 @@ class KChartWidgetState extends State<KChartWidget>
     }
     if (isLongPress) return;
     mScrollX = (details.primaryDelta! / mScaleX + mScrollX)
-        .clamp(0.0, ChartPainter.maxScrollX)
+        .clamp(0.0, _maxScrollX)
         .toDouble();
     notifyChanged();
   }
@@ -423,22 +431,22 @@ class KChartWidgetState extends State<KChartWidget>
 
   void _onLongPressStart(LongPressStartDetails details) {
     isLongPress = true;
-    if (mSelectX != details.globalPosition.dx) {
-      mSelectX = details.globalPosition.dx;
-      notifyChanged();
-    }
+    mSelectX = details.localPosition.dx;
+    _updateInfoWindow();
+    notifyChanged();
   }
 
   void _onLongPressMoveUpdate(LongPressMoveUpdateDetails details) {
-    if (mSelectX != details.globalPosition.dx) {
-      mSelectX = details.globalPosition.dx;
+    if (mSelectX != details.localPosition.dx) {
+      mSelectX = details.localPosition.dx;
+      _updateInfoWindow();
       notifyChanged();
     }
   }
 
   void _onLongPressEnd(LongPressEndDetails details) {
     isLongPress = false;
-    mInfoWindowStream.add(null);
+    _infoWindow.value = null;
     notifyChanged();
   }
 
@@ -457,6 +465,7 @@ class KChartWidgetState extends State<KChartWidget>
     // if (isDrag || isLongPress) return;
     if (details.scale > 0) {
       mScaleX = (_lastScale * details.scale).clamp(0.5, 2.2);
+      _updateViewportMetrics();
       notifyChanged();
     }
   }
@@ -477,6 +486,35 @@ class KChartWidgetState extends State<KChartWidget>
   bool __shouldInterceptParentScrollByDrag() {
     //拦截父组件的滚动
     return isDrag;
+  }
+
+  void _updateViewportMetrics() {
+    final metrics = LegacyChartViewportMetrics(
+      itemCount: widget.datas?.length ?? 0,
+      width: _layoutWidth,
+      scaleX: mScaleX,
+      pointWidth: widget.chartStyle.pointWidth,
+    );
+    _maxScrollX = metrics.maxScrollX;
+    mScrollX = metrics.clampScrollX(mScrollX);
+  }
+
+  void _updateInfoWindow() {
+    final data = widget.datas;
+    if (data == null || data.isEmpty || widget.isLine) {
+      _infoWindow.value = null;
+      return;
+    }
+    final metrics = LegacyChartViewportMetrics(
+      itemCount: data.length,
+      width: _layoutWidth,
+      scaleX: mScaleX,
+      pointWidth: widget.chartStyle.pointWidth,
+    );
+    final index = metrics.selectedIndex(localX: mSelectX, scrollX: mScrollX);
+    final isLeft =
+        metrics.localXForIndex(index, scrollX: mScrollX) >= _layoutWidth / 2;
+    _infoWindow.value = InfoWindowEntity(data[index], isLeft);
   }
 }
 

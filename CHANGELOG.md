@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Documented the approved V2 public additions: `KChartTheme`, `ChartColorsThemeAdapter`, `KChartUserConfig`, and `KChartIndicatorPreference`.
+- Added the V1-to-V2 compatibility migration guide, API diff, public API ADR, and complete V2 Example navigation.
+
+### Changed
+- Clarified that internal V2 Renderer/Controller contracts and the Example bridge are not stable package APIs.
+
 ## [1.0.4] - 2024-12-19
 
 ### Changed
@@ -60,4 +69,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed MACD rendering to properly show hollow/solid bars
 - Fixed various code quality issues (unused variables, imports, null checks)
 - Fixed trailing comma and const keyword warnings for better code style
-

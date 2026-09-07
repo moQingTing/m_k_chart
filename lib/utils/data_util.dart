@@ -388,7 +388,7 @@ class DataUtil {
   }
 
   // SAR (Parabolic SAR) 抛物线转向指标计算
-  // 根据OKX算法实现：
+  // 根据原有指标算法实现：
   // 上升式：SAR(n) = SAR(n-1) + AF × [H(n-1) - SAR(n-1)]
   // 下降式：SAR(n) = SAR(n-1) + AF × [L(n-1) - SAR(n-1)]
   // 其中：

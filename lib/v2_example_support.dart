@@ -1,0 +1,16 @@
+/// Unstable V2 Renderer contracts used exclusively by this repository's
+/// runnable Example.
+///
+/// This library is deliberately not exported from `m_k_chart.dart`; package
+/// consumers must not treat it as a supported API surface before the V2 Widget
+/// and Controller complete public API review.
+library;
+
+export 'src/model/model.dart';
+export 'src/data/data.dart';
+export 'src/indicator/indicator.dart';
+export 'src/interaction/interaction.dart';
+export 'src/render/render.dart';
+export 'src/render/chart_layer_geometry.dart';
+export 'src/viewport/viewport.dart';
+export 'src/widget/chart_gesture_region.dart';
