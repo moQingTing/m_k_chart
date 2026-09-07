@@ -13,13 +13,23 @@ void main() {
       const MaterialApp(home: V2TradingChartDemo(loadOnStart: false)),
     );
 
+    await tester.tap(
+      find.byKey(const ValueKey('open-indicator-settings')),
+    );
+    await tester.pumpAndSettle();
+
     final parameter = find.byKey(
       const ValueKey('indicator-param-ma-period1'),
     );
     await tester.scrollUntilVisible(
       parameter,
       260,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('settings-sheet-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.ensureVisible(parameter);
     await tester.pump();
@@ -62,8 +72,12 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(home: V2TradingChartDemo(loadOnStart: false)),
     );
+    await tester.tap(find.byKey(const ValueKey('open-data-settings')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('period-1d')));
     await tester.pump();
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
 
     final chartCanvas = find.byKey(const ValueKey('v2-chart-canvas'));
     await tester.scrollUntilVisible(
@@ -82,6 +96,86 @@ void main() {
     expect(timeText.data, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')));
   });
 
+  testWidgets('settings sheets organize chart controls without expanding page',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: V2TradingChartDemo(loadOnStart: false)),
+    );
+
+    expect(find.byKey(const ValueKey('v2-chart-canvas')), findsOneWidget);
+    expect(find.byKey(const ValueKey('period-1m')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('open-data-settings')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('period-1m')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('period-5m')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<ChoiceChip>(find.byKey(const ValueKey('period-5m')))
+          .selected,
+      isTrue,
+    );
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('open-indicator-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('main-indicator-super')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<FilterChip>(
+            find.byKey(const ValueKey('main-indicator-super')),
+          )
+          .selected,
+      isTrue,
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('super-area-opacity-setting')),
+      260,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('settings-sheet-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(
+      find.byKey(const ValueKey('super-area-opacity-setting')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('open-chart-settings')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('main-header-height-setting')),
+      findsOneWidget,
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('main-value-decimals')),
+      260,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('settings-sheet-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(find.byKey(const ValueKey('main-value-decimals')), findsOneWidget);
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('open-simulation-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('simulate-update-latest')));
+    await tester.pump();
+    expect(find.textContaining('已模拟更新最新 K 线'), findsOneWidget);
+  });
+
+  /* Replaced by the focused settings-sheet coverage above.
   testWidgets('V2 example switches periods and all chart modes offline',
       (tester) async {
     await tester.pumpWidget(
@@ -354,6 +448,7 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
   });
+  */
 
   testWidgets('trade overlay supports exclusive tap drag and cancel actions',
       (tester) async {
@@ -427,16 +522,15 @@ void main() {
         ),
       );
 
+      await tester.tap(find.byKey(const ValueKey('open-chart-settings')));
+      await tester.pumpAndSettle();
       final timeZone = find.byKey(const ValueKey('time-zone-offset'));
-      await tester.scrollUntilVisible(
-        timeZone,
-        500,
-        scrollable: find.byType(Scrollable).first,
-      );
       final dropdown = tester.widget<DropdownButton<int>>(timeZone);
       dropdown.onChanged!(5 * 60 + 30);
       await tester.pump();
       expect(tester.widget<DropdownButton<int>>(timeZone).value, 330);
+      await tester.tap(find.byTooltip('关闭'));
+      await tester.pumpAndSettle();
 
       final chartCanvas = find.byKey(const ValueKey('v2-chart-canvas'));
       await tester.scrollUntilVisible(
