@@ -11,24 +11,21 @@ import 'package:m_k_chart/v2_example_support.dart';
 import 'binance_market_data_client.dart';
 import 'v2_trade_overlay_examples.dart';
 
-/// A complete, runnable reference integration for the V2 trading-chart SDK.
+/// 可直接运行的 V2 交易图表 SDK 完整接入示例。
 ///
-/// This example intentionally keeps the production integration steps together:
+/// 此示例将生产环境的关键接入步骤集中展示：
 ///
-/// 1. Obtain a [VersionedKlineData] window from your REST/WebSocket service.
-/// 2. Turn enabled indicator definitions into [IndicatorConfig] instances.
-/// 3. Resolve them through [IndicatorEngine] and project them into the render
-///    snapshot in [_indicatorSnapshots].
-/// 4. Feed the immutable [RenderSnapshot] to [StandardChartRenderPipeline].
-/// 5. Route gestures through [ChartGestureRegion], then only update the state
-///    affected by that gesture.
+/// 1. 从 REST / WebSocket 服务取得 [VersionedKlineData] 数据窗口。
+/// 2. 将启用的指标定义转换为 [IndicatorConfig] 实例。
+/// 3. 通过 [IndicatorEngine] 计算指标，并投射为 [_indicatorSnapshots] 中的
+///    渲染快照。
+/// 4. 将不可变的 [RenderSnapshot] 传给 [StandardChartRenderPipeline]。
+/// 5. 用 [ChartGestureRegion] 分发手势，并仅更新受该手势影响的状态。
 ///
-/// Binance is used only as an easily runnable public data source. Replace
-/// [BinanceMarketDataClient] and [_loadCandles]/[_refreshLatestCandles] with
-/// your own repository or stream without changing the chart assembly code.
-/// Local deterministic candles render first, so the example also remains
-/// usable offline. Set [loadOnStart] to false in widget tests or an offline
-/// host.
+/// 币安仅作为便于运行的公开数据源。替换 [BinanceMarketDataClient] 与
+/// [_loadCandles]/[_refreshLatestCandles] 为自己的仓库或数据流时，无需修改
+/// 图表组装逻辑。示例会先渲染确定性的本地 K 线，因此离线时仍可使用；
+/// Widget 测试或离线宿主中请将 [loadOnStart] 设为 false。
 class V2TradingChartDemo extends StatefulWidget {
   const V2TradingChartDemo({
     super.key,
@@ -44,10 +41,10 @@ class V2TradingChartDemo extends StatefulWidget {
 }
 
 class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
-  /// Keep panels visually contiguous. Hosts may raise this for card-like UIs.
+  /// 保持各面板在视觉上连续；卡片式界面可调大该值。
   static const _panelSpacing = 0.0;
 
-  /// Intervals exposed by the sample's “行情与周期” sheet.
+  /// 示例“行情与周期”面板提供的周期。
   static final _intervals = <KlineInterval>[
     KlineInterval.oneMinute,
     KlineInterval.fiveMinutes,
@@ -66,12 +63,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     ChartMainMode.area,
   ];
 
-  /// The SDK-facing indicator catalog.
+  /// 面向 SDK 的指标目录。
   ///
-  /// To add an indicator in an app: register its definition, add one option
-  /// here, and provide its numeric defaults in [parameters]. The generic
-  /// settings UI, parameter validation and engine configuration then work
-  /// automatically. `isMain` selects the main chart vs. a secondary panel.
+  /// 应用接入新指标时：注册指标定义、在此添加一个选项，并在 [parameters] 中提供
+  /// 数值默认值。通用设置界面、参数校验和引擎配置便会自动生效。`isMain` 用于
+  /// 选择绘制在主图还是副图。
   static const _indicators = <_IndicatorOption>[
     _IndicatorOption(
       'ma',
@@ -217,9 +213,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     ),
   ];
 
-  // ---- SDK assembly -------------------------------------------------------
-  // These objects are long-lived. Do not recreate an engine or pipeline in
-  // build(); doing so defeats the indicator cache and render-layer cache.
+  // ---- SDK 组装 -----------------------------------------------------------
+  // 以下对象具有长生命周期。请勿在 build() 中重新创建引擎或渲染管线，否则会
+  // 使指标缓存和渲染层缓存失效。
   late final StandardChartRenderPipeline<KChartTheme> _pipeline;
   late final ChartInteractionMachine _interactionMachine;
   late final ChartNavigationMachine _navigationMachine;
@@ -229,8 +225,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   Timer? _marketTimer;
   final _instrumentController = TextEditingController(text: 'BTCUSDT');
 
-  /// Theme is normal app state: replace this with your design-system palette.
-  /// Indicator color keys use the `instanceId:seriesId` convention.
+  /// 主题属于常规应用状态，可替换为设计系统的配色。
+  /// 指标颜色键遵循 `instanceId:seriesId` 约定。
   KChartTheme _theme = KChartTheme.light(
     upColor: const Color(0xff0b9b69),
     downColor: const Color(0xffd93d56),
@@ -256,9 +252,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     indicatorStrokeWidth: 1,
     overlayStrokeWidth: 0.8,
   );
-  // ---- User-configurable chart state -------------------------------------
-  // Keep ids, rather than definition objects, in state. This makes persistence
-  // and restoring a user's chart layout straightforward.
+  // ---- 用户可配置的图表状态 -----------------------------------------------
+  // 状态中保存 id，而不是指标定义对象，以便持久化和恢复用户的图表布局。
   final Set<String> _mainIndicators = {'ma'};
   final List<String> _secondaryIndicators = ['vol', 'macd'];
   late final Map<String, Map<String, num>> _indicatorParameters;
@@ -269,8 +264,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _candleLimit = 180;
   var _visibleCandles = 90;
   var _secondaryPanelHeight = 108.0;
-  // Match the secondary-panel legend baseline. Larger values still act as a
-  // manual minimum when a host needs additional breathing room.
+  // 与副图参数栏的基线保持一致；当宿主需要更多留白时，较大值仍作为手动最小值。
   var _mainIndicatorHeaderHeight = 18.0;
   var _secondaryIndicatorHeaderHeight = 18.0;
   var _mainTimeAxisHeight = 18.0;
@@ -280,8 +274,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _localeRevision = 0;
   var _overlaySecondaryIndicators = false;
   var _showTradeOverlayExamples = true;
-  // RenderSnapshot versions tell the pipeline exactly which cached layers can
-  // be reused. Advance only the version related to the state that changed.
+  // RenderSnapshot 的版本号告知管线哪些缓存层可复用；只递增发生变化状态对应的版本。
   var _revision = 0;
   var _viewportRevision = 0;
   var _selectionRevision = 0;
@@ -324,8 +317,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         ]),
       );
     }
-    // Register once and keep one engine for the life of the chart. The engine
-    // automatically chooses full vs. incremental indicator calculation.
+    // 仅注册一次，并在图表生命周期内复用同一引擎；引擎会自动选择全量或增量指标计算。
     _pipeline = StandardChartRenderPipeline<KChartTheme>();
     _interactionMachine = ChartInteractionMachine();
     _navigationMachine = ChartNavigationMachine();
@@ -336,8 +328,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _indicatorParameters = {
       for (final option in _indicators) option.id: Map.of(option.parameters),
     };
-    // A deterministic local window gives the first frame a useful chart while
-    // the remote request is in flight. A host can instead seed cached data.
+    // 远端请求进行时，确定性的本地数据窗口可让首帧立即显示可用图表；宿主也可改为
+    // 注入缓存数据。
     _data = _createData(_interval, _revision);
     if (widget.loadOnStart) {
       _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -356,7 +348,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
 
   @override
   void dispose() {
-    // Always release timers, controllers and the pipeline in an embedding app.
+    // 嵌入应用时务必释放定时器、控制器和渲染管线。
     _clockTimer?.cancel();
     _marketTimer?.cancel();
     if (widget.fullscreen) {
@@ -372,10 +364,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     super.dispose();
   }
 
-  /// Starts a new data window for a period change.
+  /// 切换周期时启动新的数据窗口。
   ///
-  /// A period is a different series, so selection and the historical viewport
-  /// are intentionally reset before the next remote window arrives.
+  /// 周期对应不同的数据序列，因此在下一个远端数据窗口到达前，会有意重置选中状态和
+  /// 历史视口。
   void _selectInterval(KlineInterval interval) {
     if (interval == _interval) return;
     setState(() {
@@ -390,15 +382,14 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _loadCandles();
   }
 
-  /// Reloads history at a new window size without changing the interval.
+  /// 不改变周期，仅按新的窗口数量重新加载历史数据。
   void _selectCandleLimit(int limit) {
     if (limit == _candleLimit) return;
     setState(() => _candleLimit = limit);
     _loadCandles();
   }
 
-  /// Validates a public-symbol entry before requesting a new market window.
-  /// Replace this validation with your own symbol metadata in production.
+  /// 请求新的行情数据窗口前校验公开交易对输入；生产环境请替换为自己的交易对元数据校验。
   void _submitInstrument() {
     final instrument = _instrumentController.text.trim().toUpperCase();
     if (!RegExp(r'^[A-Z0-9]{5,20}$').hasMatch(instrument)) {
@@ -428,15 +419,13 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     try {
       return await _marketData.ticker(symbol: instrumentId);
     } on Object {
-      // A ticker failure must never hide valid candles. The summary falls back
-      // to the loaded K-line range until the next successful refresh.
+      // 行情摘要请求失败不能隐藏有效 K 线；下次成功刷新前，摘要回退到已加载的 K 线区间。
       return null;
     }
   }
 
   Future<void> _loadCandles() async {
-    // A generation token prevents a slow request for an old symbol/period from
-    // overwriting a newer chart. Keep this pattern for every async source.
+    // 代际标记可防止旧交易对/周期的慢请求覆盖较新的图表；所有异步数据源都应沿用此模式。
     final generation = ++_loadGeneration;
     final instrumentId = _instrumentId;
     final tickerFuture = _loadTickerSafely(instrumentId);
@@ -477,9 +466,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     }
   }
 
-  /// Polls the two newest Binance candles. The most recent entry is normally
-  /// still forming, so it replaces the existing last candle every two seconds;
-  /// when its open time advances, the window appends the new candle instead.
+  /// 轮询币安最近两根 K 线。最新一根通常仍在形成中，因此每两秒替换现有的最后一根；
+  /// 当其开盘时间推进时，则向窗口追加新的 K 线。
   Future<void> _refreshLatestCandles() async {
     if (_isLoading || _isRefreshingLatest || _data.data.isEmpty) return;
     _isRefreshingLatest = true;
@@ -540,9 +528,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     BinanceTicker? ticker,
     String? realtimeStatus,
   }) {
-    // This is the only mutation point for incoming candles. Centralising it is
-    // important: REST refreshes, WebSocket ticks and simulation must all apply
-    // the same viewport-anchor and render-version rules.
+    // 此处是进入 K 线数据的唯一变更点。集中处理十分重要：REST 刷新、WebSocket 推送
+    // 和模拟数据都必须遵守同样的视口锚定和渲染版本规则。
     final previousViewport = _latestViewport;
     final nextViewport = preserveViewport && previousViewport != null
         ? ChartViewportNavigator.preserveAfterRealtimeDataChange(
@@ -580,8 +567,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 
   void _simulateUpdateLatest() {
-    // Demonstrates the normal WebSocket path: update the still-forming candle
-    // in place and preserve the user's historical scroll position.
+    // 演示常规 WebSocket 路径：原地更新仍在形成的 K 线，并保持用户的历史滚动位置。
     if (_data.data.isEmpty) return;
     final candles = _data.data.toList(growable: true);
     final latest = candles.last;
@@ -608,8 +594,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 
   void _simulateAppendLatest() {
-    // Demonstrates the boundary between two intervals: close the previous bar,
-    // append one new current bar, then preserve the viewport anchor.
+    // 演示两个周期之间的边界：收束前一根、追加新的当前 K 线，并保持视口锚点。
     if (_data.data.isEmpty) return;
     final candles = _data.data.toList(growable: true);
     final latest = candles.last;
@@ -659,8 +644,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     });
   }
 
-  /// Main and secondary indicator selection share one catalog but map to
-  /// different panel ids in [_indicatorSnapshots].
+  /// 主图与副图的指标选择共用一个目录，但会映射到 [_indicatorSnapshots] 中不同的面板 id。
   void _toggleMainIndicator(String id, bool enabled) => setState(() {
         enabled ? _mainIndicators.add(id) : _mainIndicators.remove(id);
         _advanceRevision();
@@ -686,12 +670,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     });
   }
 
-  /// Invalidates theme/layout-dependent render layers after a visual change.
+  /// 视觉配置变化后，使依赖主题/布局的渲染层失效。
   void _advanceRevision() => _revision++;
 
   void _applySuperStyle() {
-    // SUPER's computational values are separate from its presentation. The
-    // theme carries stroke/fill customization so the algorithm stays reusable.
+    // SUPER 的计算值与呈现方式分离。主题承载线条/填充自定义，因此算法本身保持可复用。
     _theme = _theme.copyWith(
       indicatorLineWidths: {
         'demo-super:up': _superLineWidth,
@@ -706,8 +689,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 
   double _effectiveMainIndicatorHeaderHeight(double availableWidth) {
-    // The legend belongs to the panel header, never the drawing bounds. Its
-    // adaptive height prevents values from covering candles on narrow screens.
+    // 参数栏属于面板头部，不属于绘制边界；其自适应高度可避免窄屏中参数值遮住 K 线。
     if (_mainIndicators.isEmpty) return 0;
     if (_mainIndicators.length == 1) {
       return _mainIndicatorHeaderHeight;
@@ -731,8 +713,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       1,
       (estimatedLegendWidth / math.max(1, availableWidth - 16)).ceil(),
     );
-    // The legend uses a 9.5 px font. Keep a one-line baseline consistent
-    // with secondary panels, then expand only when Wrap creates more lines.
+    // 参数栏使用 9.5 px 字体。单行时与副图保持一致，仅在 Wrap 换行时扩大高度。
     final automaticHeight = rows * 12.0 + 2.0;
     return math.max(_mainIndicatorHeaderHeight, automaticHeight);
   }
@@ -1026,16 +1007,15 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   _IndicatorOption _indicator(String id) =>
       _indicators.singleWhere((option) => option.id == id);
 
-  /// Mutable values selected by the user, seeded from the catalog defaults.
-  /// Pass this map straight to [IndicatorConfig.parameters] when embedding.
+  /// 用户选择的可变参数，初始值取自指标目录的默认值。
+  /// 嵌入应用时可直接将此映射传给 [IndicatorConfig.parameters]。
   Map<String, num> _parametersFor(_IndicatorOption option) =>
       _indicatorParameters[option.id]!;
 
-  /// A human-readable summary used in the settings sheet, not in computation.
+  /// 设置面板中展示的可读说明，不参与计算。
   String _parameterSummaryFor(_IndicatorOption option) {
     final parameters = _parametersFor(option);
-    // Parameterless definitions (for example AVL/VWAP) still expose their
-    // calculation description from the catalog.
+    // 无参数的定义（如 AVL/VWAP）仍会从目录中提供其计算说明。
     if (parameters.isEmpty) return option.parameterSummary;
     return parameters.entries
         .map(
@@ -1049,8 +1029,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     required _IndicatorOption? option,
     required IndicatorSeriesDescriptor descriptor,
   }) {
-    // Renderer descriptors have stable series ids while periods are editable.
-    // Translate the ids here so chart legends always reflect current settings.
+    // 渲染器描述符的序列 id 固定，而周期可编辑；在此转换 id，保证图表参数栏始终反映
+    // 当前设置。
     if (option == null) return descriptor.label;
     final parameters = _parametersFor(option);
     return switch ((option.id, descriptor.id)) {
@@ -1082,8 +1062,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     String key,
     String rawValue,
   ) {
-    // Definitions reject invalid values too, but validate at the UI boundary so
-    // users receive a useful message rather than an isolated engine failure.
+    // 指标定义同样会拒绝非法值，但在 UI 边界校验可让用户得到明确提示，而非孤立的引擎异常。
     final value = num.tryParse(rawValue.trim());
     if (value == null ||
         value <= 0 ||
@@ -1114,9 +1093,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       _overlaySecondaryIndicators ? 'secondary-overlay' : 'secondary-$id';
 
   List<RenderIndicatorSnapshot> _indicatorSnapshots() {
-    // This is the key SDK bridge: UI ids -> IndicatorConfig -> cached engine
-    // result -> render projection. A production host may put this in a view
-    // model, but the order and immutable boundaries should remain the same.
+    // 这是 SDK 的关键桥接：UI id -> IndicatorConfig -> 缓存的引擎结果 -> 渲染投射。
+    // 生产宿主可将其置于 view model 中，但应保留此顺序和不可变边界。
     final options = [
       for (final id in _mainIndicators) _indicator(id),
       for (final id in _secondaryIndicators) _indicator(id),
@@ -1150,9 +1128,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         panelId: option.isMain ? 'main' : _secondaryPanelId(option.id),
       );
     }
-    // `legacy.ma` keeps four historical output series for backwards
-    // compatibility. This sample intentionally exposes only three lines.
-    // Filtering happens after calculation, preserving the public algorithm.
+    // `legacy.ma` 为兼容旧版本保留了四条历史输出序列。本示例有意仅展示三条线；
+    // 过滤发生在计算之后，不会改变公开算法。
     const visibleSeriesIds = {'ma5', 'ma10', 'ma20'};
     final filteredDescriptor = IndicatorRendererDescriptor(
       placement: descriptor.placement,
@@ -1336,9 +1313,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     required String title,
     required List<Widget> Function(StateSetter setSheetState) childrenBuilder,
   }) {
-    // Keep configuration outside the chart page. This prevents a long form
-    // from shrinking the usable chart area and lets hosts replace each sheet
-    // with a route, a desktop side panel, or their own settings framework.
+    // 将配置置于图表页外，避免过长表单压缩可用图表区域；宿主可将每个面板替换为路由、
+    // 桌面侧栏或自己的设置框架。
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1851,12 +1827,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
 
   @override
   Widget build(BuildContext context) {
-    // Layout construction is deliberately colocated with RenderSnapshot
-    // assembly below: panel geometry must match viewport and gesture bounds.
+    // 布局构建有意与下方 RenderSnapshot 组装放在一起：面板几何必须与视口、手势边界一致。
     final mainIndicatorHeaderHeight =
         _effectiveMainIndicatorHeaderHeight(MediaQuery.sizeOf(context).width);
-    // Secondary indicators can use individual panels or share one overlay
-    // panel. Only this list changes the layout model; drawing stays generic.
+    // 副图指标可各用一个面板，也可共享一个叠加面板。仅此列表改变布局模型，绘制逻辑保持通用。
     final secondaryPanels = _secondaryIndicators.isEmpty
         ? const <ChartPanelSpec>[]
         : _overlaySecondaryIndicators
@@ -2422,8 +2396,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                   final width = math.max(1.0, constraints.maxWidth);
                   final resolvedMainIndicatorHeaderHeight =
                       _effectiveMainIndicatorHeaderHeight(width);
-                  // `ChartLayoutModel` is the single coordinate contract used
-                  // by render layers, hit-testing, axes and overlay widgets.
+                  // `ChartLayoutModel` 是渲染层、命中测试、坐标轴和叠加组件共用的唯一坐标约定。
                   final layout = ChartLayoutModel(
                     width: width,
                     height: chartHeight,
@@ -2454,8 +2427,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                         legacyViewport.trailingPaddingItems -
                         1,
                   );
-                  // The viewport contains no UI state beyond x-navigation.
-                  // Preserve it across incoming data in [_applyDataWindow].
+                  // 视口除横向导航外不包含 UI 状态；在 [_applyDataWindow] 中跨数据更新保留它。
                   final viewport = ChartViewport(
                     itemCount: _data.data.length,
                     width: layout.drawingBounds.width,
@@ -2466,8 +2438,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                   );
                   _latestViewport = viewport;
                   final tradeOverlays = _tradeOverlays();
-                  // Build a base snapshot without selection for hit testing.
-                  // The final snapshot adds crosshair state after snapping.
+                  // 先构建不含选中状态的基础快照以进行命中测试；吸附后最终快照再加入十字线状态。
                   final baseSnapshot = RenderSnapshot<KChartTheme>(
                     data: _data,
                     viewport: viewport,
@@ -2782,7 +2753,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 }
 
-/// Consistent heading + wrapping content used by each focused settings sheet.
+/// 每个聚焦设置面板共用的标题与可换行内容布局。
 class _ToolbarSection extends StatelessWidget {
   const _ToolbarSection({required this.title, required this.children});
   final String title;
@@ -2801,10 +2772,9 @@ class _ToolbarSection extends StatelessWidget {
       );
 }
 
-/// Generic numeric editor driven entirely by [_IndicatorOption.parameters].
+/// 完全由 [_IndicatorOption.parameters] 驱动的通用数值编辑器。
 ///
-/// Add parameter defaults to the catalog rather than creating a special-case
-/// widget for each algorithm. The callback owns validation and recalculation.
+/// 在指标目录中添加参数默认值，而不是为每种算法创建特例组件；回调负责校验和重新计算。
 class _IndicatorParameterEditor extends StatelessWidget {
   const _IndicatorParameterEditor({
     super.key,
@@ -2902,11 +2872,10 @@ class _IndicatorParameterEditor extends StatelessWidget {
       );
 }
 
-/// Compact, real-data-first 24-hour summary for the trading-chart example.
+/// 为交易图表示例提供紧凑、优先使用真实数据的 24 小时行情摘要。
 ///
-/// Binance ticker values take priority. When the public ticker endpoint is
-/// temporarily unavailable, the same fields are derived from the visible
-/// candle window so the Demo remains useful offline.
+/// 优先使用币安行情数据；公开行情接口暂不可用时，从可见 K 线窗口推导相同字段，以便 Demo
+/// 在离线状态下仍然可用。
 class _MarketSummary extends StatelessWidget {
   const _MarketSummary({
     super.key,
@@ -3452,9 +3421,8 @@ String _formatAxisTime(
 ) =>
     _formatIntervalTime(epochMilliseconds, timeZoneOffset, interval.code);
 
-/// Formats chart-axis and crosshair time with precision appropriate for the
-/// selected interval. Keep this formatter in one place so every visual time
-/// label agrees after a host changes timezone or interval.
+/// 按选定周期的适当精度格式化图表坐标轴和十字线时间。将格式化集中在此处，确保宿主切换
+/// 时区或周期后所有时间标签保持一致。
 String _formatIntervalTime(
   int epochMilliseconds,
   Duration timeZoneOffset,
@@ -3496,7 +3464,7 @@ String _formatUtcOffset(int totalMinutes) {
       '${minutes.toString().padLeft(2, '0')}';
 }
 
-/// Keeps integer periods compact while retaining fractional multipliers.
+/// 保持整数周期简洁，同时保留小数倍数。
 String _formatIndicatorParameter(num value) =>
     value.toDouble() == value.toDouble().roundToDouble()
         ? value.toInt().toString()
@@ -3523,10 +3491,9 @@ String _indicatorParameterLabel(String key) => switch (key) {
       _ => key,
     };
 
-/// Thin Flutter adapter around the renderer-neutral V2 paint pipeline.
+/// 围绕渲染器无关的 V2 绘制管线的轻量 Flutter 适配器。
 ///
-/// Hosts should keep painting declarative: build a new [RenderSnapshot] from
-/// state and let the pipeline determine what it can cache and repaint.
+/// 宿主应保持声明式绘制：从状态构建新的 [RenderSnapshot]，让管线自行判断可缓存和重绘的内容。
 class _DemoPainter extends CustomPainter {
   const _DemoPainter({required this.pipeline, required this.snapshot});
   final StandardChartRenderPipeline<KChartTheme> pipeline;
@@ -3538,8 +3505,7 @@ class _DemoPainter extends CustomPainter {
   bool shouldRepaint(covariant _DemoPainter oldDelegate) => true;
 }
 
-/// Produces deterministic offline seed candles; it is not market simulation.
-/// Replace this with a cached snapshot or an empty-state strategy in an app.
+/// 生成确定性的离线种子 K 线，而非行情模拟；应用中可替换为缓存快照或空状态策略。
 _DemoData _createData(KlineInterval interval, int revision) {
   final step = interval.duration!.inMilliseconds;
   final seed =
@@ -3576,8 +3542,7 @@ String _modeLabel(ChartMainMode mode) => switch (mode) {
       ChartMainMode.area => '面积图',
     };
 
-/// Declarative information needed to turn one registered definition into a
-/// selectable demo indicator. It deliberately does not contain chart state.
+/// 将一个已注册定义转为可选 Demo 指标所需的声明式信息；它有意不包含图表状态。
 final class _IndicatorOption {
   const _IndicatorOption(
     this.id,
@@ -3593,16 +3558,14 @@ final class _IndicatorOption {
   final String definitionId;
   final bool isMain;
 
-  /// Defaults shown for parameterless definitions and seeded into editable
-  /// parameter state for definitions that expose numeric constants.
+  /// 无参数定义展示的默认值；含数值常量的定义则用其初始化可编辑参数状态。
   final String parameterSummary;
   final Map<String, num> parameters;
 }
 
-/// Minimal immutable adapter used by the demo and its offline seed data.
+/// Demo 及其离线种子数据使用的最小不可变适配器。
 ///
-/// Production apps can pass a [KlineStore] snapshot or another immutable
-/// [VersionedKlineData] implementation instead.
+/// 生产应用可改为传入 [KlineStore] 快照或其他不可变 [VersionedKlineData] 实现。
 final class _DemoData implements VersionedKlineData {
   const _DemoData(this.data, this.version);
   @override
