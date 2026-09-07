@@ -57,8 +57,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       'MA',
       'legacy.ma',
       true,
-      '周期 5 / 10 / 20 / 30',
-      parameters: {'period1': 5, 'period2': 10, 'period3': 20, 'period4': 30},
+      '周期 5 / 10 / 20',
+      parameters: {'period1': 5, 'period2': 10, 'period3': 20},
     ),
     _IndicatorOption(
       'ema',
@@ -990,8 +990,6 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         'MA(${_formatIndicatorParameter(parameters['period2']!)})',
       ('ma', 'ma20') =>
         'MA(${_formatIndicatorParameter(parameters['period3']!)})',
-      ('ma', 'ma30') =>
-        'MA(${_formatIndicatorParameter(parameters['period4']!)})',
       ('ema', 'ema5') =>
         'EMA(${_formatIndicatorParameter(parameters['period1']!)})',
       ('ema', 'ema10') =>
@@ -1060,14 +1058,42 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     return [
       for (final option in options)
         if (batch.results['demo-${option.id}'] case final result?)
-          RenderIndicatorSnapshot.fromResult(
-            result: result,
-            descriptor: _indicatorEngine.registry
-                .find(option.definitionId)!
-                .rendererDescriptor,
-            panelId: option.isMain ? 'main' : _secondaryPanelId(option.id),
-          ),
+          _renderIndicatorSnapshot(option, result),
     ];
+  }
+
+  RenderIndicatorSnapshot _renderIndicatorSnapshot(
+    _IndicatorOption option,
+    IndicatorResult result,
+  ) {
+    final descriptor =
+        _indicatorEngine.registry.find(option.definitionId)!.rendererDescriptor;
+    if (option.id != 'ma') {
+      return RenderIndicatorSnapshot.fromResult(
+        result: result,
+        descriptor: descriptor,
+        panelId: option.isMain ? 'main' : _secondaryPanelId(option.id),
+      );
+    }
+    const visibleSeriesIds = {'ma5', 'ma10', 'ma20'};
+    final filteredDescriptor = IndicatorRendererDescriptor(
+      placement: descriptor.placement,
+      includeZeroInRange: descriptor.includeZeroInRange,
+      series:
+          descriptor.series.where((item) => visibleSeriesIds.contains(item.id)),
+    );
+    final filteredResult = IndicatorResult(
+      instanceId: result.instanceId,
+      definitionId: result.definitionId,
+      dataVersion: result.dataVersion,
+      length: result.length,
+      series: result.series.where((item) => visibleSeriesIds.contains(item.id)),
+    );
+    return RenderIndicatorSnapshot.fromResult(
+      result: filteredResult,
+      descriptor: filteredDescriptor,
+      panelId: 'main',
+    );
   }
 
   int _indicatorLegendIndex(ChartViewport viewport) {
@@ -3380,7 +3406,6 @@ String _indicatorParameterLabel(String key) => switch (key) {
       'period1' => '周期 1',
       'period2' => '周期 2',
       'period3' => '周期 3',
-      'period4' => '周期 4',
       'period' => '周期',
       'fastPeriod' => '快速周期',
       'slowPeriod' => '慢速周期',
