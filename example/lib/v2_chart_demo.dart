@@ -531,6 +531,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     // 此处是进入 K 线数据的唯一变更点。集中处理十分重要：REST 刷新、WebSocket 推送
     // 和模拟数据都必须遵守同样的视口锚定和渲染版本规则。
     final previousViewport = _latestViewport;
+    // 选中态以开盘时间而非列表下标锚定。实时滚动窗口可能会丢弃最早 K 线，直接保留
+    // 下标会让十字线错误地跳到另一根 K 线上。
+    final selectedOpenTime = _selectedOpenTime;
     final nextViewport = preserveViewport && previousViewport != null
         ? ChartViewportNavigator.preserveAfterRealtimeDataChange(
             previousViewport,
@@ -562,7 +565,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       _ticker = ticker ?? _ticker;
       _realtimeStatus = realtimeStatus ?? _realtimeStatus;
       _viewportRevision++;
-      _clearSelection();
+      if (preserveViewport) {
+        _restoreSelectionAfterDataUpdate(candles, selectedOpenTime);
+      } else {
+        _clearSelection();
+      }
     });
   }
 
@@ -725,6 +732,35 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _selectionRevision++;
   }
 
+  /// 当前选中 K 线的稳定身份。实时更新前读取，更新后再在新窗口中查找。
+  int? get _selectedOpenTime {
+    final index = _selectedIndex;
+    if (index == null || index < 0 || index >= _data.data.length) return null;
+    return _data.data[index].openTime;
+  }
+
+  /// 保持实时更新前选中的 K 线及信息面板。
+  ///
+  /// 最新 K 线替换、追加和滚动窗口刷新都不应关闭十字线。仅当已选 K 线被窗口裁掉时才隐藏；
+  /// 视图拖动仍在 [_handleChartIntent] 中按用户横向导航处理。
+  void _restoreSelectionAfterDataUpdate(
+    List<Kline> candles,
+    int? selectedOpenTime,
+  ) {
+    if (selectedOpenTime == null) return;
+    final nextIndex = candles.indexWhere(
+      (candle) => candle.openTime == selectedOpenTime,
+    );
+    if (nextIndex < 0) {
+      _clearSelection();
+      return;
+    }
+    if (_selectedIndex != nextIndex) {
+      _selectedIndex = nextIndex;
+      _selectionRevision++;
+    }
+  }
+
   void _clearTradeOverlayInteraction() {
     _tradeOverlayPriceOverrides.clear();
     _hiddenTradeOverlayIds.clear();
@@ -874,11 +910,14 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   ) {
     switch (intent) {
       case ChartViewportIntent(:final viewport):
+        final isHorizontalNavigation = _itemExtent == viewport.itemExtent &&
+            _scrollOffsetItems != viewport.scrollOffsetItems;
         setState(() {
           _scrollOffsetItems = viewport.scrollOffsetItems;
           _itemExtent = viewport.itemExtent;
           _viewportRevision++;
-          _clearSelection();
+          // 缩放会重新投射同一数据点，选中信息仍然有效；只有用户横向浏览时才关闭十字线。
+          if (isHorizontalNavigation) _clearSelection();
           _selectedTradeOverlay = null;
         });
       case ChartCrosshairIntent(:final isActive, :final localX, :final localY):

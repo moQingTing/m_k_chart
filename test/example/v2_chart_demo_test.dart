@@ -96,6 +96,64 @@ void main() {
     expect(timeText.data, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')));
   });
 
+  testWidgets('realtime replacement and append preserve the selected crosshair',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: V2TradingChartDemo(loadOnStart: false)),
+    );
+
+    // 与真实操作一致，先切换一次周期并让图表完成一次新的本地数据窗口组装。
+    await tester.tap(find.byKey(const ValueKey('open-data-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('period-1d')));
+    await tester.pump();
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+
+    final chartCanvas = find.byKey(const ValueKey('v2-chart-canvas'));
+    await tester.scrollUntilVisible(
+      chartCanvas,
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final chartTopLeft = tester.getTopLeft(chartCanvas);
+    await tester.tapAt(chartTopLeft + const Offset(120, 50));
+    await tester.pump();
+
+    // 中间时间轴标签证明十字线选中态已经建立。
+    expect(
+      find.byKey(const ValueKey('crosshair-time-label')),
+      findsOneWidget,
+    );
+
+    final simulationSettings = find.byKey(
+      const ValueKey('open-simulation-settings'),
+      skipOffstage: false,
+    );
+    await tester.ensureVisible(simulationSettings);
+    await tester.pumpAndSettle();
+    await tester.tap(simulationSettings);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('simulate-update-latest')));
+    await tester.pump();
+    expect(
+      find.byKey(
+        const ValueKey('crosshair-details-position'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+      reason: '替换最新 K 线不应关闭已选数据的信息面板。',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('simulate-append-latest')));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('crosshair-time-label')),
+      findsOneWidget,
+      reason: '新增最新 K 线不应清除十字线和时间标签。',
+    );
+  });
+
   testWidgets('settings sheets organize chart controls without expanding page',
       (tester) async {
     await tester.pumpWidget(
