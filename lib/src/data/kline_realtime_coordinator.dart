@@ -63,7 +63,11 @@ final class KlineMergeResult {
       };
 }
 
-/// Applies realtime events to a strict [KlineStore] with explicit policies.
+/// 按明确合并策略将实时事件应用到严格有序的 [KlineStore]。
+///
+/// 每次切换交易对/周期或重新请求历史数据时调用 [beginNextGeneration]。随后到达的旧请求
+/// 或旧 WebSocket 消息会因代际不一致被丢弃，避免覆盖当前图表。有限的乱序数据可插入；
+/// 超出 [maxOutOfOrderCandles] 的乱序数据会请求宿主重新加载历史窗口。
 final class KlineRealtimeCoordinator {
   factory KlineRealtimeCoordinator({
     KlineStore? store,
@@ -90,7 +94,7 @@ final class KlineRealtimeCoordinator {
 
   KlineGeneration get generation => _generation;
 
-  /// Invalidates outstanding async work and optionally replaces the snapshot.
+  /// 使未完成的异步数据失效，并可选地替换当前快照。
   KlineGeneration beginNextGeneration({
     Iterable<Kline> replacement = const [],
   }) {
@@ -119,6 +123,7 @@ final class KlineRealtimeCoordinator {
       return _result(KlineMergeOutcome.rejectedDifferentSeries);
     }
 
+    // lowerBound 同时覆盖“替换正在形成的最后一根”与“在小乱序窗口内插入”的情况。
     final insertionIndex = _lowerBound(snapshot.data, incoming.openTime);
     if (insertionIndex < snapshot.length &&
         snapshot[insertionIndex].openTime == incoming.openTime) {
@@ -139,6 +144,7 @@ final class KlineRealtimeCoordinator {
       );
     }
 
+    // 很久之前的修正会破坏增量计算假设，交由宿主全量刷新而非静默篡改历史。
     final newerCandleCount = snapshot.length - insertionIndex;
     if (newerCandleCount > maxOutOfOrderCandles) {
       return KlineMergeResult(

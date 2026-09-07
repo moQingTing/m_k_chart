@@ -4,7 +4,10 @@ import 'indicator_config.dart';
 import 'indicator_renderer_descriptor.dart';
 import 'indicator_series.dart';
 
-/// Calculation extension point for a registered indicator type.
+/// 已注册指标类型的计算扩展点。
+///
+/// 新指标需要实现此接口、提供稳定的 [id] 和 [rendererDescriptor]，再注册到
+/// [IndicatorRegistry]。计算结果的长度和序列 id 必须与输入和描述符一致。
 abstract interface class IndicatorDefinition {
   String get id;
 
@@ -16,7 +19,10 @@ abstract interface class IndicatorDefinition {
   );
 }
 
-/// Optional extension for definitions that can reuse a validated prior result.
+/// 可复用已校验旧结果的指标定义可选实现。
+///
+/// 仅当 [supportsIncremental] 返回 true 时，缓存才会调用增量接口；实现者必须保证增量
+/// 结果与同一输入的全量计算一致。
 abstract interface class IncrementalIndicatorDefinition
     implements IndicatorDefinition {
   bool supportsIncremental(IndicatorDataChange change);

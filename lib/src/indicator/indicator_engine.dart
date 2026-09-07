@@ -4,7 +4,7 @@ import 'indicator_config.dart';
 import 'indicator_registry.dart';
 import 'indicator_series.dart';
 
-/// One isolated indicator instance failure from a batch calculation.
+/// 单个指标实例在批量计算中被隔离后的失败信息。
 final class IndicatorCalculationFailure {
   const IndicatorCalculationFailure({
     required this.config,
@@ -17,7 +17,7 @@ final class IndicatorCalculationFailure {
   final StackTrace stackTrace;
 }
 
-/// Immutable results and failures produced by one batch resolve.
+/// 一次批量解析产生的不可变结果与失败集合。
 final class IndicatorCalculationBatch {
   IndicatorCalculationBatch._(
     Map<String, IndicatorResult> results,
@@ -33,7 +33,9 @@ final class IndicatorCalculationBatch {
   int get length => results.length + failures.length;
 }
 
-/// Instance-owned calculation facade combining registry, cache, and isolation.
+/// 组合指标注册表、缓存和失败隔离的实例级计算门面。
+///
+/// 每个图表应拥有自己的引擎，避免不同数据源、版本号或用户参数共享可变缓存。
 final class IndicatorEngine {
   IndicatorEngine({
     IndicatorRegistry? registry,
@@ -70,6 +72,7 @@ final class IndicatorEngine {
       }
     }
 
+    // 单个指标异常不应阻断同一图表上的其他指标；失败由宿主决定如何展示或重试。
     final results = <String, IndicatorResult>{};
     final failures = <String, IndicatorCalculationFailure>{};
     for (final config in immutableConfigs) {

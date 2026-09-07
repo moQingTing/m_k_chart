@@ -2,7 +2,10 @@ import '../model/model.dart';
 import '../viewport/viewport.dart';
 import 'chart_interaction_intent.dart';
 
-/// Per-chart, frame-clock-independent inertial navigation.
+/// 单图表、与帧时钟无关的惯性导航器。
+///
+/// 宿主传入两帧间的 [Duration]，便可在不同刷新率下获得一致的阻尼效果；返回 null 表示本帧
+/// 无需发布新的视口状态。
 final class ChartNavigationMachine {
   ChartNavigationMachine({
     this.decelerationLocalXPerSecondSquared = 2400,
@@ -47,7 +50,7 @@ final class ChartNavigationMachine {
     return true;
   }
 
-  /// Advances by a frame delta rather than an absolute wall-clock timestamp.
+  /// 按帧间隔推进，而不是依赖绝对墙上时间。
   ChartViewportIntent? advanceInertia(Duration elapsed) {
     if (elapsed.isNegative) {
       throw ArgumentError.value(elapsed, 'elapsed', 'Must not be negative.');
@@ -61,6 +64,7 @@ final class ChartNavigationMachine {
     final direction = _velocityItemsPerSecond.sign;
     final timeUntilStop = speed / _decelerationItemsPerSecondSquared;
     final appliedSeconds = seconds < timeUntilStop ? seconds : timeUntilStop;
+    // 使用匀减速位移公式；单位已在 startInertia 时转为“槽位/秒”。
     final distance = direction *
         (speed * appliedSeconds -
             0.5 *
@@ -89,7 +93,7 @@ final class ChartNavigationMachine {
   }
 }
 
-/// Deterministic viewport navigation commands used by Controller APIs.
+/// Controller API 使用的确定性视口导航命令。
 abstract final class ChartViewportNavigator {
   static ChartViewport toLatest(ChartViewport viewport) =>
       viewport.copyWith(scrollOffsetItems: 0);
@@ -116,7 +120,7 @@ abstract final class ChartViewportNavigator {
     );
   }
 
-  /// Preserves the visible candles after older items are prepended.
+  /// 向左追加更早数据后保持当前可见 K 线不跳动。
   static ChartViewport preserveAfterPrepend(
     ChartViewport viewport, {
     required int prependedItemCount,
@@ -133,15 +137,11 @@ abstract final class ChartViewportNavigator {
     );
   }
 
-  /// Applies a realtime data-window change without unexpectedly moving the
-  /// candles that were already visible.
+  /// 应用实时数据窗口变化，同时避免已可见的 K 线意外移动。
   ///
-  /// [appendedItemCount] is the number of new slots added after the previous
-  /// newest candle. It also covers rolling windows where older items are
-  /// removed while newer items are appended. When the viewport is following
-  /// the latest candle, an append keeps that behavior. While the user is
-  /// viewing history or revealed future space, the scroll offset is advanced
-  /// by the appended count so existing candle centers retain their local X.
+  /// [appendedItemCount] 为旧最新 K 线之后增加的槽位数，也覆盖“删除旧数据同时追加新数据”的
+  /// 滚动窗口。视口跟随最新数据时，追加后继续跟随；用户查看历史或已展示未来留白时，则将
+  /// 滚动偏移增加该数量，以保持既有 K 线中心的局部 X 坐标不变。
   static ChartViewport preserveAfterRealtimeDataChange(
     ChartViewport viewport, {
     required int nextItemCount,

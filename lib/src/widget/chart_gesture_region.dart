@@ -9,7 +9,7 @@ import '../render/chart_trade_overlay_interaction.dart';
 import '../viewport/viewport.dart';
 import 'chart_axis_scale_gesture_recognizer.dart';
 
-/// Desktop and trackpad behavior for one chart instance.
+/// 单图表实例的桌面端与触控板输入行为配置。
 final class ChartPointerInputPolicy {
   const ChartPointerInputPolicy({
     this.mouseHoverCrosshair = true,
@@ -30,7 +30,7 @@ typedef ChartTradeOverlayDragCallback = void Function(
   Offset localPosition,
 );
 
-/// Host-localized semantics exposed for an otherwise canvas-only chart.
+/// 为纯 Canvas 图表暴露的宿主本地化语义信息。
 final class ChartSemanticsConfiguration {
   factory ChartSemanticsConfiguration({
     required String label,
@@ -106,7 +106,7 @@ final class ChartSemanticsConfiguration {
   final String? decreasedValue;
 }
 
-/// Optional Overlay callbacks that participate in the chart gesture arena.
+/// 可选的覆盖物回调，可参与图表手势竞技场。
 final class ChartTradeOverlayGestureCallbacks {
   const ChartTradeOverlayGestureCallbacks({
     required this.hitTest,
@@ -125,12 +125,10 @@ final class ChartTradeOverlayGestureCallbacks {
   final ValueChanged<ChartTradeOverlayHit>? onDragCancel;
 }
 
-/// Internal Flutter Gesture Arena adapter for [ChartInteractionMachine].
+/// [ChartInteractionMachine] 的内部 Flutter Gesture Arena 适配器。
 ///
-/// One axis-gated scale recognizer handles one-finger horizontal pan and
-/// two-finger scale, while the standard long-press recognizer competes in the
-/// same arena. Vertical movement is left to a parent scrollable. No recognizer
-/// force-accepts a lost gesture.
+/// 单个带轴向门控的缩放识别器处理单指横向拖动和双指缩放，标准长按识别器在同一竞技场竞争；
+/// 垂直移动交由父级可滚动组件处理。任何识别器均不会强制接受已输掉的手势。
 final class ChartGestureRegion extends StatefulWidget {
   const ChartGestureRegion({
     required this.machine,

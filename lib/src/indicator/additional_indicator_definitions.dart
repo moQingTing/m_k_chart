@@ -20,12 +20,10 @@ void registerAdditionalIndicatorDefinitions(IndicatorRegistry registry) {
     ..register(StochRsiIndicatorDefinition());
 }
 
-/// Average value line (AVL) for each Kline.
+/// 每根 K 线的均价线（AVL）。
 ///
-/// Binance supplies both quote and base turnover for every Kline, so
-/// `quoteVolume / baseVolume` is that bar's actual average execution price.
-/// Unlike VWAP, AVL must not accumulate the earlier bars; doing so produces a
-/// slow anchor line rather than the price-following line shown in the chart.
+/// 币安 K 线同时提供计价成交额和基础成交量，因此 `quoteVolume / baseVolume` 即该根的实际
+/// 平均成交价。AVL 不累计早期 K 线；若累加会变成缓慢锚定的 VWAP，而非图表中跟随价格的线。
 final class AverageValueLineIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'builtin.avl';
@@ -78,10 +76,10 @@ final class AverageValueLineIndicatorDefinition
   }
 }
 
-/// Supertrend overlay using Wilder ATR and trailing upper/lower bands.
+/// 基于 Wilder ATR 与跟踪上下轨的 Supertrend 主图叠加指标。
 ///
-/// The two output series intentionally break at a trend reversal so the
-/// renderer does not draw a diagonal bridge between bullish and bearish legs.
+/// 趋势反转处两条输出序列会主动断开，避免渲染器在多头、空头区段之间画出错误的对角连接线。
+/// 描述符中的填充规则会将价格与当前趋势线之间渲染为半透明区域。
 final class SuperTrendIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'builtin.super';
@@ -187,6 +185,7 @@ final class SuperTrendIndicatorDefinition
   }
 }
 
+/// 成交量加权平均价（VWAP）。计算状态保存累计成交额和成交量，因此追加数据可增量续算。
 final class VwapIndicatorDefinition implements IncrementalIndicatorDefinition {
   static const definitionId = 'builtin.vwap';
 
@@ -265,6 +264,7 @@ final class VwapIndicatorDefinition implements IncrementalIndicatorDefinition {
   }
 }
 
+/// 平均真实波幅（ATR）。使用 Wilder 平滑，常被其他趋势类指标复用。
 final class AtrIndicatorDefinition implements IncrementalIndicatorDefinition {
   static const definitionId = 'builtin.atr';
 
@@ -316,6 +316,7 @@ final class AtrIndicatorDefinition implements IncrementalIndicatorDefinition {
   }
 }
 
+/// 顺势指标（CCI）：用典型价格相对均值的偏离衡量超买、超卖。
 final class CciIndicatorDefinition implements IncrementalIndicatorDefinition {
   static const definitionId = 'builtin.cci';
 
@@ -370,6 +371,7 @@ final class CciIndicatorDefinition implements IncrementalIndicatorDefinition {
   }
 }
 
+/// 动向指标（DMI），输出 +DI、-DI 与 ADX 三条序列。
 final class DmiIndicatorDefinition implements IncrementalIndicatorDefinition {
   static const definitionId = 'builtin.dmi';
 
@@ -511,6 +513,7 @@ final class DmiIndicatorDefinition implements IncrementalIndicatorDefinition {
   }
 }
 
+/// 变动率（ROC）：当前收盘价相对指定周期前收盘价的百分比变化。
 final class RocIndicatorDefinition implements IncrementalIndicatorDefinition {
   static const definitionId = 'builtin.roc';
 
@@ -561,6 +564,7 @@ final class RocIndicatorDefinition implements IncrementalIndicatorDefinition {
   }
 }
 
+/// 随机 RSI（Stoch RSI）：将 RSI 在滚动区间内再次归一化，并输出 K/D 平滑线。
 final class StochRsiIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'builtin.stochRsi';

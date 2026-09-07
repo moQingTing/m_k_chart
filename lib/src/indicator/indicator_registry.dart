@@ -4,7 +4,7 @@ import 'indicator_change.dart';
 import 'indicator_definition.dart';
 import 'indicator_series.dart';
 
-/// Instance-owned registry; chart instances do not share mutable definitions.
+/// 实例私有的指标注册表；不同图表不共享可变指标定义。
 final class IndicatorRegistry {
   final Map<String, IndicatorDefinition> _definitions = {};
 
@@ -31,6 +31,7 @@ final class IndicatorRegistry {
     if (definition == null) {
       throw StateError('Indicator ${config.definitionId} is not registered.');
     }
+    // 所有定义的输出均在注册表边界统一校验，渲染层无需重复防御不完整指标结果。
     final result = definition.calculate(input, config);
     _validateResult(definition, input, config, result);
     return result;

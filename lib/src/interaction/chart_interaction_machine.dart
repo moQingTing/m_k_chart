@@ -8,10 +8,10 @@ enum ChartInteractionMode {
   crosshair,
 }
 
-/// Per-chart state machine that converts accepted gesture callbacks to intents.
+/// 将已获手势竞技场认可的回调转换为意图的单图表状态机。
 ///
-/// Gesture recognizers remain responsible for Gesture Arena participation.
-/// Conflicting begin calls are rejected and never preempt an active mode.
+/// 手势识别器仍负责参与 Flutter Gesture Arena；冲突的开始调用会被拒绝，绝不抢占当前模式。
+/// 宿主只需将返回的意图归约进状态，无需在 Widget 中复制拖动、缩放和十字线的状态机逻辑。
 final class ChartInteractionMachine {
   ChartInteractionMode _mode = ChartInteractionMode.idle;
   ChartViewport? _currentViewport;
@@ -56,6 +56,7 @@ final class ChartInteractionMachine {
     _mode = ChartInteractionMode.scaling;
     _currentViewport = viewport;
     _scaleStartViewport = viewport;
+    // 记录手指下的“数据坐标”而非像素，缩放后可让焦点仍指向同一根 K 线。
     _scaleAnchorDataPosition =
         viewport.visibleLeftDataPosition + focalLocalX / viewport.itemExtent;
     return true;
@@ -78,6 +79,7 @@ final class ChartInteractionMachine {
     final nextExtent = start.itemExtent * scale;
     final extentAdjusted = start.zoomTo(nextExtent);
     final anchor = _scaleAnchorDataPosition!;
+    // 根据新的槽位宽度反推左边缘，随后由 Viewport 统一夹取滚动边界。
     final desiredLeft = anchor - focalLocalX / extentAdjusted.itemExtent;
     final desiredRight =
         desiredLeft + extentAdjusted.width / extentAdjusted.itemExtent;
@@ -126,7 +128,7 @@ final class ChartInteractionMachine {
 
   ChartCrosshairIntent? cancelCrosshair() => endCrosshair();
 
-  /// Cancels the active winner. Arena rejection must never start another mode.
+  /// 取消当前获胜者；竞技场拒绝不能启动其他模式。
   ChartInteractionIntent? cancelActive() {
     if (_mode == ChartInteractionMode.crosshair) {
       return endCrosshair();

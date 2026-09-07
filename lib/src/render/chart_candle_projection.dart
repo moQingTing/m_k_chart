@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import '../model/model.dart';
 import 'chart_main_mode.dart';
 
-/// Immutable OHLC values consumed by a main-chart candle renderer.
+/// 主图 K 线渲染器消费的不可变 OHLC 数值。
 final class ChartRenderCandle {
   const ChartRenderCandle({
     required this.open,
@@ -19,7 +19,10 @@ final class ChartRenderCandle {
   final double close;
 }
 
-/// Immutable candle projection for one source Kline snapshot and main mode.
+/// 对一个源 K 线快照和主图模式生成的不可变 K 线投射。
+///
+/// Heikin-Ashi 等派生模式只在此处转换 OHLC；数据仓库仍保存交易所原始 K 线，避免指标计算
+/// 与真实成交数据脱节。
 final class ChartCandleProjection {
   factory ChartCandleProjection.fromKlines({
     required List<Kline> source,

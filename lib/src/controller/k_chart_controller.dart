@@ -5,10 +5,10 @@ import '../model/model.dart';
 import 'k_chart_event.dart';
 import 'k_chart_state.dart';
 
-/// Owns one chart instance's state and notification lifecycle.
+/// 管理单个图表实例的状态与通知生命周期。
 ///
-/// The public package does not export this internal entrypoint yet. Inputs are
-/// reduced through [dispatch] or [dispatchBatch] so mutations remain atomic.
+/// 公开包暂未导出该内部入口。所有输入均经 [dispatch] 或 [dispatchBatch] 归约，使状态变更
+/// 保持原子性；业务层不应直接修改 [KChartState] 的局部字段。
 final class KChartController extends ChangeNotifier
     implements ValueListenable<KChartState> {
   KChartController({KChartState initialState = const KChartState()})
@@ -56,8 +56,7 @@ final class KChartController extends ChangeNotifier
     );
   }
 
-  /// Updates the viewport for a realtime append, latest-candle replacement,
-  /// or rolling-window refresh.
+  /// 为实时追加、最新 K 线替换或滚动窗口刷新更新视口。
   void preserveViewportAfterRealtimeDataChange({
     required int nextItemCount,
     required int appendedItemCount,
@@ -104,12 +103,12 @@ final class KChartController extends ChangeNotifier
     dispatch(ChartHistoryPagingChanged(_value.historyPaging.reset()));
   }
 
-  /// Reduces one typed event into one immutable state transaction.
+  /// 将一个强类型事件归约为一次不可变状态事务。
   void dispatch(KChartEvent event) {
     dispatchBatch([event]);
   }
 
-  /// Converts one interaction-layer intent into the owning typed event.
+  /// 将交互层意图转换为所属的强类型事件。
   void dispatchInteraction(ChartInteractionIntent intent) {
     switch (intent) {
       case ChartViewportIntent(:final viewport):
@@ -121,10 +120,9 @@ final class KChartController extends ChangeNotifier
     }
   }
 
-  /// Atomically reduces multiple events and publishes at most one notification.
+  /// 原子地归约多个事件，最多发布一次通知。
   ///
-  /// The batch collects the union of affected state slices. An empty batch
-  /// preserves state identity and does not notify listeners.
+  /// 批处理收集受影响状态切片的并集；空批处理保持状态身份且不会通知监听器。
   void dispatchBatch(Iterable<KChartEvent> events) {
     _ensureActive();
     final changedSlices = <StateSlice>{};

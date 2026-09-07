@@ -42,7 +42,10 @@ final class ChartVisibleWindow {
   final ChartXTransform xTransform;
 }
 
-/// Per-chart bounded render cache. It never owns business state.
+/// 单图表有界渲染缓存；它绝不拥有业务状态。
+///
+/// 缓存键由数据版本、视口、布局和渲染模式组成。不要把可变控制器、网络数据或 Widget 引用放入
+/// 缓存；宿主销毁图表时必须调用 [dispose]，以释放缓存的 [Picture] 与 [TextPainter]。
 final class ChartRenderCache {
   ChartRenderCache({
     int geometryCapacity = 32,
@@ -89,6 +92,7 @@ final class ChartRenderCache {
       kind: RenderCacheKind.window,
       cache: _windows,
       key: key,
+      // 所有图层复用同一可视窗口和 X 转换，保证网格、K 线、十字线的横向坐标完全一致。
       create: () => ChartVisibleWindow(
         range: snapshot.viewport.visibleRange,
         xTransform: ChartXTransform(
@@ -159,6 +163,7 @@ final class ChartRenderCache {
     if (!fontSize.isFinite || fontSize <= 0) {
       throw ArgumentError.value(fontSize, 'fontSize');
     }
+    // TextPainter 带原生资源，必须由带 onEvict 的 LRU 统一释放。
     final key = (text, color.toARGB32(), fontSize);
     return _resolve(
       kind: RenderCacheKind.text,
@@ -209,6 +214,7 @@ final class ChartRenderCache {
     required T Function() create,
   }) {
     _ensureActive();
+    // 命中项被取出后再放回尾部，实现访问顺序的 LRU，而不是插入顺序的 FIFO。
     final cached = cache.remove(key);
     if (cached.found) {
       _hits[kind] = (_hits[kind] ?? 0) + 1;
@@ -237,6 +243,7 @@ final class ChartRenderCache {
       (_viewportKey(snapshot), snapshot.mainMode);
 
   void _clearStorage() {
+    // 每个子缓存的 onEvict 负责释放自身资源；不能仅清空 Map。
     _windows.clear();
     _candleProjections.clear();
     _extrema.clear();

@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'render_snapshot.dart';
 
-/// The only mutable output available to a Layer is its current [canvas].
+/// 图层唯一可变的输出是当前 [canvas]。
 final class RenderLayerContext<TTheme extends Object> {
   const RenderLayerContext({
     required this.canvas,
@@ -14,10 +14,11 @@ final class RenderLayerContext<TTheme extends Object> {
   final RenderSnapshot<TTheme> snapshot;
 }
 
-/// Pure drawing unit with explicit snapshot-slice dependencies.
+/// 显式声明快照切片依赖的纯绘制单元。
 ///
-/// Implementations may cache drawing artifacts, but must not publish state or
-/// retain the mutable [Canvas] after [paint] returns.
+/// 实现可缓存绘制产物，但不得发布状态，也不得在 [paint] 返回后持有可变 [Canvas]。
+/// 图层应只根据 [RenderLayerContext.snapshot] 绘制；交互、网络回调及 setState 必须留在
+/// Controller/Widget 边界之外。
 abstract base class ChartRenderLayer<TTheme extends Object> {
   ChartRenderLayer({
     required String id,
@@ -35,7 +36,7 @@ abstract base class ChartRenderLayer<TTheme extends Object> {
   void paint(RenderLayerContext<TTheme> context);
 }
 
-/// Immutable paint-order registry. Layer IDs are stable cache identities.
+/// 不可变的绘制顺序注册表；图层 id 是稳定的缓存身份。
 final class RenderLayerStack<TTheme extends Object> {
   factory RenderLayerStack(Iterable<ChartRenderLayer<TTheme>> layers) {
     final immutableLayers = List<ChartRenderLayer<TTheme>>.unmodifiable(layers);

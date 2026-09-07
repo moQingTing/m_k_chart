@@ -15,7 +15,7 @@ import 'render_layer.dart';
 import 'render_repaint.dart';
 import 'render_snapshot.dart';
 
-/// Hit-test geometry for the latest-price label painted by the marker layer.
+/// Marker 图层绘制的最新价格标签的命中测试几何。
 final class ChartLatestPriceMarkerHitRegion {
   const ChartLatestPriceMarkerHitRegion({
     required this.bounds,
@@ -28,10 +28,9 @@ final class ChartLatestPriceMarkerHitRegion {
   bool contains(Offset position) => bounds.contains(position);
 }
 
-/// Resolves the exact label bounds used by [ChartMarkerLayer].
+/// 解析 [ChartMarkerLayer] 使用的精确标签边界。
 ///
-/// A host can use the returned chevron region as a "return to latest" target
-/// without duplicating marker measurement or positioning rules.
+/// 宿主可将返回的箭头区域作为“回到最新”点击目标，而无需重复标签测量和定位规则。
 ChartLatestPriceMarkerHitRegion?
     latestPriceMarkerHitRegionFor<TTheme extends ChartRenderStyle>(
   RenderSnapshot<TTheme> snapshot,
@@ -64,6 +63,7 @@ final class ChartGridLayer<TTheme extends ChartRenderStyle>
   void paint(RenderLayerContext<TTheme> context) {
     final snapshot = context.snapshot;
     final window = cache.windowFor(snapshot);
+    // 网格坐标依赖数据/视口，因此拖动时会与 K 线一起平移，而不是固定在窗口上。
     final picture = cache.picture(
       (
         'grid',
@@ -112,12 +112,14 @@ final class ChartMainLayer<TTheme extends ChartRenderStyle>
     final window = cache.windowFor(snapshot);
     final canvas = context.canvas;
     canvas.save();
+    // 参数栏预留在 panel.headerBounds；只裁剪到数据 bounds，防止 K 线/指标覆盖参数文字。
     canvas.clipRect(_rect(panel.bounds));
     switch (snapshot.mainMode) {
       case ChartMainMode.candlestick:
       case ChartMainMode.hollowCandlestick:
       case ChartMainMode.ohlc:
       case ChartMainMode.heikinAshi:
+        // 带区域填充的指标（例如 SUPER）必须先于 K 线绘制，线条则在 K 线之后绘制。
         _drawIndicators(
           canvas: canvas,
           snapshot: snapshot,
@@ -192,6 +194,7 @@ final class ChartSecondaryLayer<TTheme extends ChartRenderStyle>
       return;
     }
     final window = cache.windowFor(snapshot);
+    // 每个副图独立量程和裁剪区，但可共享同一可视窗口以保持时间轴严格对齐。
     for (final panel in snapshot.layout.secondaryPanels) {
       final valueTransform = cache
           .panelRangeFor(

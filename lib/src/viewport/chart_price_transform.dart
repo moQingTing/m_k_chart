@@ -1,8 +1,7 @@
-/// Immutable vertical transform between price and chart-local Y.
+/// 价格与图表局部 Y 坐标之间的不可变纵向转换器。
 ///
-/// Local Y increases downward: [maxPrice] maps to [top] and [minPrice] maps
-/// to [bottom]. Values outside the visible price range are extrapolated so
-/// callers can clip overlays consistently at the render boundary.
+/// 局部 Y 向下递增：[maxPrice] 映射到 [top]，[minPrice] 映射到 [bottom]。可见价格范围
+/// 外的值仍按比例外推，使调用方在渲染边界统一裁剪覆盖物。
 final class ChartPriceTransform {
   factory ChartPriceTransform({
     required double minPrice,

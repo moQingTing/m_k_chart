@@ -4,10 +4,10 @@ import 'package:flutter/painting.dart';
 import '../drawing/drawing.dart';
 import '../viewport/viewport.dart';
 
-/// Stateless Canvas renderer for P7 time/price-anchored drawing tools.
+/// 面向时间/价格锚点绘图工具的无状态 Canvas 渲染器。
 ///
-/// Projection is recomputed from the current viewport for every render pass;
-/// persisted drawings never contain panel-local pixels.
+/// 每一渲染帧都会根据当前视口重新投射；持久化的绘图绝不包含面板局部像素，因此拖动、缩放、
+/// 设备尺寸变化或数据加载后仍能保持与时间/价格对齐。
 final class ChartDrawingRenderer {
   const ChartDrawingRenderer._();
 

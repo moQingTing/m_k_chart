@@ -10,7 +10,10 @@ enum KlinePriceSource {
   final String code;
 }
 
-/// Immutable OHLCV data for one symbol, interval, and price source.
+/// 单个交易对、周期和价格来源的不可变 OHLCV K 线数据。
+///
+/// 所有时间戳以 UTC 毫秒保存；UI 时区只由 [timeZoneOffset] 表示，不能修改原始时间。
+/// 实时更新同一根 K 线时请用 [copyWith] 生成新实例，供数据快照版本和指标缓存正确识别。
 final class Kline {
   factory Kline({
     required String symbol,
@@ -95,10 +98,10 @@ final class Kline {
   final String symbol;
   final KlineInterval interval;
 
-  /// UTC Unix epoch milliseconds.
+  /// 开盘时间：UTC Unix epoch 毫秒。
   final int openTime;
 
-  /// UTC Unix epoch milliseconds.
+  /// 收盘时间：UTC Unix epoch 毫秒。
   final int closeTime;
 
   final double open;
@@ -114,7 +117,7 @@ final class Kline {
   final int? lastTradeId;
   final bool isClosed;
 
-  /// Display/session boundary offset. Stored timestamps always remain UTC.
+  /// 显示或交易时段边界的时区偏移；保存的时间戳始终保持 UTC。
   final Duration timeZoneOffset;
 
   final KlinePriceSource priceSource;

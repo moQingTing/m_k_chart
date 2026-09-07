@@ -1,10 +1,9 @@
 import '../interaction/interaction.dart';
 import '../viewport/viewport.dart';
 
-/// Independently versioned portions of a chart state.
+/// 可独立版本化的图表状态部分。
 ///
-/// Render layers and listeners use these identities to subscribe to the
-/// smallest state portion that can affect their output.
+/// 渲染图层和监听器以这些身份订阅足以影响其输出的最小状态部分。
 enum StateSlice {
   data,
   viewport,
@@ -14,7 +13,7 @@ enum StateSlice {
   theme,
 }
 
-/// Immutable version vector for all [StateSlice] values.
+/// 所有 [StateSlice] 值的不可变版本向量。
 final class StateSliceVersions {
   const StateSliceVersions({
     this.data = 0,
@@ -77,12 +76,10 @@ final class StateSliceVersions {
       Object.hash(data, viewport, selection, history, layout, theme);
 }
 
-/// Immutable aggregate revision published by a chart controller.
+/// 图表控制器发布的不可变聚合版本。
 ///
-/// A controller transaction calls [bump] once with every changed slice. The
-/// aggregate [revision] advances once per non-empty transaction while each
-/// affected slice advances independently. State payloads will be added beside
-/// this protocol as their owning modules are introduced.
+/// 一次控制器事务以所有已变更切片调用一次 [bump]。每个非空事务只推进一次聚合 [revision]，
+/// 同时各受影响切片独立递增。后续模块加入状态载荷时必须遵循这一版本协议。
 final class KChartState {
   const KChartState({
     this.revision = 0,

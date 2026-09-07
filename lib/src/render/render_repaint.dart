@@ -150,7 +150,10 @@ final class RenderLayerRepaintStats {
   int reuseCount(String layerId) => reuseCounts[layerId] ?? 0;
 }
 
-/// Records invalidated Layers and composites retained Pictures in stack order.
+/// 记录失效图层，并按图层顺序合成保留的 Picture。
+///
+/// 这是渲染性能的核心边界：仅当图层声明的 [RenderSnapshotSlice] 版本变化时才重新录制该层；
+/// 未失效层复用已有 Picture。图层的 dependencies 漏报会产生陈旧画面，多报则降低缓存收益。
 final class RetainedRenderLayerCompositor<TTheme extends Object> {
   RetainedRenderLayerCompositor(this.layers)
       : _states = {

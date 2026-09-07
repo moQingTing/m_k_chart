@@ -4,7 +4,7 @@ import 'indicator_config.dart';
 import 'indicator_registry.dart';
 import 'indicator_series.dart';
 
-/// Immutable cache identity for one configured indicator calculation.
+/// 一次配置化指标计算的不可变缓存身份。
 final class IndicatorCacheKey {
   IndicatorCacheKey._({
     required this.config,
@@ -28,7 +28,7 @@ final class IndicatorCacheKey {
   final KlineDataVersion dataVersion;
   final KlinePriceSource? priceSource;
 
-  /// Prevents equal version counters from independent stores colliding.
+  /// 防止不同数据仓库中相同版本号发生缓存碰撞。
   final Object dataIdentity;
 
   String get definitionId => config.definitionId;
@@ -51,7 +51,10 @@ final class IndicatorCacheKey {
       );
 }
 
-/// Instance-owned bounded cache and incremental calculation coordinator.
+/// 实例私有的有界缓存与增量计算协调器。
+///
+/// 缓存键同时包含参数、数据版本、价格来源和数据列表身份。命中完全相同快照时直接复用；
+/// 否则仅在数据版本前进且指标支持该变化类型时使用增量计算，保证计算正确性优先于缓存命中。
 final class IndicatorCache {
   IndicatorCache(this.registry, {this.maximumEntries = 32}) {
     if (maximumEntries <= 0) {
@@ -79,6 +82,7 @@ final class IndicatorCache {
     IndicatorConfig config,
   ) {
     final key = IndicatorCacheKey.from(input, config);
+    // remove + put 将命中项移至末尾，Map 的插入顺序即为 LRU 访问顺序。
     final exact = _entries.remove(key);
     if (exact != null) {
       _entries[key] = exact;
@@ -89,6 +93,7 @@ final class IndicatorCache {
     final previous = _latestCompatibleEntry(input, config);
     late final IndicatorResult result;
     if (previous != null && input.version.isNewerThan(previous.input.version)) {
+      // 先精确分类更新（追加、尾部替换、历史修正等），再决定能否安全增量计算。
       final change = IndicatorDataChange.between(previous.input, input);
       if (change.kind == IndicatorChangeKind.unchanged) {
         result = _rebind(previous.result, input.version);
@@ -136,6 +141,7 @@ final class IndicatorCache {
   }
 
   void _trim() {
+    // 最早插入且最长时间未被访问的条目位于首位。
     while (_entries.length > maximumEntries) {
       _entries.remove(_entries.keys.first);
       _evictions++;

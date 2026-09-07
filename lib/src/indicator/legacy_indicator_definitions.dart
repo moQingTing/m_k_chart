@@ -8,7 +8,10 @@ import 'indicator_registry.dart';
 import 'indicator_renderer_descriptor.dart';
 import 'indicator_series.dart';
 
-/// Registers the ten indicator definitions supported by the 1.x renderer.
+/// 注册 1.x 渲染器兼容的十种指标定义。
+///
+/// `legacy.*` id 是持久化布局与既有接入的兼容协议，不应随意重命名；新项目可继续使用这些
+/// 定义，渲染层与 V2 指标协议仍保持一致。
 void registerLegacyIndicatorDefinitions(IndicatorRegistry registry) {
   registry
     ..register(MovingAverageIndicatorDefinition())
@@ -23,6 +26,7 @@ void registerLegacyIndicatorDefinitions(IndicatorRegistry registry) {
     ..register(ObvIndicatorDefinition());
 }
 
+/// 简单移动平均线（MA）。每条输出序列对应一个可配置周期。
 final class MovingAverageIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.ma';
@@ -97,6 +101,7 @@ final class MovingAverageIndicatorDefinition
   }
 }
 
+/// 指数移动平均线（EMA）。最近价格权重更高，使用上一根结果实现增量续算。
 final class ExponentialMovingAverageIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.ema';
@@ -171,6 +176,7 @@ final class ExponentialMovingAverageIndicatorDefinition
   }
 }
 
+/// 布林带（BOLL），输出中轨、上轨和下轨；上/下轨基于滚动标准差。
 final class BollingerBandsIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.boll';
@@ -260,6 +266,7 @@ final class BollingerBandsIndicatorDefinition
   }
 }
 
+/// 抛物线转向指标（SAR）。内部状态保存趋势方向、极值点和加速因子，适合尾部增量计算。
 final class ParabolicSarIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.sar';
@@ -484,6 +491,7 @@ final class ParabolicSarIndicatorDefinition
   }
 }
 
+/// 成交量副图，输出涨跌着色柱和可选的成交量均线。
 final class VolumeIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.vol';
@@ -577,6 +585,7 @@ final class VolumeIndicatorDefinition
   }
 }
 
+/// MACD：快慢 EMA 的 DIF、DIF 的 DEA，以及二者差值形成的柱状图。
 final class MacdIndicatorDefinition implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.macd';
 
@@ -724,6 +733,7 @@ final class MacdIndicatorDefinition implements IncrementalIndicatorDefinition {
   }
 }
 
+/// 随机指标（KDJ），以滚动高低点归一化 RSV，再平滑得到 K、D、J。
 final class KdjIndicatorDefinition implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.kdj';
 
@@ -866,6 +876,7 @@ final class KdjIndicatorDefinition implements IncrementalIndicatorDefinition {
   }
 }
 
+/// 相对强弱指标（RSI），通过 Wilder 平滑比较上涨与下跌幅度。
 final class RsiIndicatorDefinition implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.rsi';
 
@@ -987,6 +998,7 @@ final class RsiIndicatorDefinition implements IncrementalIndicatorDefinition {
   }
 }
 
+/// 威廉指标（WR），衡量收盘价在滚动高低区间中的相对位置。
 final class WilliamsRIndicatorDefinition
     implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.wr';
@@ -1066,6 +1078,7 @@ final class WilliamsRIndicatorDefinition
   }
 }
 
+/// 能量潮（OBV），按收盘价涨跌方向累计成交量。
 final class ObvIndicatorDefinition implements IncrementalIndicatorDefinition {
   static const definitionId = 'legacy.obv';
 

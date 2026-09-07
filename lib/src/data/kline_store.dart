@@ -4,7 +4,11 @@ import '../model/model.dart';
 
 part 'kline_snapshot.dart';
 
-/// Owns immutable snapshots for a single symbol/interval/price-source series.
+/// 管理单一交易对/周期/价格来源序列的不可变快照。
+///
+/// [replace] 适用于历史全量同步；[prepend] 用于向左加载更早数据；[append] 用于新 K 线；
+/// [update] 只替换同一开盘时间的正在形成 K 线。每次有效变更都会产生新的版本，供指标与
+/// 渲染缓存精准失效。
 final class KlineStore {
   KlineStore()
       : _snapshot = KlineSnapshot._(
@@ -14,6 +18,7 @@ final class KlineStore {
 
   KlineSnapshot _snapshot;
 
+  /// 当前稳定快照。请勿持有其可变副本并原地修改。
   KlineSnapshot get snapshot => _snapshot;
 
   KlineSnapshot replace(Iterable<Kline> values) {
@@ -88,6 +93,7 @@ final class KlineStore {
   }
 
   KlineSnapshot _commit(List<Kline> next) {
+    // 版本只在数据真实变化时递增；这是增量指标计算与渲染缓存的失效依据。
     _snapshot = KlineSnapshot._(next, _snapshot.version.next());
     return _snapshot;
   }
@@ -119,6 +125,7 @@ final class KlineStore {
   }
 
   int _indexOfOpenTime(int openTime) {
+    // K 线始终按开盘时间严格递增，使用二分查找避免实时更新退化为线性扫描。
     var low = 0;
     var high = _snapshot.length - 1;
     while (low <= high) {
@@ -138,6 +145,7 @@ final class KlineStore {
 }
 
 List<Kline> _join(List<Kline> first, List<Kline> second) {
+  // 预分配不可增长列表，避免拼接时产生多余的中间集合。
   final result = List<Kline>.filled(
     first.length + second.length,
     first.isNotEmpty ? first.first : second.first,

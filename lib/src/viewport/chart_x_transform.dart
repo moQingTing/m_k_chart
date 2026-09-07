@@ -1,11 +1,10 @@
 import '../model/model.dart';
 import 'chart_viewport.dart';
 
-/// Immutable horizontal transform between data slots, chart-local X, and time.
+/// 数据槽位、图表局部 X 坐标与时间之间的不可变横向转换器。
 ///
-/// Data slot `i` occupies `[i, i + 1]` and its Kline center is `i + 0.5`.
-/// Local X is always relative to the chart's own drawable area. Time mapping
-/// interpolates actual Kline open times instead of assuming a fixed interval.
+/// 槽位 `i` 占据 `[i, i + 1]`，其 K 线中心为 `i + 0.5`。局部 X 始终相对于图表自身
+/// 绘图区域；时间映射插值实际开盘时间，而非假设数据周期恒定。
 final class ChartXTransform {
   factory ChartXTransform({
     required ChartViewport viewport,
@@ -49,9 +48,9 @@ final class ChartXTransform {
     return dataPositionToLocalX(index + 0.5);
   }
 
-  /// Returns the slot under [localX], clamped to the available data.
+  /// 返回 [localX] 下的槽位，并夹取到已有数据范围。
   ///
-  /// A coordinate exactly on a slot boundary selects the newer/right slot.
+  /// 恰好落在槽位边界的坐标选择较新（右侧）的数据。
   int localXToNearestIndex(double localX) {
     if (isEmpty) {
       throw StateError('Cannot select an index from empty Kline data.');
@@ -60,9 +59,9 @@ final class ChartXTransform {
     return index.clamp(0, data.data.length - 1);
   }
 
-  /// Maps UTC epoch milliseconds to the continuous center coordinate.
+  /// 将 UTC epoch 毫秒映射为连续的 K 线中心坐标。
   ///
-  /// Values outside the data timeline clamp to the first or last center.
+  /// 数据时间线之外的值会夹取到首根或末根中心。
   double timeToDataPosition(int epochMilliseconds) {
     final values = data.data;
     if (values.isEmpty) {
@@ -83,9 +82,9 @@ final class ChartXTransform {
     return lower + 0.5 + fraction;
   }
 
-  /// Maps a continuous center coordinate back to UTC epoch milliseconds.
+  /// 将连续中心坐标映射回 UTC epoch 毫秒。
   ///
-  /// Positions outside the first/last centers clamp to the data timeline.
+  /// 首尾 K 线中心之外的位置会夹取到数据时间线。
   int dataPositionToTime(double dataPosition) {
     _requireFinite(dataPosition, 'dataPosition');
     final values = data.data;

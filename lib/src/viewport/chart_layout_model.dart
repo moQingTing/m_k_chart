@@ -5,7 +5,7 @@ enum ChartPanelKind {
   secondary,
 }
 
-/// Immutable sizing request for one chart panel.
+/// 单个图表面板的不可变尺寸请求。
 final class ChartPanelSpec {
   const ChartPanelSpec.main({
     this.id = 'main',
@@ -30,18 +30,15 @@ final class ChartPanelSpec {
   final double weight;
   final double minHeight;
 
-  /// Reserved height at the top of the panel grid, for overlays such as
-  /// legends. It is excluded from indicator and candle rendering, while the
-  /// grid keeps it as a dedicated first row.
+  /// 面板网格顶部的预留高度，用于参数栏等覆盖内容。该区域不绘制指标或 K 线，但网格会将其
+  /// 作为独立的第一行保留。
   final double headerHeight;
 
-  /// Number of vertical intervals. The generated horizontal line count is
-  /// [gridRows] + 1, including both panel edges.
+  /// 纵向分段数量；实际生成的横线数为 [gridRows] + 1，包含面板上下边界。
   final int gridRows;
 
-  /// Whether the panel draws horizontal grid lines. When false, only the
-  /// top and bottom boundaries of the complete grid area are drawn; vertical
-  /// data-anchored grid lines remain available for every panel.
+  /// 是否绘制面板内部横向网格线。为 false 时只保留完整网格区域的上下边界；跟随数据的竖线
+  /// 对所有面板仍然可用。
   final bool showHorizontalGrid;
 
   @override
@@ -68,7 +65,7 @@ final class ChartPanelSpec {
       );
 }
 
-/// A rectangle in chart-local logical pixels.
+/// 图表局部逻辑像素坐标中的矩形。
 final class ChartLayoutRect {
   const ChartLayoutRect._({
     required this.left,
@@ -113,16 +110,15 @@ final class ChartPanelLayout {
 
   final ChartPanelSpec spec;
 
-  /// Reserved non-drawing header at the top of this panel's grid.
+  /// 此面板网格顶部预留、不参与数据绘制的参数栏区域。
   final ChartLayoutRect headerBounds;
 
-  /// Full candle or indicator drawing area.
+  /// K 线或指标的完整绘制区域。
   final ChartLayoutRect bounds;
 
-  /// Complete visual grid area, including the reserved [headerBounds].
+  /// 完整视觉网格区域，包含预留的 [headerBounds]。
   ///
-  /// Candles and indicators remain clipped to [bounds], so legend text in the
-  /// header cannot be covered by chart data.
+  /// K 线和指标始终裁剪至 [bounds]，因此参数栏文字不会被图表数据覆盖。
   ChartLayoutRect get gridBounds => headerBounds.height == 0
       ? bounds
       : ChartLayoutRect._(
@@ -144,8 +140,10 @@ final class ChartPanelLayout {
   int get hashCode => Object.hash(spec, headerBounds, bounds);
 }
 
-/// Deterministic chart-local geometry for the main panel, secondary panels,
-/// time axis, and grid coordinates.
+/// 主图、副图、时间轴和网格坐标的确定性图表局部几何模型。
+///
+/// 渲染、命中测试与叠加组件必须共用此模型，不能各自推导像素边界；否则在自适应参数栏、
+/// 多副图或 RTL 布局下容易出现错位。
 final class ChartLayoutModel {
   factory ChartLayoutModel({
     required double width,
@@ -334,7 +332,7 @@ final class ChartLayoutModel {
   final double mainTimeAxisHeight;
   final double panelSpacing;
 
-  /// Number of horizontal intervals. [gridColumnXs] contains one more entry.
+  /// 横向分段数量；[gridColumnXs] 会包含多一个边界坐标。
   final int gridColumns;
 
   final ChartLayoutRect drawingBounds;

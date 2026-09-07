@@ -18,7 +18,10 @@ typedef ChartCrosshairTimeFormatter = String Function(
   Duration timeZoneOffset,
 );
 
-/// Renderer-facing state slices, mirrored without depending on Controller.
+/// 面向渲染器的状态切片；在不依赖 Controller 的前提下镜像状态变化。
+///
+/// 每个图层声明它依赖的切片，渲染管线据此只失效必要的缓存层。新增视觉状态时应先评估是否
+/// 需要在此添加独立切片，而非粗暴递增所有版本号。
 enum RenderSnapshotSlice {
   data,
   viewport,
@@ -32,7 +35,7 @@ enum RenderSnapshotSlice {
   locale,
 }
 
-/// Immutable version vector used by Layers to declare invalidation inputs.
+/// 图层用来声明缓存失效输入的不可变版本向量。
 final class RenderSnapshotVersions {
   const RenderSnapshotVersions({
     this.data = 0,
@@ -88,7 +91,10 @@ enum RenderSelectionValueKind {
   close,
 }
 
-/// Selection payload projected into Renderer-owned, chart-local values.
+/// 投射为渲染器所有、图表局部坐标的选中载荷。
+///
+/// [dataIndex]/[price]/[valueKind] 要么同时存在（已吸附），要么同时为空（仅显示自由十字线），
+/// 防止信息面板读取到半完整的选中状态。
 final class RenderSelectionSnapshot {
   const RenderSelectionSnapshot.hidden()
       : isVisible = false,
@@ -154,14 +160,14 @@ enum RenderHistoryPhase {
   failure,
 }
 
-/// Minimal historical-loading state that a visual Layer may consume.
+/// 可供视觉图层消费的最小历史加载状态。
 final class RenderHistorySnapshot {
   const RenderHistorySnapshot({this.phase = RenderHistoryPhase.idle});
 
   final RenderHistoryPhase phase;
 }
 
-/// Legacy chart-local line primitive kept for backward-compatible render input.
+/// 为兼容旧渲染输入保留的图表局部直线图元。
 final class RenderLineDrawing {
   RenderLineDrawing({
     required this.id,
@@ -184,7 +190,10 @@ final class RenderLineDrawing {
   final Offset end;
 }
 
-/// Calculated indicator output projected without private continuation state.
+/// 不含私有续算状态的已计算指标输出投射。
+///
+/// 这里是指标引擎与渲染器的唯一数据桥梁：渲染器只读序列和描述符，不依赖具体指标算法；
+/// 因而可新增指标而不修改通用图层。
 final class RenderIndicatorSnapshot {
   factory RenderIndicatorSnapshot.fromResult({
     required IndicatorResult result,
@@ -243,10 +252,10 @@ final class RenderIndicatorSnapshot {
   }
 }
 
-/// Complete, read-only input for one deterministic render pass.
+/// 一次确定性渲染所需的完整只读输入。
 ///
-/// [TTheme] remains generic inside Renderer; production assembly supplies the
-/// public immutable KChartTheme. Callers must provide an immutable theme value.
+/// [TTheme] 在渲染器内部保持泛型；生产环境组装时传入公开的不可变 KChartTheme。调用方必须
+/// 提供不可变主题值，主题变化则通过 [versions] 的 theme 切片触发相应图层重绘。
 final class RenderSnapshot<TTheme extends Object> {
   factory RenderSnapshot({
     required VersionedKlineData data,
@@ -286,6 +295,7 @@ final class RenderSnapshot<TTheme extends Object> {
       );
     }
 
+    // 固化所有集合，确保一个渲染帧中不会因宿主修改 List 而出现半帧数据。
     final immutableIndicators =
         List<RenderIndicatorSnapshot>.unmodifiable(indicators);
     final instanceIds = <String>{};
