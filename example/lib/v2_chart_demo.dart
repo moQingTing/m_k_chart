@@ -209,6 +209,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     downColor: const Color(0xffd93d56),
   ).copyWith(
     indicatorColors: const {
+      'demo-ma:ma5': Color(0xffd9a514),
+      'demo-ma:ma10': Color(0xffd946b6),
+      'demo-ma:ma20': Color(0xff7c5cb5),
       'demo-super:up': Color(0xff0b9b69),
       'demo-super:down': Color(0xffd93d56),
     },
