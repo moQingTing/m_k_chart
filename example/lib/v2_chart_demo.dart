@@ -11,11 +11,24 @@ import 'package:m_k_chart/v2_example_support.dart';
 import 'binance_market_data_client.dart';
 import 'v2_trade_overlay_examples.dart';
 
-/// Runnable trading-chart example backed by Binance public market data.
+/// A complete, runnable reference integration for the V2 trading-chart SDK.
 ///
-/// The initial state remains useful offline: local candles render first, then
-/// the latest successful public response replaces them. Set [loadOnStart] to
-/// false in widget tests or an entirely offline host.
+/// This example intentionally keeps the production integration steps together:
+///
+/// 1. Obtain a [VersionedKlineData] window from your REST/WebSocket service.
+/// 2. Turn enabled indicator definitions into [IndicatorConfig] instances.
+/// 3. Resolve them through [IndicatorEngine] and project them into the render
+///    snapshot in [_indicatorSnapshots].
+/// 4. Feed the immutable [RenderSnapshot] to [StandardChartRenderPipeline].
+/// 5. Route gestures through [ChartGestureRegion], then only update the state
+///    affected by that gesture.
+///
+/// Binance is used only as an easily runnable public data source. Replace
+/// [BinanceMarketDataClient] and [_loadCandles]/[_refreshLatestCandles] with
+/// your own repository or stream without changing the chart assembly code.
+/// Local deterministic candles render first, so the example also remains
+/// usable offline. Set [loadOnStart] to false in widget tests or an offline
+/// host.
 class V2TradingChartDemo extends StatefulWidget {
   const V2TradingChartDemo({
     super.key,
@@ -31,8 +44,10 @@ class V2TradingChartDemo extends StatefulWidget {
 }
 
 class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
+  /// Keep panels visually contiguous. Hosts may raise this for card-like UIs.
   static const _panelSpacing = 0.0;
 
+  /// Intervals exposed by the sample's “行情与周期” sheet.
   static final _intervals = <KlineInterval>[
     KlineInterval.oneMinute,
     KlineInterval.fiveMinutes,
@@ -51,6 +66,12 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     ChartMainMode.area,
   ];
 
+  /// The SDK-facing indicator catalog.
+  ///
+  /// To add an indicator in an app: register its definition, add one option
+  /// here, and provide its numeric defaults in [parameters]. The generic
+  /// settings UI, parameter validation and engine configuration then work
+  /// automatically. `isMain` selects the main chart vs. a secondary panel.
   static const _indicators = <_IndicatorOption>[
     _IndicatorOption(
       'ma',
@@ -196,6 +217,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     ),
   ];
 
+  // ---- SDK assembly -------------------------------------------------------
+  // These objects are long-lived. Do not recreate an engine or pipeline in
+  // build(); doing so defeats the indicator cache and render-layer cache.
   late final StandardChartRenderPipeline<KChartTheme> _pipeline;
   late final ChartInteractionMachine _interactionMachine;
   late final ChartNavigationMachine _navigationMachine;
@@ -204,6 +228,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   Timer? _clockTimer;
   Timer? _marketTimer;
   final _instrumentController = TextEditingController(text: 'BTCUSDT');
+
+  /// Theme is normal app state: replace this with your design-system palette.
+  /// Indicator color keys use the `instanceId:seriesId` convention.
   KChartTheme _theme = KChartTheme.light(
     upColor: const Color(0xff0b9b69),
     downColor: const Color(0xffd93d56),
@@ -229,6 +256,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     indicatorStrokeWidth: 1,
     overlayStrokeWidth: 0.8,
   );
+  // ---- User-configurable chart state -------------------------------------
+  // Keep ids, rather than definition objects, in state. This makes persistence
+  // and restoring a user's chart layout straightforward.
   final Set<String> _mainIndicators = {'ma'};
   final List<String> _secondaryIndicators = ['vol', 'macd'];
   late final Map<String, Map<String, num>> _indicatorParameters;
@@ -250,6 +280,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _localeRevision = 0;
   var _overlaySecondaryIndicators = false;
   var _showTradeOverlayExamples = true;
+  // RenderSnapshot versions tell the pipeline exactly which cached layers can
+  // be reused. Advance only the version related to the state that changed.
   var _revision = 0;
   var _viewportRevision = 0;
   var _selectionRevision = 0;
@@ -292,6 +324,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         ]),
       );
     }
+    // Register once and keep one engine for the life of the chart. The engine
+    // automatically chooses full vs. incremental indicator calculation.
     _pipeline = StandardChartRenderPipeline<KChartTheme>();
     _interactionMachine = ChartInteractionMachine();
     _navigationMachine = ChartNavigationMachine();
@@ -302,6 +336,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _indicatorParameters = {
       for (final option in _indicators) option.id: Map.of(option.parameters),
     };
+    // A deterministic local window gives the first frame a useful chart while
+    // the remote request is in flight. A host can instead seed cached data.
     _data = _createData(_interval, _revision);
     if (widget.loadOnStart) {
       _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -320,6 +356,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
 
   @override
   void dispose() {
+    // Always release timers, controllers and the pipeline in an embedding app.
     _clockTimer?.cancel();
     _marketTimer?.cancel();
     if (widget.fullscreen) {
@@ -335,6 +372,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     super.dispose();
   }
 
+  /// Starts a new data window for a period change.
+  ///
+  /// A period is a different series, so selection and the historical viewport
+  /// are intentionally reset before the next remote window arrives.
   void _selectInterval(KlineInterval interval) {
     if (interval == _interval) return;
     setState(() {
@@ -349,12 +390,15 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _loadCandles();
   }
 
+  /// Reloads history at a new window size without changing the interval.
   void _selectCandleLimit(int limit) {
     if (limit == _candleLimit) return;
     setState(() => _candleLimit = limit);
     _loadCandles();
   }
 
+  /// Validates a public-symbol entry before requesting a new market window.
+  /// Replace this validation with your own symbol metadata in production.
   void _submitInstrument() {
     final instrument = _instrumentController.text.trim().toUpperCase();
     if (!RegExp(r'^[A-Z0-9]{5,20}$').hasMatch(instrument)) {
@@ -391,6 +435,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 
   Future<void> _loadCandles() async {
+    // A generation token prevents a slow request for an old symbol/period from
+    // overwriting a newer chart. Keep this pattern for every async source.
     final generation = ++_loadGeneration;
     final instrumentId = _instrumentId;
     final tickerFuture = _loadTickerSafely(instrumentId);
@@ -494,6 +540,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     BinanceTicker? ticker,
     String? realtimeStatus,
   }) {
+    // This is the only mutation point for incoming candles. Centralising it is
+    // important: REST refreshes, WebSocket ticks and simulation must all apply
+    // the same viewport-anchor and render-version rules.
     final previousViewport = _latestViewport;
     final nextViewport = preserveViewport && previousViewport != null
         ? ChartViewportNavigator.preserveAfterRealtimeDataChange(
@@ -531,6 +580,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 
   void _simulateUpdateLatest() {
+    // Demonstrates the normal WebSocket path: update the still-forming candle
+    // in place and preserve the user's historical scroll position.
     if (_data.data.isEmpty) return;
     final candles = _data.data.toList(growable: true);
     final latest = candles.last;
@@ -557,6 +608,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 
   void _simulateAppendLatest() {
+    // Demonstrates the boundary between two intervals: close the previous bar,
+    // append one new current bar, then preserve the viewport anchor.
     if (_data.data.isEmpty) return;
     final candles = _data.data.toList(growable: true);
     final latest = candles.last;
@@ -606,6 +659,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     });
   }
 
+  /// Main and secondary indicator selection share one catalog but map to
+  /// different panel ids in [_indicatorSnapshots].
   void _toggleMainIndicator(String id, bool enabled) => setState(() {
         enabled ? _mainIndicators.add(id) : _mainIndicators.remove(id);
         _advanceRevision();
@@ -631,9 +686,12 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     });
   }
 
+  /// Invalidates theme/layout-dependent render layers after a visual change.
   void _advanceRevision() => _revision++;
 
   void _applySuperStyle() {
+    // SUPER's computational values are separate from its presentation. The
+    // theme carries stroke/fill customization so the algorithm stays reusable.
     _theme = _theme.copyWith(
       indicatorLineWidths: {
         'demo-super:up': _superLineWidth,
@@ -648,6 +706,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 
   double _effectiveMainIndicatorHeaderHeight(double availableWidth) {
+    // The legend belongs to the panel header, never the drawing bounds. Its
+    // adaptive height prevents values from covering candles on narrow screens.
     if (_mainIndicators.isEmpty) return 0;
     if (_mainIndicators.length == 1) {
       return _mainIndicatorHeaderHeight;
@@ -966,12 +1026,17 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   _IndicatorOption _indicator(String id) =>
       _indicators.singleWhere((option) => option.id == id);
 
+  /// Mutable values selected by the user, seeded from the catalog defaults.
+  /// Pass this map straight to [IndicatorConfig.parameters] when embedding.
   Map<String, num> _parametersFor(_IndicatorOption option) =>
       _indicatorParameters[option.id]!;
 
+  /// A human-readable summary used in the settings sheet, not in computation.
   String _parameterSummaryFor(_IndicatorOption option) {
     final parameters = _parametersFor(option);
-    if (parameters.isEmpty) return '此指标没有可调整的周期或常数';
+    // Parameterless definitions (for example AVL/VWAP) still expose their
+    // calculation description from the catalog.
+    if (parameters.isEmpty) return option.parameterSummary;
     return parameters.entries
         .map(
           (entry) =>
@@ -984,6 +1049,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     required _IndicatorOption? option,
     required IndicatorSeriesDescriptor descriptor,
   }) {
+    // Renderer descriptors have stable series ids while periods are editable.
+    // Translate the ids here so chart legends always reflect current settings.
     if (option == null) return descriptor.label;
     final parameters = _parametersFor(option);
     return switch ((option.id, descriptor.id)) {
@@ -1015,6 +1082,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     String key,
     String rawValue,
   ) {
+    // Definitions reject invalid values too, but validate at the UI boundary so
+    // users receive a useful message rather than an isolated engine failure.
     final value = num.tryParse(rawValue.trim());
     if (value == null ||
         value <= 0 ||
@@ -1045,6 +1114,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       _overlaySecondaryIndicators ? 'secondary-overlay' : 'secondary-$id';
 
   List<RenderIndicatorSnapshot> _indicatorSnapshots() {
+    // This is the key SDK bridge: UI ids -> IndicatorConfig -> cached engine
+    // result -> render projection. A production host may put this in a view
+    // model, but the order and immutable boundaries should remain the same.
     final options = [
       for (final id in _mainIndicators) _indicator(id),
       for (final id in _secondaryIndicators) _indicator(id),
@@ -1078,6 +1150,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         panelId: option.isMain ? 'main' : _secondaryPanelId(option.id),
       );
     }
+    // `legacy.ma` keeps four historical output series for backwards
+    // compatibility. This sample intentionally exposes only three lines.
+    // Filtering happens after calculation, preserving the public algorithm.
     const visibleSeriesIds = {'ma5', 'ma10', 'ma20'};
     final filteredDescriptor = IndicatorRendererDescriptor(
       placement: descriptor.placement,
@@ -1261,6 +1336,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     required String title,
     required List<Widget> Function(StateSetter setSheetState) childrenBuilder,
   }) {
+    // Keep configuration outside the chart page. This prevents a long form
+    // from shrinking the usable chart area and lets hosts replace each sheet
+    // with a route, a desktop side panel, or their own settings framework.
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1773,8 +1851,12 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
 
   @override
   Widget build(BuildContext context) {
+    // Layout construction is deliberately colocated with RenderSnapshot
+    // assembly below: panel geometry must match viewport and gesture bounds.
     final mainIndicatorHeaderHeight =
         _effectiveMainIndicatorHeaderHeight(MediaQuery.sizeOf(context).width);
+    // Secondary indicators can use individual panels or share one overlay
+    // panel. Only this list changes the layout model; drawing stays generic.
     final secondaryPanels = _secondaryIndicators.isEmpty
         ? const <ChartPanelSpec>[]
         : _overlaySecondaryIndicators
@@ -2340,6 +2422,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                   final width = math.max(1.0, constraints.maxWidth);
                   final resolvedMainIndicatorHeaderHeight =
                       _effectiveMainIndicatorHeaderHeight(width);
+                  // `ChartLayoutModel` is the single coordinate contract used
+                  // by render layers, hit-testing, axes and overlay widgets.
                   final layout = ChartLayoutModel(
                     width: width,
                     height: chartHeight,
@@ -2370,6 +2454,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                         legacyViewport.trailingPaddingItems -
                         1,
                   );
+                  // The viewport contains no UI state beyond x-navigation.
+                  // Preserve it across incoming data in [_applyDataWindow].
                   final viewport = ChartViewport(
                     itemCount: _data.data.length,
                     width: layout.drawingBounds.width,
@@ -2380,6 +2466,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                   );
                   _latestViewport = viewport;
                   final tradeOverlays = _tradeOverlays();
+                  // Build a base snapshot without selection for hit testing.
+                  // The final snapshot adds crosshair state after snapping.
                   final baseSnapshot = RenderSnapshot<KChartTheme>(
                     data: _data,
                     viewport: viewport,
@@ -2694,6 +2782,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 }
 
+/// Consistent heading + wrapping content used by each focused settings sheet.
 class _ToolbarSection extends StatelessWidget {
   const _ToolbarSection({required this.title, required this.children});
   final String title;
@@ -2712,6 +2801,10 @@ class _ToolbarSection extends StatelessWidget {
       );
 }
 
+/// Generic numeric editor driven entirely by [_IndicatorOption.parameters].
+///
+/// Add parameter defaults to the catalog rather than creating a special-case
+/// widget for each algorithm. The callback owns validation and recalculation.
 class _IndicatorParameterEditor extends StatelessWidget {
   const _IndicatorParameterEditor({
     super.key,
@@ -3359,6 +3452,9 @@ String _formatAxisTime(
 ) =>
     _formatIntervalTime(epochMilliseconds, timeZoneOffset, interval.code);
 
+/// Formats chart-axis and crosshair time with precision appropriate for the
+/// selected interval. Keep this formatter in one place so every visual time
+/// label agrees after a host changes timezone or interval.
 String _formatIntervalTime(
   int epochMilliseconds,
   Duration timeZoneOffset,
@@ -3400,6 +3496,7 @@ String _formatUtcOffset(int totalMinutes) {
       '${minutes.toString().padLeft(2, '0')}';
 }
 
+/// Keeps integer periods compact while retaining fractional multipliers.
 String _formatIndicatorParameter(num value) =>
     value.toDouble() == value.toDouble().roundToDouble()
         ? value.toInt().toString()
@@ -3426,6 +3523,10 @@ String _indicatorParameterLabel(String key) => switch (key) {
       _ => key,
     };
 
+/// Thin Flutter adapter around the renderer-neutral V2 paint pipeline.
+///
+/// Hosts should keep painting declarative: build a new [RenderSnapshot] from
+/// state and let the pipeline determine what it can cache and repaint.
 class _DemoPainter extends CustomPainter {
   const _DemoPainter({required this.pipeline, required this.snapshot});
   final StandardChartRenderPipeline<KChartTheme> pipeline;
@@ -3437,6 +3538,8 @@ class _DemoPainter extends CustomPainter {
   bool shouldRepaint(covariant _DemoPainter oldDelegate) => true;
 }
 
+/// Produces deterministic offline seed candles; it is not market simulation.
+/// Replace this with a cached snapshot or an empty-state strategy in an app.
 _DemoData _createData(KlineInterval interval, int revision) {
   final step = interval.duration!.inMilliseconds;
   final seed =
@@ -3473,6 +3576,8 @@ String _modeLabel(ChartMainMode mode) => switch (mode) {
       ChartMainMode.area => '面积图',
     };
 
+/// Declarative information needed to turn one registered definition into a
+/// selectable demo indicator. It deliberately does not contain chart state.
 final class _IndicatorOption {
   const _IndicatorOption(
     this.id,
@@ -3487,10 +3592,17 @@ final class _IndicatorOption {
   final String label;
   final String definitionId;
   final bool isMain;
+
+  /// Defaults shown for parameterless definitions and seeded into editable
+  /// parameter state for definitions that expose numeric constants.
   final String parameterSummary;
   final Map<String, num> parameters;
 }
 
+/// Minimal immutable adapter used by the demo and its offline seed data.
+///
+/// Production apps can pass a [KlineStore] snapshot or another immutable
+/// [VersionedKlineData] implementation instead.
 final class _DemoData implements VersionedKlineData {
   const _DemoData(this.data, this.version);
   @override
