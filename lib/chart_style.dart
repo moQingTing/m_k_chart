@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart' show Color, Colors, TextSpan, TextStyle;
+import 'k_chart_theme.dart';
 import 'utils/number_util.dart';
 
 /// EMA配置类，包含周期和颜色
 class EMAConfig {
   /// EMA周期（天数）
   final int period;
-  
+
   /// EMA线条颜色
   final Color color;
-  
+
   EMAConfig({
     required this.period,
     required this.color,
@@ -18,10 +19,10 @@ class EMAConfig {
 class ChartColors {
   /// 暗模式
   final bool isDarkMode;
-  
+
   /// 上涨颜色
   final Color upColor;
-  
+
   /// 下跌颜色
   final Color downColor;
 
@@ -48,10 +49,8 @@ class ChartColors {
   Color get gridColor => Colors.grey.withOpacity(0.2);
 
   //曲线阴影渐变颜色
-  List<Color> get kLineShadowColor => [
-    kLineColor.withOpacity(0.6),
-    kLineColor.withOpacity(0.1)
-      ];
+  List<Color> get kLineShadowColor =>
+      [kLineColor.withOpacity(0.6), kLineColor.withOpacity(0.1)];
 
   /// ma5 颜色
   Color get ma5Color => Colors.yellow.withOpacity(0.6);
@@ -100,10 +99,8 @@ class ChartColors {
   Color get depthSellColor => downColor;
 
   /// 深度渐变颜色
-  List<Color> get depthSellColors => [
-        downColor.withOpacity(0.2),
-        downColor.withOpacity(0.01)
-      ];
+  List<Color> get depthSellColors =>
+      [downColor.withOpacity(0.2), downColor.withOpacity(0.01)];
   List<Color> get depthBuyColors =>
       [upColor.withOpacity(0.4), upColor.withOpacity(0.05)];
 
@@ -117,7 +114,7 @@ class ChartColors {
   Color get markerBgColor => const Color(0xff0D1722);
 
   //实时线颜色等
-  Color get realTimeBgColor =>kLineColor;
+  Color get realTimeBgColor => kLineColor;
 
   Color get rightRealTimeTextColor => const Color(0xffffffff);
 
@@ -134,14 +131,81 @@ class ChartColors {
   Color get pointColor => Colors.white;
 }
 
+/// Converts the frozen 1.x [ChartColors] palette into an immutable V2 theme.
+///
+/// The mapping is intentionally limited to legacy renderer concepts. New V2
+/// features should receive a [KChartTheme] directly.
+extension ChartColorsThemeAdapter on ChartColors {
+  KChartTheme toKChartTheme({ChartStyle? chartStyle}) {
+    final legacyStyle = chartStyle ?? ChartStyle();
+    return KChartTheme(
+      backgroundColor: bgColor,
+      gridColor: gridColor,
+      axisTextColor: yAxisTextColor,
+      upColor: upColor,
+      downColor: downColor,
+      markerColor: markerBorderColor,
+      crosshairColor: xyLineColor,
+      drawingColor: pointColor,
+      mainLineColor: kLineColor,
+      areaFillColors: kLineShadowColor,
+      gridStrokeWidth: _legacyPositive(legacyStyle.gridStrokeWidth, 1),
+      dataStrokeWidth: _legacyPositive(legacyStyle.candleLineWidth, 1),
+      mainLineStrokeWidth: _legacyPositive(legacyStyle.lineStrokeWidth, 1.5),
+      indicatorStrokeWidth: _legacyPositive(legacyStyle.lineStrokeWidth, 1.5),
+      overlayStrokeWidth: _legacyPositive(legacyStyle.vCrossWidth, 1),
+      axisFontSize: _legacyPositive(legacyStyle.defaultTextSize, 10),
+      candleWidthRatio: _legacyWidthRatio(
+        legacyStyle.candleWidth,
+        legacyStyle.pointWidth,
+      ),
+      histogramWidthRatio: _legacyWidthRatio(
+        legacyStyle.volWidth,
+        legacyStyle.pointWidth,
+      ),
+      indicatorColors: {
+        'legacy.ma:ma5': ma5Color,
+        'legacy.ma:ma10': ma10Color,
+        'legacy.ma:ma30': ma30Color,
+        'legacy.ema:ema5': ma5Color,
+        'legacy.ema:ema10': ma10Color,
+        'legacy.ema:ema30': ma30Color,
+        'legacy.vol:ma5': ma5Color,
+        'legacy.vol:ma10': ma10Color,
+        'legacy.macd:dif': difColor,
+        'legacy.macd:dea': deaColor,
+        'legacy.kdj:k': kColor,
+        'legacy.kdj:d': dColor,
+        'legacy.kdj:j': jColor,
+        'legacy.rsi:rsi': rsiColor,
+        'legacy.obv:ma': maOBVColor,
+      },
+    );
+  }
+}
+
+double _legacyWidthRatio(double width, double pointWidth) {
+  if (!width.isFinite ||
+      !pointWidth.isFinite ||
+      width <= 0 ||
+      pointWidth <= 0) {
+    return 1;
+  }
+  return (width / pointWidth).clamp(0.01, 1).toDouble();
+}
+
+double _legacyPositive(double value, double fallback) =>
+    value.isFinite && value > 0 ? value : fallback;
+
 class ChartStyle {
   /// 价格格式化回调，返回 TextSpan 富文本
   /// 如果为 null，则使用默认格式化
   final TextSpan Function(double price, TextStyle defaultStyle)? priceFormatter;
-  
+
   /// 数量格式化回调，返回 TextSpan 富文本
   /// 如果为 null，则使用默认格式化
-  final TextSpan Function(double volume, TextStyle defaultStyle)? volumeFormatter;
+  final TextSpan Function(double volume, TextStyle defaultStyle)?
+      volumeFormatter;
 
   /// 时间格式化回调，返回 String 字符串
   /// 参数：int date - 时间戳（秒）
@@ -158,7 +222,7 @@ class ChartStyle {
   TextSpan defaultFormatPrice(double price, TextStyle style) {
     return TextSpan(text: NumberUtil.format(price), style: style);
   }
-  
+
   /// 默认数量格式化
   TextSpan defaultFormatVolume(double volume, TextStyle style) {
     return TextSpan(text: NumberUtil.volFormat(volume), style: style);

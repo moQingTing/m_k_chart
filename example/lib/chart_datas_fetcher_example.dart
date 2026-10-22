@@ -35,11 +35,11 @@ class _ChartDataExamplePageState extends State<ChartDataExamplePage> {
     });
 
     // 使用单例获取数据
-    // symbol: BTC-USDT (BTC/USDT 交易对)
+    // symbol: BTCUSDT（Binance BTC/USDT 现货交易对）
     // timeType: 1m (1分钟K线)
     // size: 100 (获取100条数据)
     await ChartDatasFetcher.shared.getRemoteChartData(
-      'BTC-USDT',
+      'BTCUSDT',
       '1m',
       100,
       (success, data) {
@@ -186,4 +186,3 @@ class _ChartDataExamplePageState extends State<ChartDataExamplePage> {
     );
   }
 }
-

@@ -1,0 +1,61 @@
+# K 线 2.0 状态与版本协议
+
+> 任务：P1-02
+> 状态：已实现，P5-04 已接入精确 Layer 重绘判定
+> 日期：2026-08-25
+
+## 1. 目标
+
+`KChartState` 是 Controller 对外发布的不可变快照。状态使用总修订号和切片版本向量，避免十字线、主题等局部变化触发全部 Layer 重绘，也避免通过复制大数据列表判断状态是否变化。
+
+P4-01 已将不可变 `ChartViewport` 组合进快照，P4-03 已接入可空的 `ChartLayoutModel`，P4-04 已接入 `ChartCrosshairState`，P4-05 已接入独立的 `ChartHistoryPagingState`；其他载荷仍由其所属任务实现后逐步接入。
+
+## 2. 状态切片
+
+| 切片 | 变化来源 | 典型消费者 |
+| --- | --- | --- |
+| `data` | replace、prepend、append、实时 K 线更新、指标结果就绪 | 蜡烛、指标、坐标轴 |
+| `viewport` | 平移、缩放、定位时间、回到最新 | 数据层、指标层、Overlay |
+| `selection` | 十字线、选中 K 线、绘图对象选中 | Overlay、信息窗 |
+| `history` | 历史 loading、noMore、failure、retry | 加载提示、宿主分页协调器 |
+| `layout` | 尺寸、面板分配、设备像素比变化 | 所有依赖坐标的 Layer |
+| `theme` | 颜色、线宽、字体、涨跌色变化 | 所有可见 Layer |
+
+## 3. 版本规则
+
+1. 初始 `revision` 和所有切片版本均为 `0`。
+2. Controller 将一次输入处理成一个事务，并一次性提交所有变化切片。
+3. 非空事务只将总 `revision` 增加 `1`；同一事务中的重复切片只增加一次。
+4. 只有实际变化的切片版本增加 `1`，其余切片保持不变。
+5. 空事务返回原快照实例，不发通知、不触发重绘。
+6. 版本只允许单调递增；外部只能读取，不能原地修改。
+7. Renderer 通过所依赖切片的版本比较决定是否重绘，不以总 `revision` 代替细粒度判断。
+
+## 4. 事务示例
+
+```text
+实时更新最后一根 K 线：data
+拖动图表：viewport
+改变图表尺寸：layout + viewport
+长按移动十字线：selection
+切换主题：theme
+加载历史并保持视觉锚点：data + viewport
+```
+
+## 5. 后续接入约束
+
+- P1-03 的 Controller 必须以每实例状态持有版本，不使用 static 运行状态。
+- P1-04 的事件处理必须先计算变化，再原子提交状态，Painter 不得调用 `bump`。
+- P5-01 的 Layer 已声明依赖切片并由独立 RenderSnapshot 版本向量承接；P5-04 已只比较各 Layer 的依赖版本，并拒绝版本倒退。
+- 数据列表由 Store 提供只读版本化视图；状态提交不得为了比较变化而复制整份列表。
+- `ChartViewportChanged` 携带完整不可变 Viewport；相同值不提交版本，不通知监听器。
+- `ChartLayoutChanged` 携带完整不可变 LayoutModel；绘制宽度变化时与 Viewport 在同一事务更新。
+- `ChartSelectionChanged` 携带不可变 crosshair 状态；相同 local 位置不提交重复 selection 版本。
+- `ChartHistoryPagingChanged` 携带不可变分页状态；loading/error 变化只增加 history 版本，不伪装成 data 更新。
+
+## 6. 验证
+
+- 初始版本、空事务身份保持。
+- 多切片事务、重复切片去重。
+- 连续事务的切片隔离。
+- 精确变化集合和值相等语义。

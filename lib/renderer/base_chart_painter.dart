@@ -1,6 +1,8 @@
 import 'dart:math';
-export 'package:flutter/material.dart' show Color, TextStyle, Rect, Canvas, Size, CustomPainter, TextSpan;
-import 'package:flutter/material.dart' show Color, TextStyle, Rect, Canvas, Size, CustomPainter, TextSpan;
+export 'package:flutter/material.dart'
+    show Color, TextStyle, Rect, Canvas, Size, CustomPainter, TextSpan;
+import 'package:flutter/material.dart'
+    show Color, TextStyle, Rect, Canvas, Size, CustomPainter, TextSpan;
 
 import '../entity/k_line_entity.dart';
 import '../entity/k_max_min_entity.dart';
@@ -8,9 +10,9 @@ import '../k_chart_widget.dart';
 import '../chart_style.dart' show ChartStyle;
 import '../utils/date_format_util.dart';
 import '../utils/number_util.dart';
+import 'legacy_chart_viewport.dart';
 
 abstract class BaseChartPainter extends CustomPainter {
-  static double maxScrollX = 0.0;
   List<KLineEntity>? datas;
   MainState mainState = MainState.ma;
   // VolState volState = VolState.vol;
@@ -33,7 +35,8 @@ abstract class BaseChartPainter extends CustomPainter {
   // double mSecondaryMaxValue = -double.maxFinite, mSecondaryMinValue = double.maxFinite;
   double mTranslateX = -double.maxFinite;
   int mMainMaxIndex = 0, mMainMinIndex = 0;
-  double mMainHighMaxValue = -double.maxFinite, mMainLowMinValue = double.maxFinite;
+  double mMainHighMaxValue = -double.maxFinite,
+      mMainLowMinValue = double.maxFinite;
   int mItemCount = 0;
   double mDataLen = 0.0; //数据占屏幕总长度
   double mPointWidth = 0.0;
@@ -44,27 +47,26 @@ abstract class BaseChartPainter extends CustomPainter {
 
   BaseChartPainter(
       {required this.datas,
-        required this.scaleX,
-        required this.scrollX,
-        required this.isLongPress,
-        required this.selectX,
-        required this.chartStyle,
-        this.mainState = MainState.ma,
-        // this.volState = VolState.vol,
-        // this.secondaryState = SecondaryState.macd,
-        this.isLine = false
-      }) {
+      required this.scaleX,
+      required this.scrollX,
+      required this.isLongPress,
+      required this.selectX,
+      required this.chartStyle,
+      this.mainState = MainState.ma,
+      // this.volState = VolState.vol,
+      // this.secondaryState = SecondaryState.macd,
+      this.isLine = false}) {
     mItemCount = datas?.length ?? 0;
-    mDataLen = mItemCount * mPointWidth;
     mPointWidth = chartStyle.pointWidth;
+    mDataLen = mItemCount * mPointWidth;
     initFormats();
   }
 
   void initFormats() {
 //    [yyyy, '-', mm, '-', dd, ' ', HH, ':', nn]
     if (mItemCount < 2) return;
-    int firstTime = datas?.first.id??0;
-    int secondTime = datas?[1].id??0;
+    int firstTime = datas?.first.id ?? 0;
+    int secondTime = datas?[1].id ?? 0;
     int time = secondTime - firstTime;
     //月线
     if (time >= 24 * 60 * 60 * 28) {
@@ -78,7 +80,8 @@ abstract class BaseChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    mDisplayHeight = size.height - chartStyle.topPadding - chartStyle.bottomDateHigh;
+    mDisplayHeight =
+        size.height - chartStyle.topPadding - chartStyle.bottomDateHigh;
     mWidth = size.width;
     // mMarginRight = ((mWidth) / chartStyle.gridColumns - mPointWidth) / scaleX;
     // k线靠右的距离
@@ -91,7 +94,7 @@ abstract class BaseChartPainter extends CustomPainter {
     canvas.scale(1, 1);
     drawBg(canvas, size);
     drawGrid(canvas);
-    if (datas?.isNotEmpty??false) {
+    if (datas?.isNotEmpty ?? false) {
       drawChart(canvas, size);
       drawRightText(canvas);
       drawRealTimePrice(canvas, size);
@@ -145,7 +148,6 @@ abstract class BaseChartPainter extends CustomPainter {
     // if (secondaryState != SecondaryState.none){
     //   mSecondaryRect = Rect.fromLTRB(0, (mVolRect.bottom)+ chartStyle.childPadding, mWidth, (mVolRect.bottom)  + secondaryHeight);
     // }
-
   }
 
   void calculateValue() {
@@ -169,27 +171,27 @@ abstract class BaseChartPainter extends CustomPainter {
     } else {
       double maxPrice = item.high, minPrice = item.low;
       if (mainState == MainState.ma) {
-        if(item.MA5Price != 0){
+        if (item.MA5Price != 0) {
           maxPrice = max(maxPrice, item.MA5Price);
           minPrice = min(minPrice, item.MA5Price);
         }
-        if(item.MA10Price != 0){
+        if (item.MA10Price != 0) {
           maxPrice = max(maxPrice, item.MA10Price);
           minPrice = min(minPrice, item.MA10Price);
         }
-        if(item.MA20Price != 0){
+        if (item.MA20Price != 0) {
           maxPrice = max(maxPrice, item.MA20Price);
           minPrice = min(minPrice, item.MA20Price);
         }
-        if(item.MA30Price != 0){
+        if (item.MA30Price != 0) {
           maxPrice = max(maxPrice, item.MA30Price);
           minPrice = min(minPrice, item.MA30Price);
         }
       } else if (mainState == MainState.boll) {
-        if(item.up!=0){
+        if (item.up != 0) {
           maxPrice = max(item.up, item.high);
         }
-        if(item.dn!=0){
+        if (item.dn != 0) {
           minPrice = min(item.dn, item.low);
         }
       } else if (mainState == MainState.ema) {
@@ -217,24 +219,31 @@ abstract class BaseChartPainter extends CustomPainter {
   }
 
   void getVolMaxMinValue(KLineEntity item) {
-    mVolMaxValue = max(mVolMaxValue, max(item.vol, max(item.MA5Volume, item.MA10Volume)));
-    mVolMinValue = min(mVolMinValue, min(item.vol, min(item.MA5Volume, item.MA10Volume)));
+    mVolMaxValue =
+        max(mVolMaxValue, max(item.vol, max(item.MA5Volume, item.MA10Volume)));
+    mVolMinValue =
+        min(mVolMinValue, min(item.vol, min(item.MA5Volume, item.MA10Volume)));
   }
 
-  void getSecondaryMaxMinValue(KLineEntity item,SecondaryState secondaryState,KMaxMinEntity maxMinEntity) {
+  void getSecondaryMaxMinValue(KLineEntity item, SecondaryState secondaryState,
+      KMaxMinEntity maxMinEntity) {
     if (secondaryState == SecondaryState.macd) {
-      maxMinEntity.max = max(maxMinEntity.max, max(item.macd, max(item.dif, item.dea)));
-      maxMinEntity.min = min(maxMinEntity.min, min(item.macd, min(item.dif, item.dea)));
+      maxMinEntity.max =
+          max(maxMinEntity.max, max(item.macd, max(item.dif, item.dea)));
+      maxMinEntity.min =
+          min(maxMinEntity.min, min(item.macd, min(item.dif, item.dea)));
     } else if (secondaryState == SecondaryState.kdj) {
-      maxMinEntity.max = max(maxMinEntity.max, max(item.k, max(item.d, item.j)));
-      maxMinEntity.min = min(maxMinEntity.min, min(item.k, min(item.d, item.j)));
+      maxMinEntity.max =
+          max(maxMinEntity.max, max(item.k, max(item.d, item.j)));
+      maxMinEntity.min =
+          min(maxMinEntity.min, min(item.k, min(item.d, item.j)));
     } else if (secondaryState == SecondaryState.rsi) {
       maxMinEntity.max = max(maxMinEntity.max, item.rsi);
       maxMinEntity.min = min(maxMinEntity.min, item.rsi);
-    } else if(secondaryState == SecondaryState.wr){
+    } else if (secondaryState == SecondaryState.wr) {
       maxMinEntity.max = max(maxMinEntity.max, item.r);
       maxMinEntity.min = min(maxMinEntity.min, item.r);
-    } else if(secondaryState == SecondaryState.obv){
+    } else if (secondaryState == SecondaryState.obv) {
       // OBV 能量潮指标：使用累积计算的 obv 值和移动平均线
       maxMinEntity.max = max(maxMinEntity.max, item.obv);
       maxMinEntity.min = min(maxMinEntity.min, item.obv);
@@ -243,14 +252,17 @@ abstract class BaseChartPainter extends CustomPainter {
         maxMinEntity.min = min(maxMinEntity.min, item.maOBV);
       }
     } else {
-      maxMinEntity.max = max(maxMinEntity.max, max(item.vol, max(item.MA5Volume, item.MA10Volume)));
-      maxMinEntity.min = min(maxMinEntity.min, min(item.vol, min(item.MA5Volume, item.MA10Volume)));
+      maxMinEntity.max = max(maxMinEntity.max,
+          max(item.vol, max(item.MA5Volume, item.MA10Volume)));
+      maxMinEntity.min = min(maxMinEntity.min,
+          min(item.vol, min(item.MA5Volume, item.MA10Volume)));
     }
   }
 
   double xToTranslateX(double x) => -mTranslateX + x / scaleX;
 
-  int indexOfTranslateX(double translateX) => _indexOfTranslateX(translateX, 0, mItemCount - 1);
+  int indexOfTranslateX(double translateX) =>
+      _indexOfTranslateX(translateX, 0, mItemCount - 1);
 
   ///二分查找当前值的index
   int _indexOfTranslateX(double translateX, int start, int end) {
@@ -260,7 +272,9 @@ abstract class BaseChartPainter extends CustomPainter {
     if (end - start == 1) {
       double startValue = getX(start);
       double endValue = getX(end);
-      return (translateX - startValue).abs() < (translateX - endValue).abs() ? start : end;
+      return (translateX - startValue).abs() < (translateX - endValue).abs()
+          ? start
+          : end;
     }
     int mid = start + (end - start) ~/ 2;
     double midValue = getX(mid);
@@ -283,29 +297,19 @@ abstract class BaseChartPainter extends CustomPainter {
   }
 
   ///scrollX 转换为 TranslateX
-  void setTranslateXFromScrollX(double scrollX) => mTranslateX = scrollX + getMinTranslateX();
+  void setTranslateXFromScrollX(double scrollX) =>
+      mTranslateX = scrollX + getMinTranslateX();
 
   ///获取平移的最小值
   double getMinTranslateX() {
-    if(datas==null||(datas?.length??0)==0)return 0;
-//    var x = -mDataLen + mWidth / scaleX - mPointWidth / 2;
-    final double w = mWidth;
-    var x = -mDataLen +  w / scaleX - mPointWidth / 2;
-    x = x >= 0 ? 0.0 : x;
-    //数据不足一屏
-    if (x >= 0) {
-      if (w/scaleX - getX(datas!.length) < mMarginRight) {
-        //数据填充后剩余空间比mMarginRight小，求出差。x-=差
-        x -= mMarginRight - w/scaleX + getX(datas!.length);
-      } else {
-        //数据填充后剩余空间比Right大
-        mMarginRight = w/scaleX - getX(datas!.length);
-      }
-    } else if (x < 0) {
-      //数据超过一屏
-      x -= mMarginRight;
-    }
-    return x >= 0 ? 0.0 : x;
+    final metrics = LegacyChartViewportMetrics(
+      itemCount: mItemCount,
+      width: mWidth,
+      scaleX: scaleX,
+      pointWidth: mPointWidth,
+    );
+    mMarginRight = metrics.marginRight;
+    return metrics.minTranslateX;
   }
 
   ///计算长按后x的值，转换为index
@@ -321,10 +325,12 @@ abstract class BaseChartPainter extends CustomPainter {
   }
 
   ///translateX转化为view中的x
-  double translateXtoX(double translateX) => (translateX + mTranslateX) * scaleX;
+  double translateXtoX(double translateX) =>
+      (translateX + mTranslateX) * scaleX;
 
   TextStyle getTextStyle(Color color, [double? fontSize]) {
-    return TextStyle(fontSize: fontSize ?? chartStyle.defaultTextSize, color: color);
+    return TextStyle(
+        fontSize: fontSize ?? chartStyle.defaultTextSize, color: color);
   }
 
   void drawRealTimePrice(Canvas canvas, Size size);
@@ -351,15 +357,14 @@ abstract class BaseChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(BaseChartPainter oldDelegate) {
-    return true;
-//    return oldDelegate.datas != datas ||
-//        oldDelegate.datas?.length != datas?.length ||
-//        oldDelegate.scaleX != scaleX ||
-//        oldDelegate.scrollX != scrollX ||
-//        oldDelegate.isLongPress != isLongPress ||
-//        oldDelegate.selectX != selectX ||
-//        oldDelegate.isLine != isLine ||
-//        oldDelegate.mainState != mainState ||
-//        oldDelegate.secondaryState != secondaryState;
+    return oldDelegate.datas != datas ||
+        oldDelegate.datas?.length != datas?.length ||
+        oldDelegate.scaleX != scaleX ||
+        oldDelegate.scrollX != scrollX ||
+        oldDelegate.isLongPress != isLongPress ||
+        oldDelegate.selectX != selectX ||
+        oldDelegate.isLine != isLine ||
+        oldDelegate.mainState != mainState ||
+        oldDelegate.chartStyle != chartStyle;
   }
 }

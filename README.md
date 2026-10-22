@@ -2,7 +2,19 @@
 
 一个功能强大的 Flutter K线图表库，支持多种技术指标和深度图展示。
 
+> 当前版本为 2.0.0。正式入口提供 V2 `KChart`/`KChartController`、不可变主题、版本化用户配置和完整交易图 Demo；原有 V1 `KChartWidget` API 继续兼容。迁移方式见[迁移指南](docs/MIGRATING_TO_V2.md)，SDK 接入见[V2 接入说明](docs/V2_PREVIEW_INTEGRATION_GUIDE.md)。
+
 ## 图片展示
+
+### V2 实时行情（Binance BTCUSDT · 1 分钟）
+
+下面是在 Android 真机上运行 V2 交易图 Demo 时截取的真实数据画面，行情来自 Binance 公共 K 线接口，包含实时价格倒计时、EMA、Supertrend 和成交量指标。
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/moQingTing/m_k_chart/codex/kline-v2/docs/release-evidence/v2-android-sm-g986u1-binance-btcusdt-1m.png" alt="V2 交易图 Demo：Binance BTCUSDT 1 分钟真实行情" width="360">
+</p>
+
+### 经典图表示例
 
 ![K线图表演示1](https://github.com/moQingTing/m_k_chart/raw/main/example/0d45c754e1d760926e2a97cdec01a464.jpg)
 
@@ -29,7 +41,7 @@
 
 ```yaml
 dependencies:
-  m_k_chart: ^1.0.0
+  m_k_chart: ^2.0.0
 ```
 
 然后运行：
@@ -108,7 +120,33 @@ KChartWidget(
 
 ## 完整示例
 
-### 基础K线图
+### V2 交易图 Demo
+
+`example/` 默认启动 `V2TradingChartDemo` 中文交易图：它请求 Binance 现货公共 K 线并每 2 秒增量刷新，断网时自动回退到确定性本地数据，并可演示蜡烛/空心/OHLC/Heikin-Ashi/分时/面积主图、多主图和副图指标、独立数值格式、时区、十字光标详情、交易 Overlay 和买卖深度图。
+
+```bash
+cd example
+flutter run
+```
+
+Demo 通过仓库内部桥接层展示 V2 Renderer，不是可直接复制的公开 `KChart` Widget 集成方式。应用侧请继续使用本页的稳定 API，并参阅 [完整 Example 说明](docs/architecture/KLINE_V2_EXAMPLE_TOOLBAR.md)。
+顶部“新组件验收”可进入 `KChart` 接入验收页，并从“图表设置”切换主图样式、
+主副指标和内建指标参数；它走正式包入口，专门验证宿主接入路径，与旧 Demo 的 Renderer
+桥接示例分开。
+自定义指标接入可参照[典型价示例](example/lib/v2_custom_indicator_example.dart)：
+只导入 `package:m_k_chart/m_k_chart.dart` 并在创建 Controller 时注册，无需改核心枚举或 Painter。
+
+想先看清最小接入流程，可独立运行[K 线最小接入示例](example/lib/v2_minimal_chart_main.dart)：
+
+```bash
+cd example
+flutter run -t lib/v2_minimal_chart_main.dart
+```
+
+该示例只用本地数据演示 Controller 创建/释放、替换尾柱、追加新柱与选中回调，不请求网络，
+并且只导入正式入口；可直接用于 `m_k_chart: ^2.0.0`。
+
+### 基础 K 线图（1.x 兼容 API）
 
 ```dart
 import 'package:flutter/material.dart';
@@ -187,6 +225,60 @@ class _KLineChartPageState extends State<KLineChartPage> {
 
 ## 主要API
 
+当前唯一正式入口是 `package:m_k_chart/m_k_chart.dart`。`flutter_k_chart.dart` 仍可用，但已标记 deprecated；不要深路径导入 `src`、Renderer 或 Example 支持文件。完整差异见 [P9 公共 API 差异](docs/P9_PUBLIC_API_DIFF.md)。
+
+### KChartTheme
+
+`KChartTheme` 是 V2 的不可变视觉值对象，可独立采用，不会改变旧 `KChartWidget` 行为：
+
+```dart
+final theme = KChartTheme.light(
+  mainValueDecimalPlaces: 2,
+  mainValueUseThousandsSeparator: true,
+  secondaryValueDecimalPlaces: 4,
+  secondaryValueUseThousandsSeparator: false,
+);
+
+final compatibleTheme = chartColors.toKChartTheme(chartStyle: chartStyle);
+```
+
+主图和副图的数值格式、指标调色板与十字光标样式均可独立配置。详见 [主题协议](docs/architecture/KLINE_V2_THEME_PROTOCOL.md)。
+
+极小价格可选择把连续前导零缩成下标计数，避免主图价格轴被很多零挤占。例如
+`0.0000001` 显示为 `0.0₆1`（下标 6 表示小数点后连续六个零）：
+
+```dart
+final tinyPriceTheme = KChartTheme.light(
+  mainValueUseCompactLeadingZeros: true,
+  mainValueCompactZeroThreshold: 3,
+  mainValueCompactSignificantDigits: 3,
+);
+```
+
+默认关闭；普通小数位、千分位和副图格式不变。`mainValueFormatter` 如已提供，仍优先使用应用自己的格式。
+
+### KChartUserConfig
+
+V2 用户配置采用版本化 JSON 值对象，由宿主自行选择持久化方式：
+
+```dart
+final config = KChartUserConfig(
+  intervalCode: '15m',
+  mainMode: 'candlestick',
+  mainIndicators: [
+    KChartIndicatorPreference(
+      instanceId: 'ema-fast',
+      definitionId: 'legacy.ema',
+      parameters: {'period': 7},
+    ),
+  ],
+);
+
+final restored = KChartUserConfig.fromJson(config.toJson());
+```
+
+详见 [V2 用户配置序列化协议](docs/architecture/KLINE_V2_USER_CONFIG_PROTOCOL.md)。
+
 ### KChartWidget
 
 K线图表主组件。
@@ -259,6 +351,17 @@ K线图表主组件。
 
 项目包含完整的示例代码，位于 `example` 目录下。
 
+## 开发规划
+
+- [m_k_chart 2.0：币安风格 K 线整改开发计划](docs/BINANCE_KLINE_V2_DEVELOPMENT_PLAN.md)
+- [m_k_chart 2.0：开发清单与时序线](docs/KLINE_V2_EXECUTION_ROADMAP.md)
+- [V2 实现优化与二次开发计划](docs/KLINE_V2_SDK_OPTIMIZATION_PLAN.md)
+- [V2 SDK 接入契约（源码 API 已开放，稳定包待发布）](docs/architecture/ADR-002_V2_SDK_FACADE_CONTRACT.md)
+- [V2 迁移指南](docs/MIGRATING_TO_V2.md)
+- [P9 公共 API 差异](docs/P9_PUBLIC_API_DIFF.md)
+- [P9 跨平台构建门禁](docs/P9_CROSS_PLATFORM_BUILD_GATE.md)
+- [m_k_chart 1.x：性能基线](docs/PERFORMANCE_BASELINE.md)
+
 运行示例：
 
 ```bash
@@ -266,12 +369,12 @@ cd example
 flutter run
 ```
 
-示例功能包括：
-- 多种市场数据切换（BTC、ETH等）
-- 多种时间周期切换（1m、5m、15m、1H、4H、1D）
-- 主图指标切换（MA、BOLL、EMA、SAR）
-- 副图指标多选（MACD、KDJ、RSI、WR、VOL、OBV）
-- 实时数据更新
+默认 V2 示例功能包括：
+- Binance 公开行情、2 秒增量 K 线与确定性离线回退；
+- 周期、主图模式、主图/副图指标、叠加或分面板布局；
+- 主图和副图独立小数位、千分位、时区与透明指标参数区；
+- 点击/长按十字光标、价格/时间标签、历史拖动和返回最新；
+- 仓位/挂单等交易 Overlay，以及可模拟增量、丢包和恢复的买卖深度图。
 
 ## 注意事项
 
