@@ -2,7 +2,6 @@ import 'dart:collection';
 import 'dart:math' as math;
 
 import '../model/model.dart';
-import 'chart_main_mode.dart';
 
 /// 主图 K 线渲染器消费的不可变 OHLC 数值。
 final class ChartRenderCandle {
@@ -28,19 +27,12 @@ final class ChartCandleProjection {
     required List<Kline> source,
     required ChartMainMode mode,
   }) {
+    // 普通模式只复制源引用以冻结快照，不为不可见 K 线预先创建渲染对象。
+    // Heikin-Ashi 的 open 依赖前一根投射结果，必须沿完整历史顺序计算。
     final candles = mode.usesHeikinAshi
-        ? _heikinAshi(source)
-        : source
-            .map(
-              (item) => ChartRenderCandle(
-                open: item.open,
-                high: item.high,
-                low: item.low,
-                close: item.close,
-              ),
-            )
-            .toList(growable: false);
-    return ChartCandleProjection._(mode, UnmodifiableListView(candles));
+        ? UnmodifiableListView(_heikinAshi(source))
+        : _RawCandleList(List<Kline>.of(source, growable: false));
+    return ChartCandleProjection._(mode, candles);
   }
 
   const ChartCandleProjection._(this.mode, this.candles);
@@ -70,4 +62,34 @@ final class ChartCandleProjection {
     }
     return projected;
   }
+}
+
+/// 冻结原始 K 线列表，按索引仅投射实际读取的蜡烛。
+///
+/// 不能直接持有调用方列表：仓库切换或外部列表原地修改后，旧投射必须仍是旧快照。
+final class _RawCandleList extends ListBase<ChartRenderCandle> {
+  _RawCandleList(this._source);
+
+  final List<Kline> _source;
+
+  @override
+  int get length => _source.length;
+
+  @override
+  set length(int value) => throw UnsupportedError('Immutable projection');
+
+  @override
+  ChartRenderCandle operator [](int index) {
+    final item = _source[index];
+    return ChartRenderCandle(
+      open: item.open,
+      high: item.high,
+      low: item.low,
+      close: item.close,
+    );
+  }
+
+  @override
+  void operator []=(int index, ChartRenderCandle value) =>
+      throw UnsupportedError('Immutable projection');
 }

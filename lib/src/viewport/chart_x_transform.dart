@@ -1,3 +1,4 @@
+import '../data/kline_store.dart';
 import '../model/model.dart';
 import 'chart_viewport.dart';
 
@@ -16,7 +17,8 @@ final class ChartXTransform {
         '(${data.data.length}).',
       );
     }
-    _validateOrdered(data.data);
+    // Store 快照在发布前已校验并冻结；外部 VersionedKlineData 仍必须逐项验证。
+    if (data is! KlineSnapshot) _validateOrdered(data.data);
     return ChartXTransform._(viewport: viewport, data: data);
   }
 

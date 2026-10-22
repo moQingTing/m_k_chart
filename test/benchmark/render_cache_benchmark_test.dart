@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/src/indicator/indicator.dart';
 import 'package:m_k_chart/src/model/model.dart';
+import 'package:m_k_chart/src/render/chart_layer_geometry.dart';
 import 'package:m_k_chart/src/render/render.dart';
 import 'package:m_k_chart/src/theme/theme.dart';
 import 'package:m_k_chart/src/viewport/viewport.dart';
@@ -12,8 +13,85 @@ import 'package:m_k_chart/src/viewport/viewport.dart';
 const _runBenchmark = bool.fromEnvironment('RUN_KLINE_BENCHMARK');
 const _hostP95BudgetMicroseconds = 10000.0;
 const _retainedP95BudgetMicroseconds = 3000.0;
+int _projectionChecksum = 0;
+int _extremaChecksum = 0;
 
 void main() {
+  test(
+    'records visible extrema scan host latency',
+    () {
+      final snapshot = _snapshot();
+      final projection = ChartCandleProjection.fromKlines(
+        source: snapshot.data.data,
+        mode: snapshot.mainMode,
+      );
+      final latency = _measure(() {
+        final extrema = ChartLayerGeometry.visibleMainExtrema(
+          snapshot,
+          candles: projection,
+        )!;
+        _extremaChecksum += extrema.maxIndex;
+      });
+      expect(_extremaChecksum, greaterThan(0));
+      // ignore: avoid_print
+      print(
+        jsonEncode(<String, Object>{
+          'metric': 'visible_main_extrema_scan',
+          'p50_us': latency.p50,
+          'p95_us': latency.p95,
+          'p99_us': latency.p99,
+          'samples': latency.samples,
+          'data_points': snapshot.data.data.length,
+          'visible_points': snapshot.viewport.visibleRange.length,
+          'environment': 'flutter_test_host_debug',
+        }),
+      );
+    },
+    skip: !_runBenchmark,
+  );
+
+  test(
+    'records cold candle projection host latency by data size',
+    () {
+      for (final length in [100, 2000, 10000]) {
+        final source = List<Kline>.generate(length, _kline, growable: false);
+        for (final mode in [
+          ChartMainMode.candlestick,
+          ChartMainMode.heikinAshi,
+        ]) {
+          final latency = _measure(
+            () {
+              final projection = ChartCandleProjection.fromKlines(
+                source: source,
+                mode: mode,
+              );
+              _projectionChecksum += projection.candles.last.close.toInt();
+            },
+            warmups: 10,
+            samples: 40,
+            iterations: 3,
+          );
+          expect(_projectionChecksum, greaterThan(0));
+          // Host Debug 只衡量投射构建；不代表 UI/Raster 帧耗时。
+          // ignore: avoid_print
+          print(
+            jsonEncode(<String, Object>{
+              'metric': 'cold_candle_projection',
+              'mode': mode.name,
+              'p50_us': latency.p50,
+              'p95_us': latency.p95,
+              'p99_us': latency.p99,
+              'samples': latency.samples,
+              'data_points': length,
+              'environment': 'flutter_test_host_debug',
+            }),
+          );
+        }
+      }
+    },
+    skip: !_runBenchmark,
+  );
+
   test(
     'records warm cached standard Layer stack host latency',
     () {
@@ -111,6 +189,116 @@ void main() {
     },
     skip: !_runBenchmark,
   );
+
+  test(
+    'records retained tail, append and scroll host latency',
+    () {
+      final full = _snapshot();
+      final base = _mainOnlySnapshot(
+        full,
+        viewport: full.viewport.copyWith(scrollOffsetItems: 0),
+      );
+      _benchmarkRetainedChanges(
+        metric: 'retained_main_only_tail_replace',
+        base: base,
+        build: (step) {
+          final candles = List<Kline>.of(base.data.data, growable: false);
+          candles[candles.length - 1] = candles.last.copyWith(
+            close: candles.last.close + step * 0.02,
+          );
+          return _mainOnlySnapshot(
+            base,
+            data: _StableData(UnmodifiableListView(candles)),
+            dataVersion: step,
+          );
+        },
+      );
+      _benchmarkRetainedChanges(
+        metric: 'retained_main_only_append',
+        base: base,
+        build: (step) {
+          final candles = List<Kline>.of(base.data.data)
+            ..add(_kline(base.data.data.length + step));
+          return _mainOnlySnapshot(
+            base,
+            data: _StableData(UnmodifiableListView(candles)),
+            viewport: base.viewport.copyWith(itemCount: candles.length),
+            dataVersion: step,
+            viewportVersion: step,
+          );
+        },
+      );
+      final scrolled = _mainOnlySnapshot(full);
+      _benchmarkRetainedChanges(
+        metric: 'retained_main_only_scroll',
+        base: scrolled,
+        build: (step) => _mainOnlySnapshot(
+          scrolled,
+          viewport: scrolled.viewport.scrollByItems(step * 0.1),
+          viewportVersion: step,
+        ),
+      );
+    },
+    skip: !_runBenchmark,
+  );
+}
+
+RenderSnapshot<DefaultChartRenderStyle> _mainOnlySnapshot(
+  RenderSnapshot<DefaultChartRenderStyle> base, {
+  _StableData? data,
+  ChartViewport? viewport,
+  int dataVersion = 0,
+  int viewportVersion = 0,
+}) =>
+    RenderSnapshot(
+      data: data ?? base.data,
+      viewport: viewport ?? base.viewport,
+      layout: base.layout,
+      theme: base.theme,
+      versions: RenderSnapshotVersions(
+        data: dataVersion,
+        viewport: viewportVersion,
+      ),
+    );
+
+void _benchmarkRetainedChanges({
+  required String metric,
+  required RenderSnapshot<DefaultChartRenderStyle> base,
+  required RenderSnapshot<DefaultChartRenderStyle> Function(int step) build,
+}) {
+  const warmups = 4;
+  const samples = 40;
+  const iterations = 2;
+  final snapshots = [
+    for (var step = 1; step <= warmups + samples * iterations; step++)
+      build(step),
+  ];
+  final pipeline = StandardChartRenderPipeline<DefaultChartRenderStyle>();
+  _paintRetained(pipeline, base);
+  var index = 0;
+  final latency = _measure(
+    () => _paintRetained(pipeline, snapshots[index++]),
+    warmups: warmups,
+    samples: samples,
+    iterations: iterations,
+  );
+  expect(index, snapshots.length);
+  expect(pipeline.repaintStats.repaintCount('main'), greaterThan(1));
+  // ignore: avoid_print
+  print(
+    jsonEncode(<String, Object>{
+      'metric': metric,
+      'p50_us': latency.p50,
+      'p95_us': latency.p95,
+      'p99_us': latency.p99,
+      'samples': latency.samples,
+      'data_points': base.data.data.length,
+      'main_repaints': pipeline.repaintStats.repaintCount('main'),
+      'grid_repaints': pipeline.repaintStats.repaintCount('grid'),
+      'environment': 'flutter_test_host_debug_retained_recording',
+    }),
+  );
+  pipeline.dispose();
 }
 
 void _paintLayerStack(
@@ -143,26 +331,30 @@ RenderLayerFrameReport _paintRetained(
   return report;
 }
 
-_LatencyMetric _measure(void Function() operation) {
-  for (var index = 0; index < 20; index++) {
+_LatencyMetric _measure(
+  void Function() operation, {
+  int warmups = 20,
+  int samples = 100,
+  int iterations = 20,
+}) {
+  for (var index = 0; index < warmups; index++) {
     operation();
   }
-  final samples = <double>[];
-  const iterations = 20;
-  for (var sample = 0; sample < 100; sample++) {
+  final timings = <double>[];
+  for (var sample = 0; sample < samples; sample++) {
     final stopwatch = Stopwatch()..start();
     for (var iteration = 0; iteration < iterations; iteration++) {
       operation();
     }
     stopwatch.stop();
-    samples.add(stopwatch.elapsedMicroseconds / iterations);
+    timings.add(stopwatch.elapsedMicroseconds / iterations);
   }
-  samples.sort();
+  timings.sort();
   return _LatencyMetric(
-    p50: _percentile(samples, 0.50),
-    p95: _percentile(samples, 0.95),
-    p99: _percentile(samples, 0.99),
-    samples: samples.length,
+    p50: _percentile(timings, 0.50),
+    p95: _percentile(timings, 0.95),
+    p99: _percentile(timings, 0.99),
+    samples: timings.length,
   );
 }
 

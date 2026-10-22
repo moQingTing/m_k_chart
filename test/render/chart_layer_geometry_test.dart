@@ -117,6 +117,23 @@ void main() {
     expect(range.max, closeTo(132, 1e-12));
   });
 
+  test('tied visible extrema keep the earliest candle index', () {
+    final snapshot = _snapshot(
+      data: [
+        _kline(low: 90, high: 110),
+        _kline(low: 90, high: 110),
+        _kline(low: 92, high: 105),
+      ],
+    );
+
+    final extrema = ChartLayerGeometry.visibleMainExtrema(snapshot)!;
+
+    expect(extrema.maxIndex, 0);
+    expect(extrema.minIndex, 0);
+    expect(extrema.max, 110);
+    expect(extrema.min, 90);
+  });
+
   test('flat and empty panels produce finite deterministic fallback ranges',
       () {
     final flat = _snapshot(data: [_kline(low: 100, high: 100)]);

@@ -54,19 +54,34 @@ final class ChartCrosshairState {
       Object.hash(isVisible, localX, localY, dataIndex, price, ohlcField);
 }
 
-/// Requests one immutable Viewport replacement.
+/// 视口变更的来源。不能通过缩放宽度是否相等推断：首次宽度可能尚未初始化，
+/// 而达到缩放边界时，双指焦点移动仍可能只改变滚动偏移。
+enum ChartViewportChangeSource { programmatic, pan, scale, inertia }
+
+/// 请求替换不可变视口，同时保留产生此变更的交互语义。
 final class ChartViewportIntent extends ChartInteractionIntent {
-  const ChartViewportIntent(this.viewport);
+  const ChartViewportIntent(
+    this.viewport, {
+    this.source = ChartViewportChangeSource.programmatic,
+  });
 
   final ChartViewport viewport;
+  final ChartViewportChangeSource source;
+
+  /// 主动浏览（包括松手后的惯性）取消点击选中；缩放和程序更新由宿主单独处理。
+  bool get isHorizontalNavigation =>
+      source == ChartViewportChangeSource.pan ||
+      source == ChartViewportChangeSource.inertia;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ChartViewportIntent && viewport == other.viewport;
+      other is ChartViewportIntent &&
+          viewport == other.viewport &&
+          source == other.source;
 
   @override
-  int get hashCode => viewport.hashCode;
+  int get hashCode => Object.hash(viewport, source);
 }
 
 /// Shows, moves, or hides a crosshair in chart-local coordinates.

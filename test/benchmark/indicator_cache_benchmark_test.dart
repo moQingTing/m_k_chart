@@ -44,6 +44,52 @@ void main() {
       });
       _metric('indicator_exact_cache_hit_10000', hitSamples);
 
+      final sixStore = KlineStore()..replace(buildV2KlineFixture(10000));
+      final sixCache = IndicatorCache(registry);
+      final sixConfigs = [
+        for (var index = 0; index < 6; index++)
+          IndicatorConfig(
+            instanceId: 'close-incremental-$index',
+            definitionId: 'benchmark.close',
+          ),
+      ];
+      for (final item in sixConfigs) {
+        sixCache.resolve(sixStore.snapshot, item);
+      }
+      var sixClose = sixStore.snapshot.lastOrNull!.close;
+      final sixUpdateSamples = _samples(100, () {
+        sixClose += 0.001;
+        final last = sixStore.snapshot.lastOrNull!;
+        sixStore.update(last.copyWith(close: sixClose));
+        for (final item in sixConfigs) {
+          sixCache.resolve(sixStore.snapshot, item);
+        }
+      });
+      _metric('six_indicators_incremental_last_of_10000', sixUpdateSamples);
+      expect(sixCache.changeClassifications, 105);
+      print(
+        jsonEncode({
+          'metric': 'six_indicators_change_classifications',
+          'dataVersions': 105,
+          'classifications': sixCache.changeClassifications,
+          'indicatorInstances': sixConfigs.length,
+          'mode': 'flutter_test_host_debug',
+        }),
+      );
+
+      // 将变化分类与指标计算分开观察，避免把六份结果列表的复制成本误判为分类成本。
+      final classifiedBefore = sixStore.snapshot;
+      final classifiedLast = classifiedBefore.lastOrNull!;
+      final classifiedAfter = sixStore.update(
+        classifiedLast.copyWith(close: classifiedLast.close + 0.001),
+      );
+      final classificationSamples = _samples(100, () {
+        final change =
+            IndicatorDataChange.between(classifiedBefore, classifiedAfter);
+        expect(change.kind, IndicatorChangeKind.update);
+      });
+      _metric('change_classification_tail_of_10000', classificationSamples);
+
       final rssBefore = ProcessInfo.currentRss;
       for (var index = 0; index < 6; index++) {
         cache.resolve(

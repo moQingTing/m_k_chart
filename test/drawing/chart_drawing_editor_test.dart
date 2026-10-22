@@ -37,6 +37,18 @@ void main() {
     expect(removed.selectedDrawingId, isNull);
   });
 
+  test('visibility changes are reversible and hidden drawings lose selection',
+      () {
+    final editor = ChartDrawingEditor(drawings: [_drawing()]).select('trend');
+    final hidden = editor.setVisible('trend', false);
+    expect(hidden.drawingById['trend']!.style.visible, isFalse);
+    expect(hidden.selectedDrawingId, isNull);
+    expect(editor.drawingById['trend']!.style.visible, isTrue);
+
+    final shown = hidden.setVisible('trend', true);
+    expect(shown.drawingById['trend']!.style.visible, isTrue);
+  });
+
   test('persists optional locked state without changing schema version', () {
     final restored = ChartDrawing.fromJson(_drawing(isLocked: true).toJson());
     expect(restored.isLocked, isTrue);

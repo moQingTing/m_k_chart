@@ -7,6 +7,7 @@ import 'render_snapshot.dart';
 final class RenderLayerVersionStamp {
   RenderLayerVersionStamp._({
     required this.data,
+    required this.dataIdentity,
     required this.viewport,
     required this.selection,
     required this.history,
@@ -21,9 +22,13 @@ final class RenderLayerVersionStamp {
   factory RenderLayerVersionStamp.capture({
     required Set<RenderSnapshotSlice> dependencies,
     required RenderSnapshotVersions versions,
+    Object? dataIdentity,
   }) =>
       RenderLayerVersionStamp._(
         data: _versionFor(dependencies, versions, RenderSnapshotSlice.data),
+        dataIdentity: dependencies.contains(RenderSnapshotSlice.data)
+            ? dataIdentity
+            : null,
         viewport:
             _versionFor(dependencies, versions, RenderSnapshotSlice.viewport),
         selection: _versionFor(
@@ -50,6 +55,7 @@ final class RenderLayerVersionStamp {
       );
 
   final int? data;
+  final Object? dataIdentity;
   final int? viewport;
   final int? selection;
   final int? history;
@@ -80,7 +86,9 @@ final class RenderLayerVersionStamp {
         for (final slice in RenderSnapshotSlice.values)
           if (versionOf(slice) != null &&
               (previous == null ||
-                  versionOf(slice) != previous.versionOf(slice)))
+                  versionOf(slice) != previous.versionOf(slice) ||
+                  (slice == RenderSnapshotSlice.data &&
+                      !identical(dataIdentity, previous.dataIdentity))))
             slice,
       });
 
@@ -89,6 +97,7 @@ final class RenderLayerVersionStamp {
       identical(this, other) ||
       other is RenderLayerVersionStamp &&
           data == other.data &&
+          identical(dataIdentity, other.dataIdentity) &&
           viewport == other.viewport &&
           selection == other.selection &&
           history == other.history &&
@@ -102,6 +111,7 @@ final class RenderLayerVersionStamp {
   @override
   int get hashCode => Object.hash(
         data,
+        identityHashCode(dataIdentity),
         viewport,
         selection,
         history,
@@ -190,6 +200,7 @@ final class RetainedRenderLayerCompositor<TTheme extends Object> {
         final stamp = RenderLayerVersionStamp.capture(
           dependencies: layer.dependencies,
           versions: context.snapshot.versions,
+          dataIdentity: context.snapshot.data.data,
         );
         if (state.picture != null && state.stamp == stamp) {
           reused.add(layer.id);

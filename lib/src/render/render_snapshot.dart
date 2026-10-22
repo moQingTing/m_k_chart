@@ -5,7 +5,6 @@ import '../drawing/drawing.dart';
 import '../indicator/indicator.dart';
 import '../model/model.dart';
 import '../viewport/viewport.dart';
-import 'chart_main_mode.dart';
 
 typedef ChartAxisTimeFormatter = String Function(
   int epochMilliseconds,
@@ -276,6 +275,7 @@ final class RenderSnapshot<TTheme extends Object> {
     int? currentTime,
     ChartAxisTimeFormatter? axisTimeFormatter,
     ChartCrosshairTimeFormatter? crosshairTimeFormatter,
+    bool showIntermediateTimeAxis = false,
   }) {
     if (viewport.itemCount != data.data.length) {
       throw ArgumentError(
@@ -414,6 +414,7 @@ final class RenderSnapshot<TTheme extends Object> {
       currentTime: resolvedCurrentTime,
       axisTimeFormatter: axisTimeFormatter,
       crosshairTimeFormatter: crosshairTimeFormatter,
+      showIntermediateTimeAxis: showIntermediateTimeAxis,
     );
   }
 
@@ -439,6 +440,7 @@ final class RenderSnapshot<TTheme extends Object> {
     required this.currentTime,
     required this.axisTimeFormatter,
     required this.crosshairTimeFormatter,
+    required this.showIntermediateTimeAxis,
   });
 
   final VersionedKlineData data;
@@ -474,6 +476,61 @@ final class RenderSnapshot<TTheme extends Object> {
 
   /// Host-owned formatter for the selected candle's time label.
   final ChartCrosshairTimeFormatter? crosshairTimeFormatter;
+
+  /// 新组件由 Axis 图层绘制主副图之间的时间值，Crosshair 随后覆盖选中标签。
+  /// 旧 Demo 自绘这部分 UI，因此默认关闭，迁移完成后再收口兼容分支。
+  /// 修改此值时须推进 layout 版本，避免保留旧的轴图层。
+  final bool showIntermediateTimeAxis;
+
+  /// 仅显示时钟变化时复用本帧已冻结的行情、指标、布局和覆盖物。
+  ///
+  /// 调用方必须保持其他切片版本不变；误用会让保留式图层复用陈旧画面，
+  /// 因此在这里校验，而不是把任意局部复制开放给上层。
+  RenderSnapshot<TTheme> withClock({
+    required int currentTime,
+    required RenderSnapshotVersions versions,
+  }) {
+    if (currentTime < 0) {
+      throw ArgumentError.value(currentTime, 'currentTime');
+    }
+    final old = this.versions;
+    if (versions.data != old.data ||
+        versions.viewport != old.viewport ||
+        versions.selection != old.selection ||
+        versions.history != old.history ||
+        versions.layout != old.layout ||
+        versions.theme != old.theme ||
+        versions.drawings != old.drawings ||
+        versions.overlays != old.overlays ||
+        versions.locale != old.locale ||
+        versions.clock < old.clock) {
+      throw ArgumentError.value(versions, 'versions', 'Only clock may change.');
+    }
+    return RenderSnapshot._(
+      data: data,
+      viewport: viewport,
+      layout: layout,
+      theme: theme,
+      versions: versions,
+      indicators: indicators,
+      indicatorById: indicatorById,
+      selection: selection,
+      history: history,
+      drawings: drawings,
+      drawingById: drawingById,
+      anchoredDrawings: anchoredDrawings,
+      anchoredDrawingById: anchoredDrawingById,
+      priceLines: priceLines,
+      eventOverlays: eventOverlays,
+      valueMarkers: valueMarkers,
+      mainMode: mainMode,
+      timeZoneOffset: timeZoneOffset,
+      currentTime: currentTime,
+      axisTimeFormatter: axisTimeFormatter,
+      crosshairTimeFormatter: crosshairTimeFormatter,
+      showIntermediateTimeAxis: showIntermediateTimeAxis,
+    );
+  }
 
   String formatAxisTime(int epochMilliseconds) =>
       axisTimeFormatter?.call(

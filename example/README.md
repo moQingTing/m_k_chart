@@ -1,6 +1,8 @@
 # V2 交易图表示例接入说明
 
-[`v2_chart_demo.dart`](lib/v2_chart_demo.dart) 是一份完整的 SDK 组装参考：它使用 Binance 公共行情让示例可以直接运行，但图表本身不依赖 Binance。
+[`v2_chart_demo.dart`](lib/v2_chart_demo.dart) 是一份完整的 SDK 组装参考：它默认使用 Binance 公共行情，但图表本身不依赖 Binance。示例行情入口是 [`V2DemoMarketDataSource`](lib/market/v2_demo_market_data_source.dart)，宿主可以直接实现它并通过 `marketDataSource` 注入，无需继承币安客户端。旧 `marketDataClient` 参数保留兼容；二者不要同时传入。
+
+行情源需要返回对应交易对、周期的 K 线窗口；首次请求完整窗口，后续轮询请求最近两根。可选的 24 小时摘要返回 `null` 时会退回 K 线窗口估算。由宿主持有稳定的源实例；更换实例会被视为切换数据源，旧请求结果失效并重新加载。默认币安 HTTP 源支持单请求取消；自定义源可选实现 `V2DemoCancelableMarketDataSource`，在暂停、切源、后台或销毁时收到取消调用。没有取消能力的源仍可用，但旧响应只会被忽略，底层操作不会自动停止。这个契约只属于示例，正式 SDK 的数据输入仍通过 Controller，WebSocket 订阅与取消由宿主管理。
 
 接入自己的应用时，建议按下面的职责替换，而不是复制整个页面：
 
@@ -14,8 +16,8 @@
 
 | 示例代码 | 生产环境替换方式 |
 | --- | --- |
-| `BinanceMarketDataClient` | 你的 REST / WebSocket 仓库 |
-| `_createData` | 本地缓存、首屏骨架或空状态 |
+| `V2DemoMarketDataSource` / `BinanceMarketDataClient` | 你的行情仓库或缓存适配器；WebSocket 推送由宿主协调 |
+| `createV2DemoSeedData` | 本地缓存、首屏骨架或空状态 |
 | `_indicators` | 产品支持的指标目录与默认参数 |
 | `_theme` | 应用设计系统的 `KChartTheme` |
 | `_tradeOverlays` | 仓位、订单、止盈止损等真实交易数据 |

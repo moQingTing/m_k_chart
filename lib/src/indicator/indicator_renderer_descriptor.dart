@@ -29,6 +29,34 @@ enum IndicatorAreaBaseline {
   candleClose,
 }
 
+/// 参数栏展示策略。趋势指标可只显示当前非空的一条序列。
+enum IndicatorLegendDisplay { allSeries, firstAvailable }
+
+/// 指标定义提供的参数栏元数据，不依赖 Widget 或具体颜色。
+///
+/// 模板中的 `{参数键}` 从同一定义的参数配置或默认值读取；未声明模板时沿用序列标签。
+final class IndicatorLegendDescriptor {
+  IndicatorLegendDescriptor({
+    this.display = IndicatorLegendDisplay.allSeries,
+    Map<String, String> labelTemplates = const {},
+    this.separator = ': ',
+    this.neutralLabel = false,
+  }) : labelTemplates = Map.unmodifiable(labelTemplates) {
+    for (final entry in labelTemplates.entries) {
+      _requireDescriptorText(entry.key, 'labelTemplates key');
+      _requireDescriptorText(entry.value, 'labelTemplates value');
+    }
+    if (separator.isEmpty) {
+      throw ArgumentError.value(separator, 'separator', 'Must not be empty.');
+    }
+  }
+
+  final IndicatorLegendDisplay display;
+  final Map<String, String> labelTemplates;
+  final String separator;
+  final bool neutralLabel;
+}
+
 /// Renderer-neutral description of one calculated series.
 final class IndicatorSeriesDescriptor {
   IndicatorSeriesDescriptor({
@@ -36,6 +64,7 @@ final class IndicatorSeriesDescriptor {
     required this.label,
     required this.drawingKind,
     this.includeInRange = true,
+    this.showInChart = true,
     this.colorStrategy = IndicatorColorStrategy.series,
     this.histogramStyle = IndicatorHistogramStyle.solid,
     this.lineStyle = IndicatorLineStyle.straight,
@@ -87,6 +116,9 @@ final class IndicatorSeriesDescriptor {
   final String label;
   final IndicatorDrawingKind drawingKind;
   final bool includeInRange;
+
+  /// 算法可保留兼容输出，但候选图表和设置页不提供这条序列。
+  final bool showInChart;
   final IndicatorColorStrategy colorStrategy;
   final IndicatorHistogramStyle histogramStyle;
   final IndicatorLineStyle lineStyle;
@@ -104,6 +136,7 @@ final class IndicatorRendererDescriptor {
     required IndicatorPlacement placement,
     required Iterable<IndicatorSeriesDescriptor> series,
     bool includeZeroInRange = false,
+    IndicatorLegendDescriptor? legend,
   }) {
     final immutableSeries =
         List<IndicatorSeriesDescriptor>.unmodifiable(series);
@@ -116,10 +149,19 @@ final class IndicatorRendererDescriptor {
         throw ArgumentError.value(item.id, 'series', 'Duplicate series id.');
       }
     }
+    if (!immutableSeries.any((item) => item.showInChart)) {
+      throw ArgumentError('At least one chart-visible series is required.');
+    }
+    for (final seriesId in legend?.labelTemplates.keys ?? const <String>[]) {
+      if (!ids.contains(seriesId)) {
+        throw ArgumentError.value(seriesId, 'legend', 'Unknown series id.');
+      }
+    }
     return IndicatorRendererDescriptor._(
       placement: placement,
       series: immutableSeries,
       includeZeroInRange: includeZeroInRange,
+      legend: legend ?? IndicatorLegendDescriptor(),
     );
   }
 
@@ -127,11 +169,13 @@ final class IndicatorRendererDescriptor {
     required this.placement,
     required this.series,
     required this.includeZeroInRange,
+    required this.legend,
   });
 
   final IndicatorPlacement placement;
   final List<IndicatorSeriesDescriptor> series;
   final bool includeZeroInRange;
+  final IndicatorLegendDescriptor legend;
 }
 
 void _requireDescriptorText(String value, String name) {

@@ -8,6 +8,7 @@ export 'k_chart_widget.dart'; // K线图表组件
 export 'chart_style.dart'; // 样式配置
 export 'k_chart_theme.dart'; // V2 不可变主题
 export 'k_chart_user_config.dart'; // V2 用户配置 JSON 协议
+export 'k_chart_v2_api.dart'; // V2 图表、Controller 与指标扩展的受控 API
 export 'utils/data_util.dart'; // 数据加工工具
 export 'utils/date_format_util.dart'; // 日期格式化工具
 export 'utils/number_util.dart'; // 数字格式化工具

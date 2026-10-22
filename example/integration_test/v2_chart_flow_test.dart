@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-
-import '../lib/v2_chart_demo.dart';
+import 'package:m_k_chart_example/v2_chart_demo.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +15,41 @@ void main() {
 
     expect(find.text('V2 交易图表'), findsOneWidget);
     expect(find.byKey(const ValueKey('market-summary')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('open-data-settings')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('period-1m')), findsOneWidget);
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+
+    // 指标参数提交与恢复默认必须同步更新输入框，不能只更新图例文案。
+    await tester.tap(find.byKey(const ValueKey('open-indicator-settings')));
+    await tester.pumpAndSettle();
+    final maPeriod = find.byKey(const ValueKey('indicator-param-ma-period1'));
+    await tester.scrollUntilVisible(
+      maPeriod,
+      260,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('settings-sheet-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.enterText(maPeriod, '7');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(find.textContaining('周期 1 7'), findsOneWidget);
+    final resetMa = find.byKey(const ValueKey('indicator-param-reset-ma'));
+    await tester.ensureVisible(resetMa);
+    await tester.tap(resetMa);
+    await tester.pump();
+    final input = find.descendant(
+      of: maPeriod,
+      matching: find.byType(EditableText),
+    );
+    expect(tester.widget<EditableText>(input).controller.text, '5');
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('open-fullscreen-demo')));
     await tester.pumpAndSettle();
@@ -51,6 +84,8 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('close-fullscreen-demo')));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('open-data-settings')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('period-5m')));
     await tester.pump();
     expect(
@@ -59,6 +94,24 @@ void main() {
           .selected,
       isTrue,
     );
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('open-chart-settings')));
+    await tester.pumpAndSettle();
+    final compactZeros = find.byKey(const ValueKey('main-value-compact-zeros'));
+    await tester.scrollUntilVisible(
+      compactZeros,
+      260,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('settings-sheet-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.tap(compactZeros);
+    await tester.pump();
+    expect(tester.widget<FilterChip>(compactZeros).selected, isTrue);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

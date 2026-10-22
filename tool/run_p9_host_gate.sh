@@ -49,8 +49,13 @@ cd "$project_root"
 if [[ -n "$device_id" ]]; then
   (
     cd example
-    "$flutter_bin" test \
+    for integration_target in \
       integration_test/v2_chart_flow_test.dart \
-      -d "$device_id"
+      integration_test/v2_minimal_chart_flow_test.dart \
+      integration_test/v2_sdk_acceptance_flow_test.dart; do
+      "$flutter_bin" test \
+        "$integration_target" \
+        -d "$device_id"
+    done
   )
 fi

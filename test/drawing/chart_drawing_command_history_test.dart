@@ -14,6 +14,19 @@ void main() {
       isFalse,
     );
   });
+
+  test('selection preserves undo and redo history', () {
+    final added = ChartDrawingCommandHistory(editor: ChartDrawingEditor())
+        .execute('add', (editor) => editor.add(_drawing()));
+    final selected = added.select('trend');
+    expect(selected.editor.selectedDrawingId, 'trend');
+    expect(selected.canUndo, isTrue);
+    expect(selected.undo().editor.drawings, isEmpty);
+
+    final selectedAfterUndo = selected.undo().select(null);
+    expect(selectedAfterUndo.canRedo, isTrue);
+    expect(selectedAfterUndo.redo().editor.drawings, hasLength(1));
+  });
 }
 
 ChartDrawing _drawing() => ChartDrawing(

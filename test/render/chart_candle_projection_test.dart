@@ -52,4 +52,29 @@ void main() {
     expect(ChartMainMode.line.isCandleMode, isFalse);
     expect(ChartMainMode.area.showsMainIndicators, isFalse);
   });
+
+  test('raw projection stays immutable when the caller changes its list', () {
+    final source = buildV2KlineFixture(3).toList();
+    final original = source[1];
+    final projection = ChartCandleProjection.fromKlines(
+      source: source,
+      mode: ChartMainMode.candlestick,
+    );
+
+    source
+      ..removeAt(0)
+      ..clear();
+
+    expect(projection.candles.length, 3);
+    expect(projection.candles[1].open, original.open);
+    expect(projection.candles[1].high, original.high);
+    expect(projection.candles[1].low, original.low);
+    expect(projection.candles[1].close, original.close);
+    expect(() => projection.candles.clear(), throwsUnsupportedError);
+    expect(
+      () => projection.candles[0] = projection.candles[1],
+      throwsUnsupportedError,
+    );
+    expect(() => projection.candles[3], throwsRangeError);
+  });
 }

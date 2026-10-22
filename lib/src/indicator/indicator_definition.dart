@@ -19,6 +19,12 @@ abstract interface class IndicatorDefinition {
   );
 }
 
+/// 可选的人类可读名称；未实现时目录使用第一条输出序列的标签。
+abstract interface class NamedIndicatorDefinition
+    implements IndicatorDefinition {
+  String get displayName;
+}
+
 /// 可复用已校验旧结果的指标定义可选实现。
 ///
 /// 仅当 [supportsIncremental] 返回 true 时，缓存才会调用增量接口；实现者必须保证增量

@@ -43,6 +43,22 @@ allowlist 的变化属于 API 变更，必须关联任务、迁移说明和版�
 4. 更新 allowlist、API 草案和迁移指南；
 5. API diff 门禁确认只包含预期变化。
 
-因此当前 `lib/src/controller` 仍为内部契约。待数据模型、Controller 用户操作和 Widget facade 完整后，再一次性审核其稳定公共子集。
+内部协调器仍不是公开类型；通过根目录 `k_chart_v2_api.dart` 的显式转发，仅开放审核后的语义子集。
+2026-10-22：数据模型、Controller 用户操作、Widget facade 与数据/指标/绘图语义类型已完成源码级准入。
+新增 API 经 `tool/public_api_allowlist.txt` 冻结，并由仅导入 `m_k_chart.dart` 的宿主编译探针
+覆盖创建图表、配置指标、更新行情、接收选择/错误回调和设置覆盖物/绘图。发布包的编译核验仍属
+P9 发布门禁；只有版本发布后，才承诺对应版本的兼容性。
+
+OPT-02 已通过 [ADR-002](ADR-002_V2_SDK_FACADE_CONTRACT.md) 冻结基础接入设计。
+新增 KlineSeries、KChartDataSession、KChartDataCommands、KChartDataCoordinator 及其运行时快照和生命周期守卫仍属于内部实现，
+不改变本文件的准入标准或当前 allowlist；守卫类不会作为正式 SDK 类型导出。
+
+2026-10-15：`k_chart_facade.dart` Controller 与显式 show 集合先以仓库候选形式供集成测试使用；
+配置几何方法移到未导出的内部扩展。旧内部同名事件控制器和 Demo 导入保持不变。
+2026-10-20：候选 show 集合补充图例声明类型；实例级可见序列作为候选绑定值对象字段，
+严格名单测试已同步；当时正式入口及 allowlist 未改变。
+2026-10-22：V2 语义类型经 `k_chart_v2_api.dart` 从唯一正式入口开放；allowlist 与公共 API diff
+同步更新，宿主探针和 Example 的 V2 接入示例改为只 import 正式入口。2.0.0 将该受控 API 集合
+纳入稳定兼容面；后续只允许按语义化版本策略演进。
 
 `KChartTheme` 与 `KChartUserConfig` 是上述规则已批准的例外：前者只暴露不可变颜色、尺寸和指标调色板值；后者只暴露 JSON 安全的用户偏好与版本迁移，不泄露内部绘制接口、任意 Renderer 类型或持久化实现。具体约束见 `KLINE_V2_THEME_PROTOCOL.md` 与 `KLINE_V2_USER_CONFIG_PROTOCOL.md`。

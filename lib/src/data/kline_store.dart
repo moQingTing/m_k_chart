@@ -16,6 +16,13 @@ final class KlineStore {
           KlineDataVersion.zero,
         );
 
+  /// 为已验证的内部快照建立暂存事务，不再次复制并扫描整个旧窗口。
+  ///
+  /// 只供内部协调器传入由 Store 生成、且数据列表不可修改的快照。新收到的行情仍必须经过
+  /// [replace]、[append]、[prepend] 或 [update] 校验；暂存 Store 的提交不修改原快照。
+  KlineStore.stagedFromVerifiedSnapshot(VersionedKlineData source)
+      : _snapshot = _requireVerifiedSnapshot(source);
+
   KlineSnapshot _snapshot;
 
   /// 当前稳定快照。请勿持有其可变副本并原地修改。
@@ -70,7 +77,7 @@ final class KlineStore {
       throw StateError('Cannot update an empty KlineStore.');
     }
     _validateSameSeries(value);
-    final index = _indexOfOpenTime(value.openTime);
+    final index = _snapshot.indexOfOpenTime(value.openTime);
     if (index < 0) {
       throw StateError(
         'No Kline exists at openTime ${value.openTime}.',
@@ -123,25 +130,14 @@ final class KlineStore {
       throw ArgumentError('Kline does not belong to the current series.');
     }
   }
+}
 
-  int _indexOfOpenTime(int openTime) {
-    // K 线始终按开盘时间严格递增，使用二分查找避免实时更新退化为线性扫描。
-    var low = 0;
-    var high = _snapshot.length - 1;
-    while (low <= high) {
-      final middle = low + ((high - low) >> 1);
-      final candidate = _snapshot[middle].openTime;
-      if (candidate == openTime) {
-        return middle;
-      }
-      if (candidate < openTime) {
-        low = middle + 1;
-      } else {
-        high = middle - 1;
-      }
-    }
-    return -1;
+KlineSnapshot _requireVerifiedSnapshot(VersionedKlineData source) {
+  // UnmodifiableListView 本身不能证明有序：外部可把可变底层列表包成只读视图。
+  if (source is! KlineSnapshot) {
+    throw ArgumentError('Staged Kline data must be a verified Store snapshot.');
   }
+  return source;
 }
 
 List<Kline> _join(List<Kline> first, List<Kline> second) {

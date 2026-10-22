@@ -22,8 +22,8 @@ const _allowedDependencies = <String, Set<String>>{
   'data': {'model'},
   'indicator': {'model'},
   'drawing': {'model', 'theme'},
-  'viewport': {'model', 'indicator', 'drawing'},
-  'interaction': {'model', 'viewport'},
+  'viewport': {'model', 'data', 'indicator', 'drawing'},
+  'interaction': {'model', 'data', 'viewport'},
   'controller': {
     'model',
     'theme',
@@ -90,7 +90,11 @@ void main() {
           continue;
         }
         if (!target.path.startsWith(srcRoot.path)) {
-          if (sourceModule != 'adapter') {
+          // KChartTheme is a stable package-level value object. This one
+          // explicit edge is a theme dependency, not a legacy renderer import.
+          final importsPublicTheme = sourceModule == 'widget' &&
+              target.path == '${libRoot.path}/k_chart_theme.dart';
+          if (sourceModule != 'adapter' && !importsPublicTheme) {
             violations.add(
               '${_relative(source, packageRoot)} imports legacy $import',
             );

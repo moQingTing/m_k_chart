@@ -1,8 +1,16 @@
 # 从 1.x 迁移到 V2 整改版
 
-> 状态：2.x 兼容迁移指南
+> 状态：m_k_chart 2.0.0 正式接入与 1.x 迁移指南
 >
-> 日期：2026-09-03
+> 更新：2026-10-22
+
+`m_k_chart` 2.0.0 已从唯一正式入口 `package:m_k_chart/m_k_chart.dart` 提供 V2 Widget、Controller
+及其受控模型。V1 的 `KChartWidget`、实体和工具仍保留，现有项目可渐进迁移。所有新接入只依赖正式入口，
+不要导入 `src` 深路径。
+
+V2 组件的数据更新、生命周期和验证步骤整理在
+[V2 接入说明](V2_PREVIEW_INTEGRATION_GUIDE.md)。示例均从正式包入口导入，仓库内编译探针
+也会防止意外依赖 `src` 深路径。
 
 ## 1. 先保持现有图表可运行
 
@@ -75,9 +83,25 @@ cd example
 flutter run
 ```
 
-Demo 是能力验证和产品参考，不是 `KChart`/`KChartController` 的公开使用示例；这些 Widget/Controller 尚未通过正式 API 准入。集成方应继续使用上述公开兼容面，并在公开 V2 Widget 发布后按新的主版本迁移说明切换。
+默认 `flutter run` 启动的旧 Demo 用于验证完整交易功能；`v2_minimal_chart_main.dart` 与
+`v2_sdk_acceptance_main.dart` 则是 `KChart`/`KChartController` 的正式入口接入示例。
+这些 API 属于 2.0.0 正式兼容面；应用可通过 `m_k_chart: ^2.0.0` 接入。
 
-## 6. 迁移检查表
+## 6. V2 Widget 与 Controller 接入
+
+[ADR-002：V2 Widget / Controller 接入契约](architecture/ADR-002_V2_SDK_FACADE_CONTRACT.md)
+已明确新 KChart、Controller 数据所有权、会话令牌与生命周期。内部数据事务协调层和
+异步历史分页、指标装配、配置/布局适配、内部 setOptions 与视口策略应用已实现；
+只读状态、会话级覆盖物和 Controller 封装也已实现；几何计算不属于配置对象成员。
+内部 Surface 已接通布局、绘制、手势、挂载生命周期、参数栏和信息面板，并由公开 `KChart`
+包装管理显示时钟和宿主回调。独立[设备验收入口](KLINE_V2_DEVICE_ACCEPTANCE.md)可用于验证正式包中的接入流程。
+指标绑定现可按实例设置 `visibleSeriesIds`，同一选择会控制绘制、量程和图例；null 表示
+显示该指标允许的全部序列，MA 的旧第四路计算输出不在 V2 图表中提供。此配置尚无正式
+持久化迁移承诺，不能直接写入既有 `KChartUserConfig` JSON 并假定可兼容恢复。
+V2 新 API 已通过受控 allowlist 与只导入公开入口的编译探针；其稳定兼容承诺从 2.0.0 起生效。
+生产应用应使用正式版本依赖，勿以 Git 分支源码替代稳定依赖；任何接入都不要新增 `src` 深路径引用。
+
+## 7. 迁移检查表
 
 - 入口改为 `package:m_k_chart/m_k_chart.dart`；
 - 删除所有 `src`、Renderer 和 Example 支持文件的深路径 import；

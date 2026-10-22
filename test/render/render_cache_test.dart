@@ -184,6 +184,38 @@ void main() {
     second.dispose();
   });
 
+  test('同缓存内不同数据仓库的相同版本号不能复用旧蜡烛与量程', () {
+    final cache = ChartRenderCache();
+    addTearDown(cache.dispose);
+    final fixture = _fixture();
+    final first = fixture.snapshot();
+    final replacement = fixture.data.data.last.copyWith(
+      high: fixture.data.data.last.high + 1000,
+      close: fixture.data.data.last.close + 1000,
+    );
+    final second = fixture.snapshot(
+      data: _StableData(
+        UnmodifiableListView([
+          ...fixture.data.data.take(9),
+          replacement,
+        ]),
+      ),
+    );
+    expect(first.data.version, second.data.version);
+    expect(first.viewport, second.viewport);
+
+    final firstWindow = cache.windowFor(first);
+    final firstCandles = cache.candlesFor(first);
+    final firstRange = cache.panelRangeFor(first, 'main');
+    expect(cache.windowFor(second), isNot(same(firstWindow)));
+    expect(cache.candlesFor(second), isNot(same(firstCandles)));
+    expect(cache.candlesFor(second).candles.last.close, replacement.close);
+    expect(
+      cache.panelRangeFor(second, 'main').max,
+      greaterThan(firstRange.max),
+    );
+  });
+
   test('clear evicts entries while preserving cumulative diagnostics', () {
     final cache = ChartRenderCache();
     final first = cache.path('line', Path.new);
@@ -330,12 +362,13 @@ final class _Fixture {
 
   RenderSnapshot<DefaultChartRenderStyle> snapshot({
     RenderSnapshotVersions versions = const RenderSnapshotVersions(),
+    VersionedKlineData? data,
     ChartViewport? viewport,
     RenderSelectionSnapshot selection = const RenderSelectionSnapshot.hidden(),
     ChartMainMode mainMode = ChartMainMode.candlestick,
   }) =>
       RenderSnapshot<DefaultChartRenderStyle>(
-        data: data,
+        data: data ?? this.data,
         viewport: viewport ?? this.viewport,
         layout: layout,
         theme: style,

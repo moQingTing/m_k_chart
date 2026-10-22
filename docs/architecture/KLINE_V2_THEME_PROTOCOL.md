@@ -48,6 +48,12 @@ final theme = KChartTheme.light(
 
 主图格式覆盖主图纵轴、最高/最低价、最新价、主图十字光标、指标图例和详情 OHLC；副图格式覆盖副图纵轴、十字光标、指标图例和详情成交量。自定义回调优先于千分位开关；通过 `copyWith(clearMainValueFormatter: true)` 或 `copyWith(clearSecondaryValueFormatter: true)` 可恢复对应区域的默认格式。
 
+极小主图价格可选择开启 `mainValueUseCompactLeadingZeros`，并用
+`mainValueCompactZeroThreshold` 指定至少几个连续前导零才缩写、
+`mainValueCompactSignificantDigits` 指定最多保留几位有效数字。例如 `0.0000001`
+显示为 `0.0₆1`，下标 6 表示小数点后连续六个零。默认关闭，不改变副图；
+`mainValueFormatter` 仍优先于这一内置缩写规则。
+
 ## 4. 十字光标样式
 
 点击或长按选择时，`KChartTheme` 默认绘制黑底白字的时间与数值标签、虚线十字线和实心交点；这与详情卡样式独立，方便应用保留浅色详情面板或改成深色面板。

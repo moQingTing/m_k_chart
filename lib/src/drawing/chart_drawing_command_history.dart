@@ -44,6 +44,14 @@ final class ChartDrawingCommandHistory {
   bool get canUndo => undoStack.isNotEmpty;
   bool get canRedo => redoStack.isNotEmpty;
 
+  /// Changes editor selection without adding an undoable command.
+  ChartDrawingCommandHistory select(String? id) => ChartDrawingCommandHistory._(
+        editor: editor.select(id),
+        capacity: capacity,
+        undoStack: undoStack,
+        redoStack: redoStack,
+      );
+
   ChartDrawingCommandHistory execute(
     String label,
     ChartDrawingEditor Function(ChartDrawingEditor editor) operation,

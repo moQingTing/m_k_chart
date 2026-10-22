@@ -140,6 +140,7 @@ final class ChartGestureRegion extends StatefulWidget {
     this.onTapUp,
     this.tradeOverlayGestures,
     this.semantics,
+    this.excludeChildSemantics = false,
     this.pointerInputPolicy = const ChartPointerInputPolicy(),
     this.behavior = HitTestBehavior.opaque,
     super.key,
@@ -155,6 +156,9 @@ final class ChartGestureRegion extends StatefulWidget {
   final ValueChanged<Offset>? onTapUp;
   final ChartTradeOverlayGestureCallbacks? tradeOverlayGestures;
   final ChartSemanticsConfiguration? semantics;
+
+  /// 纯画布可只保留显式图表语义；默认保留子节点，兼容宿主自定义控件。
+  final bool excludeChildSemantics;
   final ChartPointerInputPolicy pointerInputPolicy;
   final HitTestBehavior behavior;
 
@@ -168,6 +172,7 @@ final class _ChartGestureRegionState extends State<ChartGestureRegion>
   Duration _lastInertiaElapsed = Duration.zero;
   bool _mouseCrosshairVisible = false;
   bool _trackpadActive = false;
+  bool _trackpadHasScaled = false;
   double _trackpadStartLocalX = 0;
   ChartTradeOverlayHit? _activeTradeOverlayHit;
 
@@ -271,7 +276,10 @@ final class _ChartGestureRegionState extends State<ChartGestureRegion>
       onDecrease: semantics.onDecrease,
       increasedValue: semantics.increasedValue,
       decreasedValue: semantics.decreasedValue,
-      child: gestureRegion,
+      // 纯画布的手势识别器也会生成 tap 语义；按调用方选择是否只保留显式动作。
+      child: widget.excludeChildSemantics
+          ? ExcludeSemantics(child: gestureRegion)
+          : gestureRegion,
     );
   }
 
@@ -494,6 +502,7 @@ final class _ChartGestureRegionState extends State<ChartGestureRegion>
     }
     _cancelInertia();
     _trackpadStartLocalX = event.localPosition.dx;
+    _trackpadHasScaled = false;
     _trackpadActive = widget.machine.beginScale(
       viewport: widget.viewport(),
       focalLocalX: _trackpadStartLocalX,
@@ -507,10 +516,16 @@ final class _ChartGestureRegionState extends State<ChartGestureRegion>
         !event.localPan.dx.isFinite) {
       return;
     }
+    // 触控板复用焦点缩放算法实现平移，但纯平移必须仍带上浏览语义。
+    // 一旦本次手势发生缩放，即使比例回到 1，也不应误判为新的横向浏览。
+    _trackpadHasScaled = _trackpadHasScaled || event.scale != 1;
     _emit(
       widget.machine.updateScale(
         scale: event.scale,
         focalLocalX: _trackpadStartLocalX + event.localPan.dx,
+        source: _trackpadHasScaled
+            ? ChartViewportChangeSource.scale
+            : ChartViewportChangeSource.pan,
       ),
     );
   }

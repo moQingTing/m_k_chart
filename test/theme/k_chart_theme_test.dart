@@ -106,6 +106,48 @@ void main() {
     expect(defaults.formatSecondaryValue(1234.5), '1,234.5');
   });
 
+  test(
+      'main chart can abbreviate tiny prices without changing secondary values',
+      () {
+    final normal = KChartTheme.light();
+    expect(normal.formatMainValue(0.0000001), '0.00');
+
+    final compact = normal.copyWith(
+      mainValueUseCompactLeadingZeros: true,
+      mainValueCompactZeroThreshold: 3,
+      mainValueCompactSignificantDigits: 3,
+    );
+    expect(compact.formatMainValue(0.0000001), '0.0₆1');
+    expect(compact.formatMainValue(0.0001), '0.0₃1');
+    expect(compact.formatMainValue(0.00031), '0.0₃31');
+    expect(compact.formatMainValue(-0.0000001234), '-0.0₆123');
+    expect(compact.formatMainValue(0.0009999), '0.0₂1');
+    expect(compact.formatMainValue(0), '0.00');
+    expect(compact.formatMainValue(0.031), '0.03');
+    expect(compact.formatMainValue(1234.5), '1,234.50');
+    expect(compact.formatSecondaryValue(0.0000001), '0.00');
+    expect(compact.copyWith(), compact);
+    expect(compact, isNot(normal));
+    expect(compact.copyWith(mainValueUseCompactLeadingZeros: false), normal);
+  });
+
+  test('custom main formatter wins over compact mode and options are validated',
+      () {
+    final theme = KChartTheme.light(
+      mainValueUseCompactLeadingZeros: true,
+      mainValueFormatter: (value, places) => 'custom:$value:$places',
+    );
+    expect(theme.formatMainValue(0.0000001), 'custom:1e-7:2');
+    expect(
+      () => KChartTheme(mainValueCompactZeroThreshold: 0),
+      throwsArgumentError,
+    );
+    expect(
+      () => KChartTheme(mainValueCompactSignificantDigits: 13),
+      throwsArgumentError,
+    );
+  });
+
   test('KChartTheme rejects unsupported decimal places', () {
     expect(
       () => KChartTheme(mainValueDecimalPlaces: -1),

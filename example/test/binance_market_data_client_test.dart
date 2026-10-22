@@ -1,10 +1,55 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/v2_example_support.dart';
 import 'package:m_k_chart_example/binance_market_data_client.dart';
+import 'package:m_k_chart_example/market/v2_demo_market_data_source.dart';
 
 void main() {
+  test('abortable client cancels only the selected request', () async {
+    final responses = <Completer<BinanceHttpResponse>>[];
+    final cancelCounts = <int>[];
+    final client = AbortableBinanceMarketDataClient(
+      nowMilliseconds: () => 180000,
+      request: (uri) {
+        expect(uri.path, '/api/v3/klines');
+        final response = Completer<BinanceHttpResponse>();
+        final index = responses.length;
+        responses.add(response);
+        cancelCounts.add(0);
+        return V2DemoMarketRequest(
+          result: response.future,
+          cancel: () => cancelCounts[index]++,
+        );
+      },
+    );
+    final first = client.requestCandles(
+      symbol: 'BTCUSDT',
+      interval: KlineInterval.oneMinute,
+      limit: 1,
+    );
+    final second = client.requestCandles(
+      symbol: 'BTCUSDT',
+      interval: KlineInterval.oneMinute,
+      limit: 1,
+    );
+    first.cancel();
+    expect(cancelCounts, [1, 0]);
+
+    final payload = BinanceHttpResponse(
+      statusCode: 200,
+      body: jsonEncode([
+        [0, '10', '12', '9', '11', '3', 59999, '35', 8, '1', '12'],
+      ]),
+    );
+    responses[0].complete(payload);
+    responses[1].complete(payload);
+    expect((await second.result).single.close, 11);
+    expect((await first.result).single.close, 11);
+    expect(cancelCounts, [1, 0]);
+  });
+
   test('maps and chronologically sorts the official Binance candle schema',
       () async {
     final client = BinanceMarketDataClient(

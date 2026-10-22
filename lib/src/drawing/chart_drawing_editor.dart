@@ -105,6 +105,21 @@ final class ChartDrawingEditor {
   ChartDrawingEditor setLocked(String id, bool value) =>
       _replace(id, _get(id).copyWith(isLocked: value));
 
+  ChartDrawingEditor setVisible(String id, bool value) {
+    _get(id);
+    return ChartDrawingEditor(
+      drawings: [
+        for (final item in drawings)
+          if (item.id == id)
+            item.copyWith(style: item.style.copyWith(visible: value))
+          else
+            item,
+      ],
+      selectedDrawingId:
+          !value && selectedDrawingId == id ? null : selectedDrawingId,
+    );
+  }
+
   ChartDrawingEditor moveDrawing({
     required String id,
     required int timeDeltaMilliseconds,

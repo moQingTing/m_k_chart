@@ -65,17 +65,24 @@ final class IndicatorCache {
   final IndicatorRegistry registry;
   final int maximumEntries;
   final Map<IndicatorCacheKey, _CacheEntry> _entries = {};
+  VersionedKlineData? _lastChangePrevious;
+  VersionedKlineData? _lastChangeCurrent;
+  IndicatorDataChange? _lastChange;
 
   int _cacheHits = 0;
   int _fullCalculations = 0;
   int _incrementalCalculations = 0;
   int _evictions = 0;
+  int _changeClassifications = 0;
 
   int get length => _entries.length;
   int get cacheHits => _cacheHits;
   int get fullCalculations => _fullCalculations;
   int get incrementalCalculations => _incrementalCalculations;
   int get evictions => _evictions;
+
+  /// 实际执行的数据变化范围扫描次数；同批指标复用不重复计数。
+  int get changeClassifications => _changeClassifications;
 
   IndicatorResult resolve(
     VersionedKlineData input,
@@ -94,7 +101,7 @@ final class IndicatorCache {
     late final IndicatorResult result;
     if (previous != null && input.version.isNewerThan(previous.input.version)) {
       // 先精确分类更新（追加、尾部替换、历史修正等），再决定能否安全增量计算。
-      final change = IndicatorDataChange.between(previous.input, input);
+      final change = _changeBetween(previous.input, input);
       if (change.kind == IndicatorChangeKind.unchanged) {
         result = _rebind(previous.result, input.version);
         _incrementalCalculations++;
@@ -120,7 +127,29 @@ final class IndicatorCache {
     return result;
   }
 
-  void clear() => _entries.clear();
+  void clear() {
+    _entries.clear();
+    _lastChangePrevious = null;
+    _lastChangeCurrent = null;
+    _lastChange = null;
+  }
+
+  IndicatorDataChange _changeBetween(
+    VersionedKlineData previous,
+    VersionedKlineData current,
+  ) {
+    // 同批指标通常依次读取同一对不可变快照；只保存最近一对，避免额外留住旧数据版本。
+    if (identical(previous, _lastChangePrevious) &&
+        identical(current, _lastChangeCurrent)) {
+      return _lastChange!;
+    }
+    final change = IndicatorDataChange.between(previous, current);
+    _changeClassifications++;
+    _lastChangePrevious = previous;
+    _lastChangeCurrent = current;
+    _lastChange = change;
+    return change;
+  }
 
   _CacheEntry? _latestCompatibleEntry(
     VersionedKlineData input,

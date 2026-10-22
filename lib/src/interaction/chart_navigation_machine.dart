@@ -83,7 +83,9 @@ final class ChartNavigationMachine {
       _velocityItemsPerSecond -=
           direction * _decelerationItemsPerSecondSquared * appliedSeconds;
     }
-    return next == current ? null : ChartViewportIntent(next);
+    return next == current
+        ? null
+        : ChartViewportIntent(next, source: ChartViewportChangeSource.inertia);
   }
 
   void cancelInertia() {

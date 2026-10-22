@@ -6,6 +6,115 @@ import 'package:m_k_chart/src/model/model.dart';
 import '../support/v2_kline_fixture.dart';
 
 void main() {
+  group('IndicatorParameterSpec', () {
+    test('默认值与计算时读取共用正整数和正数约束', () {
+      const period = IndicatorParameterSpec.integer('period', '周期', 10);
+      const multiplier = IndicatorParameterSpec.number('multiplier', '倍数', 3);
+      final defaults =
+          IndicatorConfig(instanceId: 'super', definitionId: 'builtin.super');
+      expect(period.readInt(defaults), 10);
+      expect(multiplier.readDouble(defaults), 3);
+      expect(period.parse(' 12 '), 12);
+      expect(period.parse('12.0'), 12);
+      expect(multiplier.parse('1.5'), 1.5);
+      expect(() => period.parse('1.5'), throwsArgumentError);
+      expect(() => period.parse('0'), throwsArgumentError);
+      expect(() => multiplier.parse('-1'), throwsArgumentError);
+      expect(
+        () => period.readInt(
+          IndicatorConfig(
+            instanceId: 'super',
+            definitionId: 'builtin.super',
+            parameters: const {'period': 1.5},
+          ),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('已接入的定义公开与计算一致的参数元数据', () {
+      final registry = IndicatorRegistry();
+      registerBuiltInIndicatorDefinitions(registry);
+      for (final id in [
+        'legacy.ma',
+        'legacy.ema',
+        'legacy.boll',
+        'legacy.sar',
+        'legacy.vol',
+        'legacy.macd',
+        'legacy.rsi',
+        'legacy.kdj',
+        'legacy.wr',
+        'legacy.obv',
+        'builtin.super',
+        'builtin.atr',
+        'builtin.cci',
+        'builtin.dmi',
+        'builtin.roc',
+        'builtin.stochRsi',
+      ]) {
+        final definition =
+            registry.find(id)! as ParameterizedIndicatorDefinition;
+        expect(definition.parameterSpecs, isNotEmpty);
+        expect(
+          definition.parameterSpecs.map((spec) => spec.key).toSet().length,
+          definition.parameterSpecs.length,
+        );
+      }
+      final ma =
+          registry.find('legacy.ma')! as ParameterizedIndicatorDefinition;
+      expect(ma.parameterSpecs.length, 4); // 旧算法保留第四路以兼容已有接入。
+      expect(
+        ma.parameterSpecs.where((spec) => spec.visibleInSettings).length,
+        3,
+      ); // 候选主图只呈现三条线。
+      expect(
+        registry.find('builtin.avl'),
+        isNot(isA<ParameterizedIndicatorDefinition>()),
+      );
+      expect(
+        registry.find('builtin.vwap'),
+        isNot(isA<ParameterizedIndicatorDefinition>()),
+      );
+    });
+
+    test('SAR 的关联上限由参数描述统一校验', () {
+      const specs = [
+        IndicatorParameterSpec.number(
+          'afStart',
+          '初始加速',
+          0.02,
+          notGreaterThanKey: 'afMax',
+        ),
+        IndicatorParameterSpec.number(
+          'afIncrement',
+          '加速步长',
+          0.02,
+          notGreaterThanKey: 'afMax',
+        ),
+        IndicatorParameterSpec.number('afMax', '加速上限', 0.2),
+      ];
+      final invalid = IndicatorConfig(
+        instanceId: 'sar',
+        definitionId: 'legacy.sar',
+        parameters: const {'afStart': 0.3},
+      );
+      expect(
+        () => IndicatorParameterSpec.validateSet(specs, invalid),
+        throwsArgumentError,
+      );
+      final valid = IndicatorConfig(
+        instanceId: 'sar',
+        definitionId: 'legacy.sar',
+        parameters: const {'afStart': 0.3, 'afMax': 0.4},
+      );
+      expect(
+        () => IndicatorParameterSpec.validateSet(specs, valid),
+        returnsNormally,
+      );
+    });
+  });
+
   group('IndicatorConfig', () {
     test('is immutable and compares by value independent of map order', () {
       final parameters = <String, num>{'period': 7, 'multiplier': 2};
@@ -82,6 +191,16 @@ void main() {
         () => IndicatorRendererDescriptor(
           placement: IndicatorPlacement.mainChart,
           series: [duplicate, duplicate],
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => IndicatorRendererDescriptor(
+          placement: IndicatorPlacement.mainChart,
+          series: [duplicate],
+          legend: IndicatorLegendDescriptor(
+            labelTemplates: const {'missing': 'Missing'},
+          ),
         ),
         throwsArgumentError,
       );
@@ -184,6 +303,20 @@ void main() {
   });
 
   group('IndicatorRegistry', () {
+    test('参数栏模板引用未声明参数或括号不完整时拒绝注册', () {
+      final registry = IndicatorRegistry();
+      expect(
+        () =>
+            registry.register(const _InvalidLegendIndicator('Value({period})')),
+        throwsArgumentError,
+      );
+      expect(
+        () => registry.register(const _InvalidLegendIndicator('Value({period')),
+        throwsArgumentError,
+      );
+      expect(registry.definitions, isEmpty);
+    });
+
     test('registers a custom indicator without a core enum or switch', () {
       final store = KlineStore()..replace(buildV2KlineFixture(3));
       final registry = IndicatorRegistry()..register(_CloseIndicator());
@@ -288,6 +421,35 @@ final class _CloseIndicator implements IndicatorDefinition {
           ),
         ],
       );
+}
+
+final class _InvalidLegendIndicator implements IndicatorDefinition {
+  const _InvalidLegendIndicator(this.template);
+
+  final String template;
+
+  @override
+  String get id => 'test.invalidLegend';
+
+  @override
+  IndicatorRendererDescriptor get rendererDescriptor =>
+      IndicatorRendererDescriptor(
+        placement: IndicatorPlacement.mainChart,
+        series: [
+          IndicatorSeriesDescriptor(
+            id: 'value',
+            label: 'Value',
+            drawingKind: IndicatorDrawingKind.line,
+          ),
+        ],
+        legend: IndicatorLegendDescriptor(
+          labelTemplates: {'value': template},
+        ),
+      );
+
+  @override
+  IndicatorResult calculate(VersionedKlineData input, IndicatorConfig config) =>
+      _CloseIndicator().calculate(input, config);
 }
 
 final class _BrokenIndicator implements IndicatorDefinition {

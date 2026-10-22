@@ -57,6 +57,9 @@ final class KChartTheme implements ChartRenderStyle {
     int secondaryValueDecimalPlaces = 2,
     bool mainValueUseThousandsSeparator = true,
     bool secondaryValueUseThousandsSeparator = true,
+    bool mainValueUseCompactLeadingZeros = false,
+    int mainValueCompactZeroThreshold = 3,
+    int mainValueCompactSignificantDigits = 3,
     String Function(double value, int decimalPlaces)? mainValueFormatter,
     String Function(double value, int decimalPlaces)? secondaryValueFormatter,
   }) {
@@ -125,6 +128,22 @@ final class KChartTheme implements ChartRenderStyle {
       secondaryValueDecimalPlaces,
       'secondaryValueDecimalPlaces',
     );
+    if (mainValueCompactZeroThreshold < 1 ||
+        mainValueCompactZeroThreshold > 20) {
+      throw ArgumentError.value(
+        mainValueCompactZeroThreshold,
+        'mainValueCompactZeroThreshold',
+        'Must be between 1 and 20.',
+      );
+    }
+    if (mainValueCompactSignificantDigits < 1 ||
+        mainValueCompactSignificantDigits > 12) {
+      throw ArgumentError.value(
+        mainValueCompactSignificantDigits,
+        'mainValueCompactSignificantDigits',
+        'Must be between 1 and 12.',
+      );
+    }
     return KChartTheme._(
       backgroundColor: backgroundColor,
       gridColor: gridColor,
@@ -163,6 +182,9 @@ final class KChartTheme implements ChartRenderStyle {
       secondaryValueDecimalPlaces: secondaryValueDecimalPlaces,
       mainValueUseThousandsSeparator: mainValueUseThousandsSeparator,
       secondaryValueUseThousandsSeparator: secondaryValueUseThousandsSeparator,
+      mainValueUseCompactLeadingZeros: mainValueUseCompactLeadingZeros,
+      mainValueCompactZeroThreshold: mainValueCompactZeroThreshold,
+      mainValueCompactSignificantDigits: mainValueCompactSignificantDigits,
       mainValueFormatter: mainValueFormatter,
       secondaryValueFormatter: secondaryValueFormatter,
     );
@@ -206,6 +228,9 @@ final class KChartTheme implements ChartRenderStyle {
     required this.secondaryValueDecimalPlaces,
     required this.mainValueUseThousandsSeparator,
     required this.secondaryValueUseThousandsSeparator,
+    required this.mainValueUseCompactLeadingZeros,
+    required this.mainValueCompactZeroThreshold,
+    required this.mainValueCompactSignificantDigits,
     required this.mainValueFormatter,
     required this.secondaryValueFormatter,
   });
@@ -229,6 +254,9 @@ final class KChartTheme implements ChartRenderStyle {
     int secondaryValueDecimalPlaces = 2,
     bool mainValueUseThousandsSeparator = true,
     bool secondaryValueUseThousandsSeparator = true,
+    bool mainValueUseCompactLeadingZeros = false,
+    int mainValueCompactZeroThreshold = 3,
+    int mainValueCompactSignificantDigits = 3,
     String Function(double value, int decimalPlaces)? mainValueFormatter,
     String Function(double value, int decimalPlaces)? secondaryValueFormatter,
   }) =>
@@ -251,6 +279,9 @@ final class KChartTheme implements ChartRenderStyle {
         mainValueUseThousandsSeparator: mainValueUseThousandsSeparator,
         secondaryValueUseThousandsSeparator:
             secondaryValueUseThousandsSeparator,
+        mainValueUseCompactLeadingZeros: mainValueUseCompactLeadingZeros,
+        mainValueCompactZeroThreshold: mainValueCompactZeroThreshold,
+        mainValueCompactSignificantDigits: mainValueCompactSignificantDigits,
         mainValueFormatter: mainValueFormatter,
         secondaryValueFormatter: secondaryValueFormatter,
         crosshairDashLength: crosshairDashLength,
@@ -347,6 +378,16 @@ final class KChartTheme implements ChartRenderStyle {
   /// Whether default secondary-chart formatting inserts thousands separators.
   final bool secondaryValueUseThousandsSeparator;
 
+  /// 将极小主图价格的连续零缩成下标计数，例如 0.0000001 → 0.0₆1。
+  /// 只影响默认主图格式；自定义 [mainValueFormatter] 始终优先。
+  final bool mainValueUseCompactLeadingZeros;
+
+  /// 至少有多少个连续小数前导零才启用缩写。
+  final int mainValueCompactZeroThreshold;
+
+  /// 缩写后最多保留的有效数字位数，四舍五入并省略末尾零；与普通小数位独立。
+  final int mainValueCompactSignificantDigits;
+
   /// Optional formatter for all main-chart numeric values.
   ///
   /// The second argument is [mainValueDecimalPlaces]. When supplied, this
@@ -399,6 +440,9 @@ final class KChartTheme implements ChartRenderStyle {
     int? secondaryValueDecimalPlaces,
     bool? mainValueUseThousandsSeparator,
     bool? secondaryValueUseThousandsSeparator,
+    bool? mainValueUseCompactLeadingZeros,
+    int? mainValueCompactZeroThreshold,
+    int? mainValueCompactSignificantDigits,
     String Function(double value, int decimalPlaces)? mainValueFormatter,
     String Function(double value, int decimalPlaces)? secondaryValueFormatter,
     bool clearMainValueFormatter = false,
@@ -455,6 +499,12 @@ final class KChartTheme implements ChartRenderStyle {
         secondaryValueUseThousandsSeparator:
             secondaryValueUseThousandsSeparator ??
                 this.secondaryValueUseThousandsSeparator,
+        mainValueUseCompactLeadingZeros: mainValueUseCompactLeadingZeros ??
+            this.mainValueUseCompactLeadingZeros,
+        mainValueCompactZeroThreshold:
+            mainValueCompactZeroThreshold ?? this.mainValueCompactZeroThreshold,
+        mainValueCompactSignificantDigits: mainValueCompactSignificantDigits ??
+            this.mainValueCompactSignificantDigits,
         mainValueFormatter: clearMainValueFormatter
             ? null
             : mainValueFormatter ?? this.mainValueFormatter,
@@ -492,6 +542,9 @@ final class KChartTheme implements ChartRenderStyle {
         value,
         decimalPlaces: mainValueDecimalPlaces,
         useThousandsSeparator: mainValueUseThousandsSeparator,
+        compactLeadingZeros: mainValueUseCompactLeadingZeros,
+        compactZeroThreshold: mainValueCompactZeroThreshold,
+        compactSignificantDigits: mainValueCompactSignificantDigits,
       );
 
   @override
@@ -545,6 +598,11 @@ final class KChartTheme implements ChartRenderStyle {
       mainValueUseThousandsSeparator == other.mainValueUseThousandsSeparator &&
       secondaryValueUseThousandsSeparator ==
           other.secondaryValueUseThousandsSeparator &&
+      mainValueUseCompactLeadingZeros ==
+          other.mainValueUseCompactLeadingZeros &&
+      mainValueCompactZeroThreshold == other.mainValueCompactZeroThreshold &&
+      mainValueCompactSignificantDigits ==
+          other.mainValueCompactSignificantDigits &&
       identical(mainValueFormatter, other.mainValueFormatter) &&
       identical(secondaryValueFormatter, other.secondaryValueFormatter);
 
@@ -599,6 +657,9 @@ final class KChartTheme implements ChartRenderStyle {
         secondaryValueDecimalPlaces,
         mainValueUseThousandsSeparator,
         secondaryValueUseThousandsSeparator,
+        mainValueUseCompactLeadingZeros,
+        mainValueCompactZeroThreshold,
+        mainValueCompactSignificantDigits,
         mainValueFormatter,
         secondaryValueFormatter,
       ]);

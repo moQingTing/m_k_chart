@@ -2,7 +2,7 @@
 
 一个功能强大的 Flutter K线图表库，支持多种技术指标和深度图展示。
 
-> 当前发布线保持 1.x Widget 的兼容性；V2 整改已经提供不可变主题、版本化用户配置和完整交易图 Demo。V2 的内部 Renderer/Controller 尚未作为稳定 Widget API 导出，请按 [迁移指南](docs/MIGRATING_TO_V2.md) 使用当前正式入口。
+> 当前版本为 2.0.0。正式入口提供 V2 `KChart`/`KChartController`、不可变主题、版本化用户配置和完整交易图 Demo；原有 V1 `KChartWidget` API 继续兼容。迁移方式见[迁移指南](docs/MIGRATING_TO_V2.md)，SDK 接入见[V2 接入说明](docs/V2_PREVIEW_INTEGRATION_GUIDE.md)。
 
 ## 图片展示
 
@@ -31,7 +31,7 @@
 
 ```yaml
 dependencies:
-  m_k_chart: ^1.0.0
+  m_k_chart: ^2.0.0
 ```
 
 然后运行：
@@ -120,6 +120,21 @@ flutter run
 ```
 
 Demo 通过仓库内部桥接层展示 V2 Renderer，不是可直接复制的公开 `KChart` Widget 集成方式。应用侧请继续使用本页的稳定 API，并参阅 [完整 Example 说明](docs/architecture/KLINE_V2_EXAMPLE_TOOLBAR.md)。
+顶部“新组件验收”可进入 `KChart` 接入验收页，并从“图表设置”切换主图样式、
+主副指标和内建指标参数；它走正式包入口，专门验证宿主接入路径，与旧 Demo 的 Renderer
+桥接示例分开。
+自定义指标接入可参照[典型价示例](example/lib/v2_custom_indicator_example.dart)：
+只导入 `package:m_k_chart/m_k_chart.dart` 并在创建 Controller 时注册，无需改核心枚举或 Painter。
+
+想先看清最小接入流程，可独立运行[K 线最小接入示例](example/lib/v2_minimal_chart_main.dart)：
+
+```bash
+cd example
+flutter run -t lib/v2_minimal_chart_main.dart
+```
+
+该示例只用本地数据演示 Controller 创建/释放、替换尾柱、追加新柱与选中回调，不请求网络，
+并且只导入正式入口；可直接用于 `m_k_chart: ^2.0.0`。
 
 ### 基础 K 线图（1.x 兼容 API）
 
@@ -219,6 +234,19 @@ final compatibleTheme = chartColors.toKChartTheme(chartStyle: chartStyle);
 
 主图和副图的数值格式、指标调色板与十字光标样式均可独立配置。详见 [主题协议](docs/architecture/KLINE_V2_THEME_PROTOCOL.md)。
 
+极小价格可选择把连续前导零缩成下标计数，避免主图价格轴被很多零挤占。例如
+`0.0000001` 显示为 `0.0₆1`（下标 6 表示小数点后连续六个零）：
+
+```dart
+final tinyPriceTheme = KChartTheme.light(
+  mainValueUseCompactLeadingZeros: true,
+  mainValueCompactZeroThreshold: 3,
+  mainValueCompactSignificantDigits: 3,
+);
+```
+
+默认关闭；普通小数位、千分位和副图格式不变。`mainValueFormatter` 如已提供，仍优先使用应用自己的格式。
+
 ### KChartUserConfig
 
 V2 用户配置采用版本化 JSON 值对象，由宿主自行选择持久化方式：
@@ -317,6 +345,8 @@ K线图表主组件。
 
 - [m_k_chart 2.0：币安风格 K 线整改开发计划](docs/BINANCE_KLINE_V2_DEVELOPMENT_PLAN.md)
 - [m_k_chart 2.0：开发清单与时序线](docs/KLINE_V2_EXECUTION_ROADMAP.md)
+- [V2 实现优化与二次开发计划](docs/KLINE_V2_SDK_OPTIMIZATION_PLAN.md)
+- [V2 SDK 接入契约（源码 API 已开放，稳定包待发布）](docs/architecture/ADR-002_V2_SDK_FACADE_CONTRACT.md)
 - [V2 迁移指南](docs/MIGRATING_TO_V2.md)
 - [P9 公共 API 差异](docs/P9_PUBLIC_API_DIFF.md)
 - [P9 跨平台构建门禁](docs/P9_CROSS_PLATFORM_BUILD_GATE.md)

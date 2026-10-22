@@ -1,11 +1,11 @@
 # m_k_chart 2.0 公共 API 草案
 
-> 状态：历史设计草案；当前已批准的正式 API 以 `m_k_chart.dart`、allowlist 和 P9 API diff 为准
+> 状态：历史设计草案；基础接入设计已由 [ADR-002](architecture/ADR-002_V2_SDK_FACADE_CONTRACT.md) 替代。当前仓库源码的正式 API 以 `m_k_chart.dart`、allowlist 和 P9 API diff 为准。
 > 日期：2026-08-24
 
 ## 1. 设计原则
 
-本文件保留早期设计取舍，不能作为现行使用说明。当前可用的正式类型、兼容边界和禁止导入路径见 [P9 公共 API 差异](P9_PUBLIC_API_DIFF.md)、[迁移指南](MIGRATING_TO_V2.md) 与 [ADR-001](architecture/ADR-001_PUBLIC_API_TRANSITION.md)。其中草案中的 `KChart` 与 `KChartController` 尚未通过公共 API 准入，不能用于宿主集成。
+本文件保留早期设计取舍，不能作为现行使用说明。当前源码已公开的类型、兼容边界和禁止导入路径见 [P9 公共 API 差异](P9_PUBLIC_API_DIFF.md)、[迁移指南](MIGRATING_TO_V2.md) 与 [ADR-001](architecture/ADR-001_PUBLIC_API_TRANSITION.md)。V2 图表类型已由 2.0.0 正式公开；请按上述现行文档接入。
 
 - 只有 `m_k_chart.dart` 是正式公共入口。
 - 原始 K 线不可变，不携带指标结果。
@@ -97,6 +97,8 @@ final class IndicatorConfig {
 ```
 
 同一种指标可通过不同 `instanceId` 同时存在多组参数。
+当前源码 API 提供实例级 `visibleSeriesIds` 与图例模板元数据，切换显示序列不改变
+计算结果；具体当前签名请以正式入口 allowlist 与接入指南为准，本历史草案不承诺额外字段。
 
 ## 5. 主题草案
 
@@ -135,7 +137,7 @@ Overlay 只保存绘制所需的公开数据和事件 ID，不保存账户对象
 
 ## 8. 待决策问题
 
-- 新 Widget 最终命名采用 `KChart` 还是保留 `KChartWidget`。
+- 新 Widget 命名已在 ADR-002 冻结为 `KChart`，保留旧 `KChartWidget`。
 - ~~`KlineInterval` 是否提供内置常量并允许自定义周期。~~ 已决定：同时支持内置常用周期与自定义周期。
 - 指标插件是否允许宿主提供自定义 Renderer。
 - ~~Controller 状态采用单一快照还是多个细粒度 Listenable。~~ 已决定：对外单一只读快照，内部按 StateSlice 版本细粒度判断。

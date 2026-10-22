@@ -2,6 +2,7 @@ import '../model/model.dart';
 import 'indicator_config.dart';
 import 'indicator_change.dart';
 import 'indicator_definition.dart';
+import 'indicator_parameter_spec.dart';
 import 'indicator_series.dart';
 
 /// 实例私有的指标注册表；不同图表不共享可变指标定义。
@@ -17,6 +18,32 @@ final class IndicatorRegistry {
     }
     if (_definitions.containsKey(definition.id)) {
       throw StateError('Indicator ${definition.id} is already registered.');
+    }
+    final parameters = definition is ParameterizedIndicatorDefinition
+        ? definition.parameterSpecs.map((spec) => spec.key).toSet()
+        : const <String>{};
+    for (final template
+        in definition.rendererDescriptor.legend.labelTemplates.values) {
+      final placeholders = RegExp(r'\{([^{}]+)\}').allMatches(template);
+      for (final match in placeholders) {
+        final key = match.group(1)!;
+        if (!parameters.contains(key)) {
+          throw ArgumentError.value(
+            key,
+            'legend',
+            'Unknown indicator parameter in label template.',
+          );
+        }
+      }
+      if (template
+          .replaceAll(RegExp(r'\{[^{}]+\}'), '')
+          .contains(RegExp(r'[{}]'))) {
+        throw ArgumentError.value(
+          template,
+          'legend',
+          'Malformed label template.',
+        );
+      }
     }
     _definitions[definition.id] = definition;
   }

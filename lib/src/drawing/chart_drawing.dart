@@ -112,6 +112,19 @@ final class ChartDrawingStyle {
   final List<double> dashPattern;
   final bool visible;
 
+  ChartDrawingStyle copyWith({
+    String? colorKey,
+    double? strokeWidth,
+    Iterable<double>? dashPattern,
+    bool? visible,
+  }) =>
+      ChartDrawingStyle(
+        colorKey: colorKey ?? this.colorKey,
+        strokeWidth: strokeWidth ?? this.strokeWidth,
+        dashPattern: dashPattern ?? this.dashPattern,
+        visible: visible ?? this.visible,
+      );
+
   Map<String, Object> toJson() => {
         'colorKey': colorKey,
         'strokeWidth': strokeWidth,
@@ -196,13 +209,14 @@ final class ChartDrawing {
 
   ChartDrawing copyWith({
     Iterable<ChartDrawingAnchor>? anchors,
+    ChartDrawingStyle? style,
     bool? isLocked,
   }) =>
       ChartDrawing(
         id: id,
         kind: kind,
         anchors: anchors ?? this.anchors,
-        style: style,
+        style: style ?? this.style,
         text: text,
         isLocked: isLocked ?? this.isLocked,
       );

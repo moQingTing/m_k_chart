@@ -345,6 +345,58 @@ void main() {
     expect(second.isDisposed, isFalse);
     second.dispose();
   });
+
+  test('同版本号但数据列表换仓库时数据图层重新录制', () {
+    final compositor = RetainedRenderLayerCompositor<_Theme>(
+      RenderLayerStack([_RecordingLayer('only')]),
+    );
+    addTearDown(compositor.dispose);
+    final firstData = _StableData(UnmodifiableListView(const <Kline>[]));
+    final secondData = _StableData(UnmodifiableListView(const <Kline>[]));
+    expect(firstData.version, secondData.version);
+    expect(identical(firstData.data, secondData.data), isFalse);
+    expect(
+      _paintCompositor(compositor, _plainSnapshot(data: firstData))
+          .repaintedLayerIds,
+      ['only'],
+    );
+    final second = _paintCompositor(
+      compositor,
+      _plainSnapshot(data: secondData),
+    );
+    expect(second.repaintedLayerIds, ['only']);
+    expect(second.invalidatedSlices['only'], {RenderSnapshotSlice.data});
+  });
+
+  test('标准图层复用相同版本号时仍按新仓库重录 K 线', () {
+    final pipeline = StandardChartRenderPipeline<DefaultChartRenderStyle>();
+    addTearDown(pipeline.dispose);
+    final firstCandle = Kline(
+      symbol: 'BTCUSDT',
+      interval: KlineInterval.oneMinute,
+      openTime: 1704067200000,
+      closeTime: 1704067259999,
+      open: 100,
+      high: 103,
+      low: 99,
+      close: 102,
+      baseVolume: 10,
+      quoteVolume: 1000,
+      tradeCount: 20,
+      isClosed: true,
+    );
+    final firstData = _StableData(UnmodifiableListView([firstCandle]));
+    final secondCandle = firstCandle.copyWith(high: 901, close: 900);
+    final secondData = _StableData(UnmodifiableListView([secondCandle]));
+    final first = _snapshot(data: firstData);
+    final second = _snapshot(data: secondData);
+    expect(first.data.version, second.data.version);
+    _paint(pipeline, first);
+    final report = _paint(pipeline, second);
+    expect(report.repaintedLayerIds, containsAll(['grid', 'main', 'marker']));
+    expect(pipeline.cache.candlesFor(second).candles.single.close, 900);
+    expect(report.invalidatedSlices['main'], {RenderSnapshotSlice.data});
+  });
 }
 
 const _standardLayerIds = [
@@ -385,16 +437,20 @@ RenderLayerFrameReport _paintCompositor(
 }
 
 RenderSnapshot<DefaultChartRenderStyle> _snapshot({
+  VersionedKlineData? data,
   DefaultChartRenderStyle? style,
   RenderSnapshotVersions versions = const RenderSnapshotVersions(),
   RenderSelectionSnapshot selection = const RenderSelectionSnapshot.hidden(),
   RenderHistorySnapshot history = const RenderHistorySnapshot(),
 }) {
-  final data = _StableData(UnmodifiableListView(const []));
   final layout = ChartLayoutModel(width: 120, height: 120);
+  final resolvedData = data ?? _emptyData;
   return RenderSnapshot(
-    data: data,
-    viewport: ChartViewport(width: layout.drawingBounds.width),
+    data: resolvedData,
+    viewport: ChartViewport(
+      itemCount: resolvedData.data.length,
+      width: layout.drawingBounds.width,
+    ),
     layout: layout,
     theme: style ?? DefaultChartRenderStyle(),
     versions: versions,
@@ -404,18 +460,20 @@ RenderSnapshot<DefaultChartRenderStyle> _snapshot({
 }
 
 RenderSnapshot<_Theme> _plainSnapshot({
+  VersionedKlineData? data,
   RenderSnapshotVersions versions = const RenderSnapshotVersions(),
 }) {
-  final data = _StableData(UnmodifiableListView(const []));
   final layout = ChartLayoutModel(width: 120, height: 120);
   return RenderSnapshot(
-    data: data,
+    data: data ?? _emptyData,
     viewport: ChartViewport(width: layout.drawingBounds.width),
     layout: layout,
     theme: const _Theme(),
     versions: versions,
   );
 }
+
+const _emptyData = _StableData(<Kline>[]);
 
 int _argbAt(ByteData bytes, int width, int x, int y) {
   final offset = (y * width + x) * 4;

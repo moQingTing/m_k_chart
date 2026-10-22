@@ -206,6 +206,10 @@ void main() {
     await tester.pump();
 
     expect(harness.viewport.itemExtent, closeTo(12, 1e-12));
+    expect(
+      harness.viewportIntents.last.source,
+      ChartViewportChangeSource.scale,
+    );
     expect(harness.machine.mode, ChartInteractionMode.scaling);
 
     await tester.sendEventToBinding(
@@ -215,6 +219,46 @@ void main() {
 
     expect(harness.machine.isIdle, isTrue);
     expect(harness.crosshairIntents, isEmpty);
+  });
+
+  testWidgets(
+      'trackpad reports pure pan but retains scale semantics after pinch',
+      (tester) async {
+    final harness = _InputHarness(keyName: 'trackpad-source');
+    await tester.pumpWidget(harness.app(width: 320, height: 240));
+    final center = tester.getCenter(harness.finder);
+    await tester.sendEventToBinding(
+      PointerPanZoomStartEvent(pointer: 61, position: center),
+    );
+    await tester.sendEventToBinding(
+      PointerPanZoomUpdateEvent(
+        pointer: 61,
+        position: center,
+        pan: const Offset(20, 0),
+        panDelta: const Offset(20, 0),
+      ),
+    );
+    await tester.pump();
+    expect(harness.viewportIntents.last.source, ChartViewportChangeSource.pan);
+    for (final scale in [1.5, 1.0]) {
+      await tester.sendEventToBinding(
+        PointerPanZoomUpdateEvent(
+          pointer: 61,
+          position: center,
+          pan: const Offset(40, 0),
+          panDelta: const Offset(20, 0),
+          scale: scale,
+        ),
+      );
+      await tester.pump();
+      expect(
+        harness.viewportIntents.last.source,
+        ChartViewportChangeSource.scale,
+      );
+    }
+    await tester.sendEventToBinding(
+      PointerPanZoomEndEvent(pointer: 61, position: center),
+    );
   });
 
   testWidgets('input policy can leave wheel and trackpad signals untouched',

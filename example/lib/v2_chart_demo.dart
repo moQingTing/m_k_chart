@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -9,9 +8,16 @@ import 'package:m_k_chart/renderer/legacy_chart_viewport.dart';
 import 'package:m_k_chart/v2_example_support.dart';
 
 import 'binance_market_data_client.dart';
+import 'market/v2_demo_market_data_source.dart';
+import 'market/v2_demo_refresh_gate.dart';
+import 'market/v2_demo_seed_data.dart';
+import 'settings/v2_demo_settings_sheet.dart';
+import 'settings/v2_indicator_parameter_editor.dart';
+import 'v2_sdk_acceptance_main.dart';
 import 'v2_trade_overlay_examples.dart';
+import 'widgets/v2_market_summary.dart';
 
-/// 可直接运行的 V2 交易图表 SDK 完整接入示例。
+/// 可直接运行的旧组装式 V2 交易图表示例；新组件可从顶部入口单独验收。
 ///
 /// 此示例将生产环境的关键接入步骤集中展示：
 ///
@@ -22,25 +28,37 @@ import 'v2_trade_overlay_examples.dart';
 /// 4. 将不可变的 [RenderSnapshot] 传给 [StandardChartRenderPipeline]。
 /// 5. 用 [ChartGestureRegion] 分发手势，并仅更新受该手势影响的状态。
 ///
-/// 币安仅作为便于运行的公开数据源。替换 [BinanceMarketDataClient] 与
-/// [_loadCandles]/[_refreshLatestCandles] 为自己的仓库或数据流时，无需修改
-/// 图表组装逻辑。示例会先渲染确定性的本地 K 线，因此离线时仍可使用；
+/// 币安仅作为便于运行的公开数据源。实现 [V2DemoMarketDataSource] 并通过
+/// [marketDataSource] 注入自己的仓库，无需修改图表组装逻辑。
+/// 示例会先渲染确定性的本地 K 线，因此离线时仍可使用；
 /// Widget 测试或离线宿主中请将 [loadOnStart] 设为 false。
 class V2TradingChartDemo extends StatefulWidget {
   const V2TradingChartDemo({
     super.key,
     this.loadOnStart = true,
     this.fullscreen = false,
-  });
+    this.marketDataSource,
+    this.marketDataClient,
+  }) : assert(marketDataSource == null || marketDataClient == null);
 
   final bool loadOnStart;
   final bool fullscreen;
+
+  /// 首选注入入口：宿主可以提供非币安的 REST/缓存源。
+  final V2DemoMarketDataSource? marketDataSource;
+
+  /// 兼容旧示例的币安客户端注入入口；新接入请使用 [marketDataSource]。
+  final BinanceMarketDataClient? marketDataClient;
+
+  V2DemoMarketDataSource? get _providedSource =>
+      marketDataSource ?? marketDataClient;
 
   @override
   State<V2TradingChartDemo> createState() => _V2TradingChartDemoState();
 }
 
-class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
+class _V2TradingChartDemoState extends State<V2TradingChartDemo>
+    with WidgetsBindingObserver {
   /// 保持各面板在视觉上连续；卡片式界面可调大该值。
   static const _panelSpacing = 0.0;
 
@@ -219,10 +237,13 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   late final StandardChartRenderPipeline<KChartTheme> _pipeline;
   late final ChartInteractionMachine _interactionMachine;
   late final ChartNavigationMachine _navigationMachine;
-  late final BinanceMarketDataClient _marketData;
+  late V2DemoMarketDataSource _marketData;
   late final IndicatorEngine _indicatorEngine;
   Timer? _clockTimer;
   Timer? _marketTimer;
+  bool _appIsResumed = true;
+  bool _childPageOpen = false;
+  bool _reloadWindowWhenVisible = false;
   final _instrumentController = TextEditingController(text: 'BTCUSDT');
 
   /// 主题属于常规应用状态，可替换为设计系统的配色。
@@ -292,20 +313,23 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   var _simulatedTick = 0;
   String? _simulationMessage;
   int? _selectedIndex;
-  String? _selectedPanelId;
-  double? _selectedPrice;
-  var _selectedLocalY = 0.0;
-  var _loadGeneration = 0;
+  ChartSelectionAnchor? _selectionAnchor;
+  String? get _selectedPanelId => _selectionAnchor?.panelId;
+  double? get _selectedPrice => _selectionAnchor?.price;
+  final _refreshGate = V2DemoRefreshGate();
+  final _pendingMarketCancels = <void Function()>{};
   var _isLoading = false;
   String? _loadError;
-  BinanceTicker? _ticker;
-  var _isRefreshingLatest = false;
+  V2MarketTicker? _ticker;
   String? _realtimeStatus;
-  late _DemoData _data;
+  late V2DemoKlineData _data;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _appIsResumed = WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     if (widget.fullscreen) {
       unawaited(
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
@@ -321,7 +345,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _pipeline = StandardChartRenderPipeline<KChartTheme>();
     _interactionMachine = ChartInteractionMachine();
     _navigationMachine = ChartNavigationMachine();
-    _marketData = BinanceMarketDataClient();
+    _marketData = widget._providedSource ?? AbortableBinanceMarketDataClient();
     final registry = IndicatorRegistry();
     registerBuiltInIndicatorDefinitions(registry);
     _indicatorEngine = IndicatorEngine(registry: registry);
@@ -330,27 +354,129 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     };
     // 远端请求进行时，确定性的本地数据窗口可让首帧立即显示可用图表；宿主也可改为
     // 注入缓存数据。
-    _data = _createData(_interval, _revision);
+    _data = createV2DemoSeedData(_interval, revision: _revision);
     if (widget.loadOnStart) {
-      _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (!mounted) return;
-        setState(() {
-          _currentTime = DateTime.now().millisecondsSinceEpoch;
-          _clockRevision++;
-        });
-      });
-      _marketTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-        unawaited(_refreshLatestCandles());
-      });
-      _loadCandles();
+      if (_appIsResumed) {
+        _startTimers();
+        _loadCandles();
+      } else {
+        _reloadWindowWhenVisible = true;
+        _refreshGate.pauseRefresh();
+      }
     }
+  }
+
+  @override
+  void didUpdateWidget(covariant V2TradingChartDemo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final sourceChanged =
+        !identical(oldWidget._providedSource, widget._providedSource);
+    final automaticLoadingChanged = oldWidget.loadOnStart != widget.loadOnStart;
+    if (!sourceChanged && !automaticLoadingChanged) return;
+
+    // 父组件可在同一个 State 上更换行情源或启停自动加载。先隔离旧请求，
+    // 避免旧客户端的全量响应和实时刷新写入新客户端的数据窗口。
+    _stopTimers();
+    _refreshGate.invalidateLoad();
+    _isLoading = false;
+    _reloadWindowWhenVisible = false;
+    if (sourceChanged) {
+      _marketData =
+          widget._providedSource ?? AbortableBinanceMarketDataClient();
+      _advanceRevision();
+      _data = createV2DemoSeedData(_interval, revision: _revision);
+      _ticker = null;
+      _loadError = null;
+      _realtimeStatus = null;
+      _scrollOffsetItems = 0;
+      _itemExtent = null;
+      _latestViewport = null;
+      _clearSelection();
+      _clearTradeOverlayInteraction();
+    }
+    if (widget.loadOnStart) {
+      // 隐藏时只登记一次待重载；可见时由同一恢复入口启动定时器和完整窗口加载。
+      _reloadWindowWhenVisible = true;
+      _resumeWhenVisible();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_appIsResumed) return;
+      _appIsResumed = true;
+      _resumeWhenVisible();
+      return;
+    }
+    if (_appIsResumed) {
+      _appIsResumed = false;
+      _stopTimers();
+      _invalidatePendingLoad();
+    }
+    // inactive 只暂停；进入后台或分离后可能漏掉多根 K 线，恢复时重取完整窗口。
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _reloadWindowWhenVisible = _reloadWindowWhenVisible || widget.loadOnStart;
+    }
+  }
+
+  void _invalidatePendingLoad() {
+    if (!_isLoading) return;
+    _refreshGate.invalidateLoad();
+    _reloadWindowWhenVisible = true;
+    setState(() => _isLoading = false);
+  }
+
+  void _resumeWhenVisible() {
+    if (!mounted || !_appIsResumed || _childPageOpen) return;
+    if (widget.loadOnStart) {
+      setState(() {
+        _currentTime = DateTime.now().millisecondsSinceEpoch;
+        _clockRevision++;
+      });
+      _startTimers();
+    }
+    if (_reloadWindowWhenVisible) {
+      _reloadWindowWhenVisible = false;
+      unawaited(_loadCandles());
+    } else if (widget.loadOnStart) {
+      unawaited(_refreshLatestCandles());
+    }
+  }
+
+  void _startTimers() {
+    _stopTimers();
+    if (!widget.loadOnStart) return;
+    _refreshGate.resumeRefresh();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        _currentTime = DateTime.now().millisecondsSinceEpoch;
+        _clockRevision++;
+      });
+    });
+    _marketTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      unawaited(_refreshLatestCandles());
+    });
+  }
+
+  void _stopTimers() {
+    // 定时器停用后，在途刷新也不能更新不可见页面或阻塞恢复后的首次同步。
+    _refreshGate.pauseRefresh();
+    _cancelPendingMarketRequests();
+    _clockTimer?.cancel();
+    _marketTimer?.cancel();
+    _clockTimer = null;
+    _marketTimer = null;
   }
 
   @override
   void dispose() {
     // 嵌入应用时务必释放定时器、控制器和渲染管线。
-    _clockTimer?.cancel();
-    _marketTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _stopTimers();
     if (widget.fullscreen) {
       unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
       unawaited(
@@ -373,7 +499,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     setState(() {
       _interval = interval;
       _advanceRevision();
-      _data = _createData(interval, _revision);
+      _data = createV2DemoSeedData(interval, revision: _revision);
       _scrollOffsetItems = 0;
       _itemExtent = null;
       _clearSelection();
@@ -397,6 +523,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       return;
     }
     setState(() {
+      // 切换序列时立即失效，不等待新行情请求完成才隐藏旧交易对的详情。
+      if (_instrumentId != instrument) _clearSelection();
       _instrumentId = instrument;
       _instrumentController.text = instrument;
       _ticker = null;
@@ -406,18 +534,77 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     _loadCandles();
   }
 
-  Future<void> _openFullscreenDemo() => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => V2TradingChartDemo(
-            loadOnStart: widget.loadOnStart,
-            fullscreen: true,
-          ),
+  Future<void> _openChildPage(Widget page) async {
+    // 路由下层的旧 Demo 不应继续按秒重建和请求行情。若完整窗口仍在加载，
+    // 先废弃旧结果，返回后重新请求；其余情况只同步最近两根 K 线。
+    _childPageOpen = true;
+    _stopTimers();
+    _invalidatePendingLoad();
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => page),
+      );
+    } finally {
+      _childPageOpen = false;
+      _resumeWhenVisible();
+    }
+  }
+
+  Future<void> _openFullscreenDemo() => _openChildPage(
+        V2TradingChartDemo(
+          loadOnStart: widget.loadOnStart,
+          fullscreen: true,
+          marketDataSource: widget.marketDataSource,
+          marketDataClient: widget.marketDataClient,
         ),
       );
 
-  Future<BinanceTicker?> _loadTickerSafely(String instrumentId) async {
+  Future<void> _openCandidateDemo() => _openChildPage(
+        V2SdkAcceptancePage(client: widget._providedSource),
+      );
+
+  Future<T> _trackMarketRequest<T>(V2DemoMarketRequest<T> request) {
+    final cancel = request.cancel;
+    _pendingMarketCancels.add(cancel);
+    return request.result
+        .whenComplete(() => _pendingMarketCancels.remove(cancel));
+  }
+
+  void _cancelPendingMarketRequests() {
+    final pending = _pendingMarketCancels.toList();
+    _pendingMarketCancels.clear();
+    for (final cancel in pending) {
+      try {
+        cancel();
+      } on Object {
+        // 第三方数据源的取消失败不能阻断代际失效、路由切换或组件销毁。
+      }
+    }
+  }
+
+  Future<List<Kline>> _fetchCandles({
+    required String symbol,
+    required KlineInterval interval,
+    required int limit,
+  }) {
+    final source = _marketData;
+    return source is V2DemoCancelableMarketDataSource
+        ? _trackMarketRequest(source.requestCandles(
+            symbol: symbol,
+            interval: interval,
+            limit: limit,
+          ))
+        : source.candles(symbol: symbol, interval: interval, limit: limit);
+  }
+
+  Future<V2MarketTicker?> _loadTickerSafely(String instrumentId) async {
     try {
-      return await _marketData.ticker(symbol: instrumentId);
+      final source = _marketData;
+      return source is V2DemoCancelableMarketDataSource
+          ? await _trackMarketRequest(
+              source.requestTicker(symbol: instrumentId),
+            )
+          : await source.ticker(symbol: instrumentId);
     } on Object {
       // 行情摘要请求失败不能隐藏有效 K 线；下次成功刷新前，摘要回退到已加载的 K 线区间。
       return null;
@@ -426,7 +613,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
 
   Future<void> _loadCandles() async {
     // 代际标记可防止旧交易对/周期的慢请求覆盖较新的图表；所有异步数据源都应沿用此模式。
-    final generation = ++_loadGeneration;
+    _cancelPendingMarketRequests();
+    final generation = _refreshGate.beginLoad();
     final instrumentId = _instrumentId;
     final tickerFuture = _loadTickerSafely(instrumentId);
     setState(() {
@@ -434,13 +622,13 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       _loadError = null;
     });
     try {
-      final candles = await _marketData.candles(
+      final candles = await _fetchCandles(
         symbol: instrumentId,
         interval: _interval,
         limit: _candleLimit,
       );
       final ticker = await tickerFuture;
-      if (!mounted || generation != _loadGeneration) return;
+      if (!mounted || !_refreshGate.isCurrent(generation)) return;
       final oldCandles = _data.data;
       final oldLatestIndex = oldCandles.isEmpty || candles.isEmpty
           ? -1
@@ -454,13 +642,14 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             preserveViewport ? candles.length - oldLatestIndex - 1 : 0,
         preserveViewport: preserveViewport,
         ticker: ticker,
-        realtimeStatus: 'Binance 历史数据已加载 · ${candles.length} 根 K 线',
+        realtimeStatus:
+            '${_marketData.displayName} 历史数据已加载 · ${candles.length} 根 K 线',
       );
     } on Object catch (error) {
-      if (!mounted || generation != _loadGeneration) return;
+      if (!mounted || !_refreshGate.isCurrent(generation)) return;
       setState(() => _loadError = '$error');
     } finally {
-      if (mounted && generation == _loadGeneration) {
+      if (mounted && _refreshGate.isCurrent(generation)) {
         setState(() => _isLoading = false);
       }
     }
@@ -469,21 +658,21 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   /// 轮询币安最近两根 K 线。最新一根通常仍在形成中，因此每两秒替换现有的最后一根；
   /// 当其开盘时间推进时，则向窗口追加新的 K 线。
   Future<void> _refreshLatestCandles() async {
-    if (_isLoading || _isRefreshingLatest || _data.data.isEmpty) return;
-    _isRefreshingLatest = true;
-    final generation = _loadGeneration;
+    if (_isLoading || _data.data.isEmpty) return;
+    final ticket = _refreshGate.beginRefresh();
+    if (ticket == null) return;
     final instrumentId = _instrumentId;
     final interval = _interval;
     try {
       final tickerFuture = _loadTickerSafely(instrumentId);
-      final recent = await _marketData.candles(
+      final recent = await _fetchCandles(
         symbol: instrumentId,
         interval: interval,
         limit: 2,
       );
       final ticker = await tickerFuture;
       if (!mounted ||
-          generation != _loadGeneration ||
+          !_refreshGate.isCurrentRefresh(ticket) ||
           instrumentId != _instrumentId ||
           interval != _interval) {
         return;
@@ -494,9 +683,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         maxLength: _candleLimit,
       );
       final status = merged.changed
-          ? 'Binance 实时更新 · 替换 ${merged.replacedCount} 根 · '
+          ? '${_marketData.displayName} 实时更新 · 替换 ${merged.replacedCount} 根 · '
               '新增 ${merged.appendedCount} 根'
-          : 'Binance 实时已同步 · 当前 K 线持续更新中';
+          : '${_marketData.displayName} 实时已同步 · 当前 K 线持续更新中';
       if (merged.changed) {
         _applyDataWindow(
           merged.candles,
@@ -512,11 +701,12 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         });
       }
     } on Object catch (error) {
-      if (mounted && generation == _loadGeneration) {
-        setState(() => _realtimeStatus = 'Binance 实时更新失败：$error');
+      if (mounted && _refreshGate.isCurrentRefresh(ticket)) {
+        setState(
+            () => _realtimeStatus = '${_marketData.displayName} 实时更新失败：$error');
       }
     } finally {
-      _isRefreshingLatest = false;
+      _refreshGate.finishRefresh(ticket);
     }
   }
 
@@ -525,15 +715,13 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     required int appendedItemCount,
     required bool preserveViewport,
     String? simulationMessage,
-    BinanceTicker? ticker,
+    V2MarketTicker? ticker,
     String? realtimeStatus,
   }) {
     // 此处是进入 K 线数据的唯一变更点。集中处理十分重要：REST 刷新、WebSocket 推送
     // 和模拟数据都必须遵守同样的视口锚定和渲染版本规则。
     final previousViewport = _latestViewport;
-    // 选中态以开盘时间而非列表下标锚定。实时滚动窗口可能会丢弃最早 K 线，直接保留
-    // 下标会让十字线错误地跳到另一根 K 线上。
-    final selectedOpenTime = _selectedOpenTime;
+    // 选中锚点包含序列身份和开盘时间；滚动窗口裁剪后重找索引，避免跳到另一根 K 线。
     final nextViewport = preserveViewport && previousViewport != null
         ? ChartViewportNavigator.preserveAfterRealtimeDataChange(
             previousViewport,
@@ -543,10 +731,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         : null;
     setState(() {
       _advanceRevision();
-      _data = _DemoData(
-        UnmodifiableListView(candles),
-        KlineDataVersion(_revision),
-      );
+      _data = V2DemoKlineData.fromCandles(candles, revision: _revision);
       if (nextViewport != null) {
         _scrollOffsetItems = nextViewport.scrollOffsetItems;
         _itemExtent = nextViewport.itemExtent;
@@ -566,7 +751,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
       _realtimeStatus = realtimeStatus ?? _realtimeStatus;
       _viewportRevision++;
       if (preserveViewport) {
-        _restoreSelectionAfterDataUpdate(candles, selectedOpenTime);
+        _reconcileSelection();
       } else {
         _clearSelection();
       }
@@ -663,6 +848,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         } else {
           _secondaryIndicators.remove(id);
         }
+        _reconcileSelection();
         _advanceRevision();
       });
 
@@ -727,31 +913,32 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
 
   void _clearSelection() {
     _selectedIndex = null;
-    _selectedPanelId = null;
-    _selectedPrice = null;
+    _selectionAnchor = null;
     _selectionRevision++;
   }
 
-  /// 当前选中 K 线的稳定身份。实时更新前读取，更新后再在新窗口中查找。
-  int? get _selectedOpenTime {
-    final index = _selectedIndex;
-    if (index == null || index < 0 || index >= _data.data.length) return null;
-    return _data.data[index].openTime;
+  /// 与布局构建使用相同的面板 id 规则；在修改数据或副图配置的事务内校验选中态。
+  Iterable<String> get _activePanelIds sync* {
+    yield 'main';
+    if (_overlaySecondaryIndicators) {
+      if (_secondaryIndicators.isNotEmpty) yield 'secondary-overlay';
+    } else {
+      yield* _secondaryIndicators.map(_secondaryPanelId);
+    }
   }
 
   /// 保持实时更新前选中的 K 线及信息面板。
   ///
   /// 最新 K 线替换、追加和滚动窗口刷新都不应关闭十字线。仅当已选 K 线被窗口裁掉时才隐藏；
   /// 视图拖动仍在 [_handleChartIntent] 中按用户横向导航处理。
-  void _restoreSelectionAfterDataUpdate(
-    List<Kline> candles,
-    int? selectedOpenTime,
-  ) {
-    if (selectedOpenTime == null) return;
-    final nextIndex = candles.indexWhere(
-      (candle) => candle.openTime == selectedOpenTime,
+  void _reconcileSelection() {
+    final anchor = _selectionAnchor;
+    if (anchor == null) return;
+    final nextIndex = anchor.resolveIndex(
+      _data.data,
+      panelIds: _activePanelIds,
     );
-    if (nextIndex < 0) {
+    if (nextIndex == null) {
       _clearSelection();
       return;
     }
@@ -909,9 +1096,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     RenderSnapshot<KChartTheme> snapshot,
   ) {
     switch (intent) {
-      case ChartViewportIntent(:final viewport):
-        final isHorizontalNavigation = _itemExtent == viewport.itemExtent &&
-            _scrollOffsetItems != viewport.scrollOffsetItems;
+      case ChartViewportIntent(:final viewport, :final isHorizontalNavigation):
         setState(() {
           _scrollOffsetItems = viewport.scrollOffsetItems;
           _itemExtent = viewport.itemExtent;
@@ -1003,16 +1188,24 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     setState(() {
       _selectedTradeOverlay = null;
       _selectedIndex = index;
-      _selectedPanelId = panelId;
-      _selectedPrice = price;
-      _selectedLocalY = localPosition.dy;
+      _selectionAnchor = ChartSelectionAnchor(
+        candle: snapshot.data.data[index],
+        panelId: panelId,
+        price: price,
+      );
       _selectionRevision++;
     });
   }
 
   RenderSelectionSnapshot _selectionFor(RenderSnapshot<KChartTheme> snapshot) {
     final index = _selectedIndex;
-    if (index == null || index >= snapshot.data.data.length) {
+    final anchor = _selectionAnchor;
+    if (index == null ||
+        index < 0 ||
+        index >= snapshot.data.data.length ||
+        anchor == null ||
+        !snapshot.layout.panels
+            .any((panel) => panel.spec.id == anchor.panelId)) {
       return const RenderSelectionSnapshot.hidden();
     }
     final bounds = snapshot.layout.drawingBounds;
@@ -1021,25 +1214,19 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
           data: snapshot.data,
         ).indexToLocalX(index) +
         bounds.left;
-    final selectedPrice = _selectedPrice;
-    final selectedPanelId = _selectedPanelId;
-    final isSnapped = selectedPrice != null && selectedPanelId != null;
-    final double localY;
-    if (selectedPrice == null || selectedPanelId == null) {
-      localY = _selectedLocalY.clamp(bounds.top, bounds.bottom).toDouble();
-    } else {
-      localY = ChartLayerGeometry.rangeFor(snapshot, selectedPanelId)
-          .transform(snapshot.layout.panel(selectedPanelId).bounds)
-          .priceToLocalY(selectedPrice)
-          .clamp(bounds.top, bounds.bottom)
-          .toDouble();
-    }
+    final panelBounds = snapshot.layout.panel(anchor.panelId).bounds;
+    // 量程变化后仍保持选中价格；超出时只夹取到原命中面板，不能落入别的副图。
+    final localY = ChartLayerGeometry.rangeFor(snapshot, anchor.panelId)
+        .transform(panelBounds)
+        .priceToLocalY(anchor.price)
+        .clamp(panelBounds.top, panelBounds.bottom)
+        .toDouble();
     return RenderSelectionSnapshot.visible(
       localX: localX.clamp(bounds.left, bounds.right).toDouble(),
       localY: localY,
-      dataIndex: isSnapped ? index : null,
-      price: isSnapped ? selectedPrice : null,
-      valueKind: isSnapped ? RenderSelectionValueKind.close : null,
+      dataIndex: index,
+      price: anchor.price,
+      valueKind: RenderSelectionValueKind.close,
     );
   }
 
@@ -1059,7 +1246,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     return parameters.entries
         .map(
           (entry) =>
-              '${_indicatorParameterLabel(entry.key)} ${_formatIndicatorParameter(entry.value)}',
+              '${v2IndicatorParameterLabel(entry.key)} ${formatV2IndicatorParameter(entry.value)}',
         )
         .join(' · ');
   }
@@ -1074,21 +1261,21 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
     final parameters = _parametersFor(option);
     return switch ((option.id, descriptor.id)) {
       ('ma', 'ma5') =>
-        'MA(${_formatIndicatorParameter(parameters['period1']!)})',
+        'MA(${formatV2IndicatorParameter(parameters['period1']!)})',
       ('ma', 'ma10') =>
-        'MA(${_formatIndicatorParameter(parameters['period2']!)})',
+        'MA(${formatV2IndicatorParameter(parameters['period2']!)})',
       ('ma', 'ma20') =>
-        'MA(${_formatIndicatorParameter(parameters['period3']!)})',
+        'MA(${formatV2IndicatorParameter(parameters['period3']!)})',
       ('ema', 'ema5') =>
-        'EMA(${_formatIndicatorParameter(parameters['period1']!)})',
+        'EMA(${formatV2IndicatorParameter(parameters['period1']!)})',
       ('ema', 'ema10') =>
-        'EMA(${_formatIndicatorParameter(parameters['period2']!)})',
+        'EMA(${formatV2IndicatorParameter(parameters['period2']!)})',
       ('ema', 'ema30') =>
-        'EMA(${_formatIndicatorParameter(parameters['period3']!)})',
+        'EMA(${formatV2IndicatorParameter(parameters['period3']!)})',
       ('vol', 'ma5') =>
-        'MA(${_formatIndicatorParameter(parameters['fastPeriod']!)})',
+        'MA(${formatV2IndicatorParameter(parameters['fastPeriod']!)})',
       ('vol', 'ma10') =>
-        'MA(${_formatIndicatorParameter(parameters['slowPeriod']!)})',
+        'MA(${formatV2IndicatorParameter(parameters['slowPeriod']!)})',
       _ => descriptor.label,
     };
   }
@@ -1110,8 +1297,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         SnackBar(
           content: Text(
             _isIntegerParameter(key)
-                ? '${_indicatorParameterLabel(key)}必须是正整数。'
-                : '${_indicatorParameterLabel(key)}必须是大于 0 的数字。',
+                ? '${v2IndicatorParameterLabel(key)}必须是正整数。'
+                : '${v2IndicatorParameterLabel(key)}必须是大于 0 的数字。',
           ),
         ),
       );
@@ -1191,6 +1378,8 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }
 
   int _indicatorLegendIndex(ChartViewport viewport) {
+    // 空窗口无可选值，图例条目自身会跳过越界索引；避免 clamp(0, -1) 抛错。
+    if (_data.data.isEmpty) return 0;
     final selected = _selectedIndex;
     if (selected != null && selected < _data.data.length) {
       return selected;
@@ -1224,7 +1413,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
         entries.add(
           _IndicatorLegendEntry(
             label:
-                'SUPERTREND(${_formatIndicatorParameter(period)},${_formatIndicatorParameter(multiplier)})',
+                'SUPERTREND(${formatV2IndicatorParameter(period)},${formatV2IndicatorParameter(multiplier)})',
             value: value,
             color: _indicatorLegendColor(
               snapshot,
@@ -1354,52 +1543,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
   }) {
     // 将配置置于图表页外，避免过长表单压缩可用图表区域；宿主可将每个面板替换为路由、
     // 桌面侧栏或自己的设置框架。
-    showModalBottomSheet<void>(
+    showV2DemoSettingsSheet(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: const Color(0xfff8fafc),
-      builder: (context) => SafeArea(
-        child: FractionallySizedBox(
-          heightFactor: 0.9,
-          child: StatefulBuilder(
-            builder: (context, setSheetState) => Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 12, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            color: Color(0xff0f172a),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: '关闭',
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: ListView(
-                    key: const ValueKey('settings-sheet-scroll'),
-                    padding: const EdgeInsets.all(16),
-                    children: childrenBuilder(setSheetState),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      title: title,
+      childrenBuilder: childrenBuilder,
     );
   }
 
@@ -1531,9 +1678,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
           ),
           const SizedBox(height: 8),
           for (final option in _indicators) ...[
-            _IndicatorParameterEditor(
+            V2IndicatorParameterEditor(
               key: ValueKey('indicator-parameters-${option.id}'),
-              option: option,
+              indicatorId: option.id,
+              label: option.label,
               values: _parametersFor(option),
               summary: _parameterSummaryFor(option),
               onSubmitted: (key, value) {
@@ -1592,6 +1740,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             onChanged: (value) {
               setState(() {
                 _overlaySecondaryIndicators = value;
+                _reconcileSelection();
                 _advanceRevision();
               });
               setSheetState(() {});
@@ -1765,6 +1914,64 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                   setSheetState(() {});
                 },
               ),
+              FilterChip(
+                key: const ValueKey('main-value-compact-zeros'),
+                label: const Text('主图极小值缩写（0.0₆1）'),
+                selected: _theme.mainValueUseCompactLeadingZeros,
+                onSelected: (enabled) {
+                  setState(() {
+                    _theme = _theme.copyWith(
+                      mainValueUseCompactLeadingZeros: enabled,
+                    );
+                    _advanceRevision();
+                  });
+                  setSheetState(() {});
+                },
+              ),
+              if (_theme.mainValueUseCompactLeadingZeros) ...[
+                DropdownButton<int>(
+                  key: const ValueKey('main-value-compact-threshold'),
+                  value: _theme.mainValueCompactZeroThreshold,
+                  items: List.generate(
+                    20,
+                    (index) => DropdownMenuItem(
+                      value: index + 1,
+                      child: Text('连续 ${index + 1} 个零后缩写'),
+                    ),
+                  ),
+                  onChanged: (count) {
+                    if (count == null) return;
+                    setState(() {
+                      _theme = _theme.copyWith(
+                        mainValueCompactZeroThreshold: count,
+                      );
+                      _advanceRevision();
+                    });
+                    setSheetState(() {});
+                  },
+                ),
+                DropdownButton<int>(
+                  key: const ValueKey('main-value-compact-digits'),
+                  value: _theme.mainValueCompactSignificantDigits,
+                  items: List.generate(
+                    12,
+                    (index) => DropdownMenuItem(
+                      value: index + 1,
+                      child: Text('最多 ${index + 1} 位有效数字'),
+                    ),
+                  ),
+                  onChanged: (digits) {
+                    if (digits == null) return;
+                    setState(() {
+                      _theme = _theme.copyWith(
+                        mainValueCompactSignificantDigits: digits,
+                      );
+                      _advanceRevision();
+                    });
+                    setSheetState(() {});
+                  },
+                ),
+              ],
               DropdownButton<int>(
                 key: const ValueKey('secondary-value-decimals'),
                 value: _theme.secondaryValueDecimalPlaces,
@@ -1907,6 +2114,12 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               foregroundColor: Colors.white,
               actions: [
                 IconButton(
+                  key: const ValueKey('open-sdk-candidate'),
+                  tooltip: '新组件验收',
+                  onPressed: _openCandidateDemo,
+                  icon: const Icon(Icons.insights),
+                ),
+                IconButton(
                   key: const ValueKey('open-fullscreen-demo'),
                   tooltip: '横屏全屏图表',
                   onPressed: _openFullscreenDemo,
@@ -1945,9 +2158,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                   fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
-            _MarketSummary(
+            V2MarketSummary(
               key: const ValueKey('market-summary'),
               instrumentId: _instrumentId,
+              sourceLabel: _marketData.displayName,
               ticker: _ticker,
               candles: _data.data,
               priceFormatter: _theme.formatMainValue,
@@ -1955,9 +2169,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
             const SizedBox(height: 8),
             Text(
               _isLoading
-                  ? '正在加载 Binance 行情…'
+                  ? '正在加载 ${_marketData.displayName} 行情…'
                   : _loadError == null
-                      ? 'Binance 公共行情 · ${_data.data.length} 根 K 线'
+                      ? '${_marketData.displayName} 公共行情 · ${_data.data.length} 根 K 线'
                       : '已使用离线数据 · $_loadError',
               style: const TextStyle(color: Color(0xff475569)),
             ),
@@ -2156,9 +2370,10 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     style: TextStyle(color: Color(0xff475569), fontSize: 12),
                   ),
                   for (final option in _indicators)
-                    _IndicatorParameterEditor(
+                    V2IndicatorParameterEditor(
                       key: ValueKey('indicator-parameters-${option.id}'),
-                      option: option,
+                      indicatorId: option.id,
+                      label: option.label,
                       values: _parametersFor(option),
                       summary: _parameterSummaryFor(option),
                       onSubmitted: (key, value) =>
@@ -2397,7 +2612,7 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               ),
               const SizedBox(height: 12),
               _ToolbarSection(
-                title: '模拟实时数据（可与 Binance 实时轮询对照）',
+                title: '模拟实时数据（可与 ${_marketData.displayName} 实时轮询对照）',
                 children: [
                   OutlinedButton.icon(
                     key: const ValueKey('simulate-update-latest'),
@@ -2536,10 +2751,11 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
                     currentTime: _currentTime,
                   );
                   final selectedIndex = _selectedIndex;
-                  final selectedCandle =
-                      selectedIndex != null && selectedIndex < _data.data.length
-                          ? _data.data[selectedIndex]
-                          : null;
+                  final selectedCandle = snapshot.selection.isVisible &&
+                          selectedIndex != null &&
+                          selectedIndex < _data.data.length
+                      ? _data.data[selectedIndex]
+                      : null;
                   final previousSelectedCandle = selectedIndex != null &&
                           selectedIndex > 0 &&
                           selectedIndex - 1 < _data.data.length
@@ -2781,9 +2997,9 @@ class _V2TradingChartDemoState extends State<V2TradingChartDemo> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Binance 公共行情接口无需认证；每 2 秒替换或追加最新 K 线，网络不可用时继续展示本地确定性数据。',
-              style: TextStyle(color: Color(0xff475569)),
+            Text(
+              '${_marketData.displayName} 行情源每 2 秒同步最新 K 线；网络不可用时继续展示本地确定性数据。',
+              style: const TextStyle(color: Color(0xff475569)),
             ),
           ],
         ),
@@ -2809,275 +3025,6 @@ class _ToolbarSection extends StatelessWidget {
           Wrap(spacing: 8, runSpacing: 8, children: children),
         ],
       );
-}
-
-/// 完全由 [_IndicatorOption.parameters] 驱动的通用数值编辑器。
-///
-/// 在指标目录中添加参数默认值，而不是为每种算法创建特例组件；回调负责校验和重新计算。
-class _IndicatorParameterEditor extends StatelessWidget {
-  const _IndicatorParameterEditor({
-    super.key,
-    required this.option,
-    required this.values,
-    required this.summary,
-    required this.onSubmitted,
-    required this.onReset,
-  });
-
-  final _IndicatorOption option;
-  final Map<String, num> values;
-  final String summary;
-  final void Function(String key, String value) onSubmitted;
-  final VoidCallback onReset;
-
-  @override
-  Widget build(BuildContext context) => Card(
-        key: ValueKey('indicator-parameters-toggle-${option.id}'),
-        margin: EdgeInsets.zero,
-        elevation: 0,
-        color: const Color(0xfff8fafc),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: Color(0xffe2e8f0)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                option.label,
-                style: const TextStyle(
-                  color: Color(0xff0f172a),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                summary,
-                style: const TextStyle(color: Color(0xff64748b), fontSize: 11),
-              ),
-              const SizedBox(height: 8),
-              if (values.isEmpty)
-                const Text(
-                  '该指标按全部可见 K 线计算，没有周期或常数可设置。',
-                  style: TextStyle(color: Color(0xff64748b), fontSize: 12),
-                )
-              else ...[
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final entry in values.entries)
-                      SizedBox(
-                        width: 102,
-                        child: TextFormField(
-                          key: ValueKey(
-                            'indicator-param-${option.id}-${entry.key}',
-                          ),
-                          initialValue: _formatIndicatorParameter(
-                            entry.value,
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (value) =>
-                              onSubmitted(entry.key, value),
-                          decoration: InputDecoration(
-                            isDense: true,
-                            labelText: _indicatorParameterLabel(entry.key),
-                            border: const OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    key: ValueKey('indicator-param-reset-${option.id}'),
-                    onPressed: onReset,
-                    icon: const Icon(Icons.restart_alt, size: 16),
-                    label: const Text('恢复默认'),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
-}
-
-/// 为交易图表示例提供紧凑、优先使用真实数据的 24 小时行情摘要。
-///
-/// 优先使用币安行情数据；公开行情接口暂不可用时，从可见 K 线窗口推导相同字段，以便 Demo
-/// 在离线状态下仍然可用。
-class _MarketSummary extends StatelessWidget {
-  const _MarketSummary({
-    super.key,
-    required this.instrumentId,
-    required this.ticker,
-    required this.candles,
-    required this.priceFormatter,
-  });
-
-  final String instrumentId;
-  final BinanceTicker? ticker;
-  final List<Kline> candles;
-  final String Function(double value) priceFormatter;
-
-  @override
-  Widget build(BuildContext context) {
-    if (candles.isEmpty) return const SizedBox.shrink();
-    final fallbackHigh = candles.fold<double>(
-      candles.first.high,
-      (value, candle) => math.max(value, candle.high),
-    );
-    final fallbackLow = candles.fold<double>(
-      candles.first.low,
-      (value, candle) => math.min(value, candle.low),
-    );
-    final fallbackBaseVolume = candles.fold<double>(
-      0,
-      (value, candle) => value + candle.baseVolume,
-    );
-    final fallbackQuoteVolume = candles.fold<double>(
-      0,
-      (value, candle) => value + candle.quoteVolume,
-    );
-    final source = ticker;
-    final latest = source?.last ?? candles.last.close;
-    final opening = source?.open24h ?? candles.first.open;
-    final high = source?.high24h ?? fallbackHigh;
-    final low = source?.low24h ?? fallbackLow;
-    final baseVolume = source?.baseVolume24h ?? fallbackBaseVolume;
-    final quoteVolume = source?.quoteVolume24h ?? fallbackQuoteVolume;
-    final change = latest - opening;
-    final changePercent = opening == 0 ? 0 : change / opening * 100;
-    final positive = change >= 0;
-    final changeColor =
-        positive ? const Color(0xff059669) : const Color(0xffdc2626);
-    final quote = _binanceQuoteAsset(instrumentId);
-
-    return Semantics(
-      label: '24 小时行情摘要',
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xffe2e8f0)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  priceFormatter(latest),
-                  key: const ValueKey('market-summary-last-price'),
-                  style: TextStyle(
-                    color: changeColor,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${positive ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
-                  style: TextStyle(
-                    color: changeColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  source == null ? 'K 线估算' : 'Binance 24h',
-                  style:
-                      const TextStyle(color: Color(0xff64748b), fontSize: 11),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 18,
-              runSpacing: 6,
-              children: [
-                _MarketSummaryMetric('24h 涨跌',
-                    '${positive ? '+' : ''}${priceFormatter(change)}'),
-                _MarketSummaryMetric('24h 最高', priceFormatter(high)),
-                _MarketSummaryMetric('24h 最低', priceFormatter(low)),
-                _MarketSummaryMetric('成交量', _compactMarketValue(baseVolume)),
-                _MarketSummaryMetric(
-                    '成交额', '${_compactMarketValue(quoteVolume)} $quote'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MarketSummaryMetric extends StatelessWidget {
-  const _MarketSummaryMetric(this.label, this.value);
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => RichText(
-        text: TextSpan(
-          style: const TextStyle(fontSize: 12, color: Color(0xff64748b)),
-          children: [
-            TextSpan(text: '$label '),
-            TextSpan(
-              text: value,
-              style: const TextStyle(
-                color: Color(0xff0f172a),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      );
-}
-
-String _compactMarketValue(double value) {
-  final absolute = value.abs();
-  if (absolute >= 1000000000) {
-    return '${(value / 1000000000).toStringAsFixed(2)}B';
-  }
-  if (absolute >= 1000000) {
-    return '${(value / 1000000).toStringAsFixed(2)}M';
-  }
-  if (absolute >= 1000) {
-    return '${(value / 1000).toStringAsFixed(2)}K';
-  }
-  return value.toStringAsFixed(2);
-}
-
-String _binanceQuoteAsset(String symbol) {
-  const knownQuotes = [
-    'USDT',
-    'USDC',
-    'FDUSD',
-    'BUSD',
-    'BTC',
-    'ETH',
-    'BNB',
-    'EUR',
-    'TRY',
-  ];
-  return knownQuotes.firstWhere(
-    symbol.endsWith,
-    orElse: () => symbol.length > 3 ? symbol.substring(symbol.length - 3) : '',
-  );
 }
 
 class _SliderSetting extends StatelessWidget {
@@ -3503,33 +3450,6 @@ String _formatUtcOffset(int totalMinutes) {
       '${minutes.toString().padLeft(2, '0')}';
 }
 
-/// 保持整数周期简洁，同时保留小数倍数。
-String _formatIndicatorParameter(num value) =>
-    value.toDouble() == value.toDouble().roundToDouble()
-        ? value.toInt().toString()
-        : value.toString();
-
-String _indicatorParameterLabel(String key) => switch (key) {
-      'period1' => '周期 1',
-      'period2' => '周期 2',
-      'period3' => '周期 3',
-      'period' => '周期',
-      'fastPeriod' => '快速周期',
-      'slowPeriod' => '慢速周期',
-      'signalPeriod' => '信号周期',
-      'kPeriod' || 'kSmoothing' => 'K 平滑',
-      'dPeriod' || 'dSmoothing' => 'D 平滑',
-      'rsiPeriod' => 'RSI 周期',
-      'stochPeriod' => '随机周期',
-      'adxPeriod' => 'ADX 周期',
-      'multiplier' => '倍数',
-      'constant' => '常数',
-      'afStart' => '起始加速',
-      'afIncrement' => '加速步长',
-      'afMax' => '最大加速',
-      _ => key,
-    };
-
 /// 围绕渲染器无关的 V2 绘制管线的轻量 Flutter 适配器。
 ///
 /// 宿主应保持声明式绘制：从状态构建新的 [RenderSnapshot]，让管线自行判断可缓存和重绘的内容。
@@ -3542,34 +3462,6 @@ class _DemoPainter extends CustomPainter {
       pipeline.paint(RenderLayerContext(canvas: canvas, snapshot: snapshot));
   @override
   bool shouldRepaint(covariant _DemoPainter oldDelegate) => true;
-}
-
-/// 生成确定性的离线种子 K 线，而非行情模拟；应用中可替换为缓存快照或空状态策略。
-_DemoData _createData(KlineInterval interval, int revision) {
-  final step = interval.duration!.inMilliseconds;
-  final seed =
-      interval.code.codeUnits.fold<int>(0, (sum, value) => sum + value);
-  final values = List<Kline>.generate(180, (index) {
-    final trend = index * (0.36 + seed % 5 * .02);
-    final wave = ((index + seed) % 19 - 9) * .48;
-    final open = 1000 + trend + wave;
-    final close = open + ((index + seed) % 7 - 3) * .32;
-    final openTime = 1704067200000 + index * step;
-    return Kline(
-        symbol: 'BTCUSDT',
-        interval: interval,
-        openTime: openTime,
-        closeTime: openTime + step - 1,
-        open: open,
-        high: math.max(open, close) + 1.25 + index % 4 * .1,
-        low: math.min(open, close) - 1.15 - index % 3 * .1,
-        close: close,
-        baseVolume: 800 + index % 17 * 53,
-        quoteVolume: 1000,
-        tradeCount: 20 + index % 30,
-        isClosed: index != 179);
-  });
-  return _DemoData(UnmodifiableListView(values), KlineDataVersion(revision));
 }
 
 String _modeLabel(ChartMainMode mode) => switch (mode) {
@@ -3600,15 +3492,4 @@ final class _IndicatorOption {
   /// 无参数定义展示的默认值；含数值常量的定义则用其初始化可编辑参数状态。
   final String parameterSummary;
   final Map<String, num> parameters;
-}
-
-/// Demo 及其离线种子数据使用的最小不可变适配器。
-///
-/// 生产应用可改为传入 [KlineStore] 快照或其他不可变 [VersionedKlineData] 实现。
-final class _DemoData implements VersionedKlineData {
-  const _DemoData(this.data, this.version);
-  @override
-  final List<Kline> data;
-  @override
-  final KlineDataVersion version;
 }

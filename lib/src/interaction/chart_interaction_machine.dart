@@ -38,7 +38,9 @@ final class ChartInteractionMachine {
     final current = _currentViewport!;
     final next = current.scrollByItems(deltaLocalX / current.itemExtent);
     _currentViewport = next;
-    return next == current ? null : ChartViewportIntent(next);
+    return next == current
+        ? null
+        : ChartViewportIntent(next, source: ChartViewportChangeSource.pan);
   }
 
   bool endPan() => _finish(ChartInteractionMode.panning);
@@ -65,6 +67,7 @@ final class ChartInteractionMachine {
   ChartViewportIntent? updateScale({
     required double scale,
     required double focalLocalX,
+    ChartViewportChangeSource source = ChartViewportChangeSource.scale,
   }) {
     _requireFinite(scale, 'scale');
     _requireFinite(focalLocalX, 'focalLocalX');
@@ -89,7 +92,7 @@ final class ChartInteractionMachine {
     final next = extentAdjusted.copyWith(scrollOffsetItems: desiredScroll);
     final current = _currentViewport!;
     _currentViewport = next;
-    return next == current ? null : ChartViewportIntent(next);
+    return next == current ? null : ChartViewportIntent(next, source: source);
   }
 
   bool endScale() => _finish(ChartInteractionMode.scaling);

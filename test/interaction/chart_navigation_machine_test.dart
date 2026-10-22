@@ -24,6 +24,8 @@ void main() {
           machine.advanceInertia(const Duration(milliseconds: 1000));
 
       expect(first!.viewport.scrollOffsetItems, closeTo(24.5, 1e-12));
+      expect(first.source, ChartViewportChangeSource.inertia);
+      expect(first.isHorizontalNavigation, isTrue);
       expect(finalIntent!.viewport.scrollOffsetItems, closeTo(32.5, 1e-12));
       expect(machine.isInertiaActive, isFalse);
       expect(machine.advanceInertia(const Duration(milliseconds: 16)), isNull);

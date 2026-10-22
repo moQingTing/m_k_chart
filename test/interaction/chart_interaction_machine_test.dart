@@ -12,6 +12,8 @@ void main() {
       final moved = machine.updatePan(16);
 
       expect(machine.mode, ChartInteractionMode.panning);
+      expect(moved?.source, ChartViewportChangeSource.pan);
+      expect(moved?.isHorizontalNavigation, isTrue);
       expect(moved?.viewport.scrollOffsetItems, 22);
       expect(machine.updatePan(-1000)?.viewport.scrollOffsetItems, 0);
       expect(machine.endPan(), isTrue);
@@ -41,6 +43,37 @@ void main() {
   });
 
   group('ChartInteractionMachine focus scale', () {
+    test('clamped zoom with focal movement is still scaling, not panning', () {
+      final viewport = _viewport(scrollOffsetItems: 20);
+      final machine = ChartInteractionMachine();
+      machine.beginScale(viewport: viewport, focalLocalX: 40);
+      final first = machine.updateScale(scale: 100, focalLocalX: 40)!;
+      final moved = machine.updateScale(scale: 100, focalLocalX: 60)!;
+      expect(moved.viewport.itemExtent, first.viewport.itemExtent);
+      expect(
+        moved.viewport.scrollOffsetItems,
+        isNot(first.viewport.scrollOffsetItems),
+      );
+      expect(moved.isHorizontalNavigation, isFalse);
+      expect(moved.source, ChartViewportChangeSource.scale);
+    });
+
+    test('viewport intent equality includes the navigation source', () {
+      final viewport = _viewport();
+      final pan =
+          ChartViewportIntent(viewport, source: ChartViewportChangeSource.pan);
+      final same =
+          ChartViewportIntent(viewport, source: ChartViewportChangeSource.pan);
+      final scale = ChartViewportIntent(
+        viewport,
+        source: ChartViewportChangeSource.scale,
+      );
+      expect(pan, same);
+      expect(pan.hashCode, same.hashCode);
+      expect(pan, isNot(scale));
+      expect(ChartViewportIntent(viewport).isHorizontalNavigation, isFalse);
+    });
+
     test('keeps the focal data position stable while zooming', () {
       final machine = ChartInteractionMachine();
       final viewport = _viewport(scrollOffsetItems: 20);
@@ -54,6 +87,8 @@ void main() {
       );
       final zoomed = machine.updateScale(scale: 2, focalLocalX: focalX)!;
       final next = zoomed.viewport;
+      expect(zoomed.source, ChartViewportChangeSource.scale);
+      expect(zoomed.isHorizontalNavigation, isFalse);
 
       expect(next.itemExtent, 16);
       expect(next.scrollOffsetItems, 25);

@@ -345,9 +345,42 @@ String formatChartValue(
   double value, {
   required int decimalPlaces,
   required bool useThousandsSeparator,
+  bool compactLeadingZeros = false,
+  int compactZeroThreshold = 3,
+  int compactSignificantDigits = 3,
 }) {
   if (!value.isFinite) {
     return value.toString();
+  }
+  // 下标数字记录小数点后连续零的总数：0.0₆1 等价于 0.0000001。
+  // 先按有效数字四舍五入，再计算数量，避免进位时显示错误的零数。
+  if (compactLeadingZeros && value != 0 && value.abs() < 1) {
+    final absolute = value.abs();
+    final rawScientific = absolute.toStringAsExponential();
+    final rawExponent = int.parse(
+      rawScientific.substring(rawScientific.indexOf('e') + 1),
+    );
+    if (-rawExponent - 1 >= compactZeroThreshold) {
+      final scientific = absolute.toStringAsExponential(
+        compactSignificantDigits - 1,
+      );
+      final exponentIndex = scientific.indexOf('e');
+      final exponent = int.parse(scientific.substring(exponentIndex + 1));
+      final zeroCount = -exponent - 1;
+      final significant = scientific
+          .substring(0, exponentIndex)
+          .replaceAll('.', '')
+          .replaceFirst(RegExp(r'0+$'), '');
+      const subscripts = '₀₁₂₃₄₅₆₇₈₉';
+      final count = zeroCount
+          .toString()
+          .split('')
+          .map(
+            (digit) => subscripts[int.parse(digit)],
+          )
+          .join();
+      return '${value.isNegative ? '-' : ''}0.0$count$significant';
+    }
   }
   final fixed = value.toStringAsFixed(decimalPlaces);
   if (!useThousandsSeparator || fixed.contains('e') || fixed.contains('E')) {

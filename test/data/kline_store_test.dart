@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/src/data/data.dart';
 import 'package:m_k_chart/src/model/model.dart';
@@ -64,6 +66,64 @@ void main() {
       expect(before.length, 2);
       expect(before.lastOrNull?.openTime, _time(1));
       expect(store.snapshot.length, 3);
+    });
+
+    test('verified snapshot can stage a transaction without changing source',
+        () {
+      final source = KlineStore()..replace([_kline(0), _kline(1)]);
+      final before = source.snapshot;
+      final staged = KlineStore.stagedFromVerifiedSnapshot(before);
+
+      expect(staged.snapshot.data, orderedEquals(before.data));
+      expect(staged.snapshot.version, before.version);
+      expect(() => staged.append([_kline(1)]), throwsArgumentError);
+      expect(staged.snapshot.version, before.version);
+      final next = staged.append([_kline(2)]);
+
+      expect(next.version, before.version.next());
+      expect(next.length, 3);
+      expect(before.length, 2);
+      expect(source.snapshot, same(before));
+    });
+
+    test('staging rejects data without Store provenance', () {
+      final external = _ExternalData([_kline(0)]);
+      expect(
+        () => KlineStore.stagedFromVerifiedSnapshot(external),
+        throwsArgumentError,
+      );
+
+      // 只读包装不代表底层数据不会被改写，更不能证明时间顺序已校验。
+      final mutable = [_kline(0), _kline(1)];
+      final disguised = _ExternalData(UnmodifiableListView(mutable));
+      expect(
+        () => KlineStore.stagedFromVerifiedSnapshot(disguised),
+        throwsArgumentError,
+      );
+    });
+
+    test('version wrapper reuses only a verified immutable Store snapshot', () {
+      final source = KlineStore()..replace([_kline(0), _kline(1)]);
+      final before = source.snapshot;
+      final next = KlineSnapshot.withVersion(before, KlineDataVersion(9));
+
+      expect(next.version, KlineDataVersion(9));
+      expect(next.data, same(before.data));
+      expect(() => next.data[0] = _kline(2), throwsUnsupportedError);
+      expect(before.version, KlineDataVersion(1));
+    });
+
+    test('verified snapshot finds exact open times by binary search', () {
+      final snapshot =
+          (KlineStore()..replace(List.generate(101, _kline))).snapshot;
+
+      expect(snapshot.indexOfOpenTime(_time(0)), 0);
+      expect(snapshot.indexOfOpenTime(_time(50)), 50);
+      expect(snapshot.indexOfOpenTime(_time(100)), 100);
+      expect(snapshot.indexOfOpenTime(_time(0) - 1), -1);
+      expect(snapshot.indexOfOpenTime(_time(50) + 1), -1);
+      expect(snapshot.indexOfOpenTime(_time(100) + 1), -1);
+      expect(KlineStore().snapshot.indexOfOpenTime(_time(0)), -1);
     });
 
     test('update uses binary-search identity and skips equal values', () {
@@ -139,6 +199,16 @@ void main() {
       expect(prependStore.snapshot.length, 2);
     });
   });
+}
+
+final class _ExternalData implements VersionedKlineData {
+  const _ExternalData(this.data);
+
+  @override
+  final List<Kline> data;
+
+  @override
+  KlineDataVersion get version => KlineDataVersion.zero;
 }
 
 const _baseTime = 1724457600000;

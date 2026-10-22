@@ -67,6 +67,7 @@ final class ChartGridLayer<TTheme extends ChartRenderStyle>
     final picture = cache.picture(
       (
         'grid',
+        ChartRenderCache.dataIdentityKey(snapshot),
         snapshot.data.version,
         snapshot.versions.data,
         snapshot.versions.viewport,
@@ -265,7 +266,11 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
         );
       }
     }
-    if (snapshot.data.data.isEmpty || layout.timeAxisBounds.height <= 0) {
+    final timeBounds = snapshot.showIntermediateTimeAxis &&
+            layout.mainTimeAxisBounds.height > 0
+        ? layout.mainTimeAxisBounds
+        : layout.timeAxisBounds;
+    if (snapshot.data.data.isEmpty || timeBounds.height <= 0) {
       return;
     }
     final xTransform = cache.windowFor(snapshot).xTransform;
@@ -278,7 +283,7 @@ final class ChartAxisLayer<TTheme extends ChartRenderStyle>
         color: theme.axisTextColor,
         fontSize: theme.axisFontSize,
         x: x,
-        y: layout.timeAxisBounds.top + 2,
+        y: timeBounds.top + 2,
         horizontalAnchor: x <= layout.drawingBounds.left
             ? 0
             : x >= layout.drawingBounds.right
@@ -735,6 +740,7 @@ final class ChartDrawingLayer<TTheme extends ChartRenderStyle>
           .panelRangeFor(context.snapshot, panel.spec.id)
           .transform(panel.bounds);
       for (final drawing in context.snapshot.anchoredDrawings) {
+        if (!drawing.style.visible) continue;
         ChartDrawingRenderer.paintAnchored(
           canvas: canvas,
           drawing: drawing,
@@ -1015,6 +1021,7 @@ void _drawMainPriceSeries<TTheme extends ChartRenderStyle>({
 }) {
   final commonKey = (
     'main-price',
+    ChartRenderCache.dataIdentityKey(snapshot),
     snapshot.data.version,
     snapshot.versions.data,
     snapshot.versions.viewport,
@@ -1170,6 +1177,7 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
             descriptor.lineStyle,
             descriptor.areaBaseline,
             descriptor.areaFillOpacity,
+            ChartRenderCache.dataIdentityKey(snapshot),
             snapshot.data.version,
             snapshot.versions.data,
             snapshot.versions.viewport,
@@ -1209,6 +1217,7 @@ void _drawIndicators<TTheme extends ChartRenderStyle>({
             (
               indicator.instanceId,
               descriptor.id,
+              ChartRenderCache.dataIdentityKey(snapshot),
               snapshot.data.version,
               snapshot.versions.data,
               snapshot.versions.viewport,

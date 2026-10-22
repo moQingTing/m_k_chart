@@ -32,4 +32,23 @@ void main() {
     expect(readme, contains('docs/P9_PUBLIC_API_DIFF.md'));
     expect(main, contains('home: const V2TradingChartDemo()'));
   });
+
+  test('host gate includes each maintained V2 integration target', () {
+    final gate = read('tool/run_p9_host_gate.sh');
+    for (final target in [
+      'integration_test/v2_chart_flow_test.dart',
+      'integration_test/v2_minimal_chart_flow_test.dart',
+      'integration_test/v2_sdk_acceptance_flow_test.dart',
+    ]) {
+      expect(gate, contains(target));
+    }
+  });
+
+  test('public API gate compiles the host probe and checks the facade contract', () {
+    final gate = read('tool/check_p9_public_api.sh');
+    expect(gate, contains('test/architecture/public_api_surface_test.dart'));
+    expect(gate, contains('test/architecture/sdk_candidate_surface_test.dart'));
+    expect(gate, contains('test/architecture/sdk_facade_contract_test.dart'));
+    expect(gate, contains('test/architecture/p9_release_documentation_test.dart'));
+  });
 }

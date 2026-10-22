@@ -1,23 +1,2 @@
-enum ChartMainMode {
-  candlestick,
-  hollowCandlestick,
-  ohlc,
-  heikinAshi,
-  line,
-  area,
-}
-
-extension ChartMainModeSemantics on ChartMainMode {
-  bool get isCandleMode => switch (this) {
-        ChartMainMode.candlestick ||
-        ChartMainMode.hollowCandlestick ||
-        ChartMainMode.ohlc ||
-        ChartMainMode.heikinAshi =>
-          true,
-        ChartMainMode.line || ChartMainMode.area => false,
-      };
-
-  bool get usesHeikinAshi => this == ChartMainMode.heikinAshi;
-
-  bool get showsMainIndicators => isCandleMode;
-}
+// 保留既有内部 import 路径和同一类型身份，不为控制器复制另一套模式枚举。
+export '../model/chart_main_mode.dart';

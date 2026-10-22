@@ -4,6 +4,7 @@ import '../model/model.dart';
 import 'indicator_change.dart';
 import 'indicator_config.dart';
 import 'indicator_definition.dart';
+import 'indicator_parameter_spec.dart';
 import 'indicator_registry.dart';
 import 'indicator_renderer_descriptor.dart';
 import 'indicator_series.dart';
@@ -28,9 +29,25 @@ void registerLegacyIndicatorDefinitions(IndicatorRegistry registry) {
 
 /// 简单移动平均线（MA）。每条输出序列对应一个可配置周期。
 final class MovingAverageIndicatorDefinition
-    implements IncrementalIndicatorDefinition {
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'legacy.ma';
   static const _defaultPeriods = [5, 10, 20, 30];
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period1', '周期 1', 5),
+    IndicatorParameterSpec.integer('period2', '周期 2', 10),
+    IndicatorParameterSpec.integer('period3', '周期 3', 20),
+    IndicatorParameterSpec.integer(
+      'period4',
+      '周期 4',
+      30,
+      visibleInSettings: false,
+    ),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -44,6 +61,15 @@ final class MovingAverageIndicatorDefinition
           ('ma20', 'MA20'),
           ('ma30', 'MA30'),
         ],
+        legend: IndicatorLegendDescriptor(
+          labelTemplates: const {
+            'ma5': 'MA({period1})',
+            'ma10': 'MA({period2})',
+            'ma20': 'MA({period3})',
+            'ma30': 'MA({period4})',
+          },
+        ),
+        hiddenSeriesIds: const {'ma30'},
       );
 
   @override
@@ -51,7 +77,7 @@ final class MovingAverageIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final periods = _configuredPeriods(config, _defaultPeriods);
+    final periods = _configuredPeriods(config, _parameters);
     final output = <IndicatorSeries>[];
     for (var index = 0; index < periods.length; index++) {
       final period = periods[index];
@@ -79,7 +105,7 @@ final class MovingAverageIndicatorDefinition
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final periods = _configuredPeriods(config, _defaultPeriods);
+    final periods = _configuredPeriods(config, _parameters);
     final output = <IndicatorSeries>[];
     for (var outputIndex = 0; outputIndex < periods.length; outputIndex++) {
       final period = periods[outputIndex];
@@ -103,9 +129,19 @@ final class MovingAverageIndicatorDefinition
 
 /// 指数移动平均线（EMA）。最近价格权重更高，使用上一根结果实现增量续算。
 final class ExponentialMovingAverageIndicatorDefinition
-    implements IncrementalIndicatorDefinition {
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'legacy.ema';
   static const _defaultPeriods = [5, 10, 30];
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period1', '周期 1', 5),
+    IndicatorParameterSpec.integer('period2', '周期 2', 10),
+    IndicatorParameterSpec.integer('period3', '周期 3', 30),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -114,6 +150,13 @@ final class ExponentialMovingAverageIndicatorDefinition
   IndicatorRendererDescriptor get rendererDescriptor => _lines(
         IndicatorPlacement.mainChart,
         const [('ema5', 'EMA5'), ('ema10', 'EMA10'), ('ema30', 'EMA30')],
+        legend: IndicatorLegendDescriptor(
+          labelTemplates: const {
+            'ema5': 'EMA({period1})',
+            'ema10': 'EMA({period2})',
+            'ema30': 'EMA({period3})',
+          },
+        ),
       );
 
   @override
@@ -121,7 +164,7 @@ final class ExponentialMovingAverageIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final periods = _configuredPeriods(config, _defaultPeriods);
+    final periods = _configuredPeriods(config, _parameters);
     final output = <IndicatorSeries>[];
     for (var outputIndex = 0; outputIndex < periods.length; outputIndex++) {
       final period = periods[outputIndex];
@@ -154,7 +197,7 @@ final class ExponentialMovingAverageIndicatorDefinition
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final periods = _configuredPeriods(config, _defaultPeriods);
+    final periods = _configuredPeriods(config, _parameters);
     final output = <IndicatorSeries>[];
     for (var outputIndex = 0; outputIndex < periods.length; outputIndex++) {
       final period = periods[outputIndex];
@@ -178,8 +221,17 @@ final class ExponentialMovingAverageIndicatorDefinition
 
 /// 布林带（BOLL），输出中轨、上轨和下轨；上/下轨基于滚动标准差。
 final class BollingerBandsIndicatorDefinition
-    implements IncrementalIndicatorDefinition {
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'legacy.boll';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period', '周期', 20),
+    IndicatorParameterSpec.number('multiplier', '倍数', 2),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -195,8 +247,8 @@ final class BollingerBandsIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final period = _positiveInt(config, 'period', 20);
-    final multiplier = _positiveDouble(config, 'multiplier', 2);
+    final period = _parameters[0].readInt(config);
+    final multiplier = _parameters[1].readDouble(config);
     final closes = input.data.map((item) => item.close).toList(growable: false);
     final middle = _simpleMovingAverage(closes, period);
     final up = List<double?>.filled(closes.length, null);
@@ -230,8 +282,8 @@ final class BollingerBandsIndicatorDefinition
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final period = _positiveInt(config, 'period', 20);
-    final multiplier = _positiveDouble(config, 'multiplier', 2);
+    final period = _parameters[0].readInt(config);
+    final multiplier = _parameters[1].readDouble(config);
     final up = _resize(previous.seriesById('up')!.values, input.data.length);
     final middle =
         _resize(previous.seriesById('mb')!.values, input.data.length);
@@ -268,8 +320,28 @@ final class BollingerBandsIndicatorDefinition
 
 /// 抛物线转向指标（SAR）。内部状态保存趋势方向、极值点和加速因子，适合尾部增量计算。
 final class ParabolicSarIndicatorDefinition
-    implements IncrementalIndicatorDefinition {
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'legacy.sar';
+  static const _parameters = [
+    IndicatorParameterSpec.number(
+      'afStart',
+      '初始加速',
+      0.02,
+      notGreaterThanKey: 'afMax',
+    ),
+    IndicatorParameterSpec.number(
+      'afIncrement',
+      '加速步长',
+      0.02,
+      notGreaterThanKey: 'afMax',
+    ),
+    IndicatorParameterSpec.number('afMax', '加速上限', 0.2),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -293,12 +365,10 @@ final class ParabolicSarIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final afStart = _positiveDouble(config, 'afStart', 0.02);
-    final afIncrement = _positiveDouble(config, 'afIncrement', 0.02);
-    final afMax = _positiveDouble(config, 'afMax', 0.2);
-    if (afStart > afMax || afIncrement > afMax) {
-      throw ArgumentError('SAR acceleration values must not exceed afMax.');
-    }
+    IndicatorParameterSpec.validateSet(_parameters, config);
+    final afStart = _parameters[0].readDouble(config);
+    final afIncrement = _parameters[1].readDouble(config);
+    final afMax = _parameters[2].readDouble(config);
     final data = input.data;
     final values = List<double?>.filled(data.length, null);
     if (data.length < 2) {
@@ -403,9 +473,10 @@ final class ParabolicSarIndicatorDefinition
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final afStart = _positiveDouble(config, 'afStart', 0.02);
-    final afIncrement = _positiveDouble(config, 'afIncrement', 0.02);
-    final afMax = _positiveDouble(config, 'afMax', 0.2);
+    IndicatorParameterSpec.validateSet(_parameters, config);
+    final afStart = _parameters[0].readDouble(config);
+    final afIncrement = _parameters[1].readDouble(config);
+    final afMax = _parameters[2].readDouble(config);
     final state = previous.computationState!;
     final sarValues =
         _resize(previous.seriesById('sar')!.values, input.data.length);
@@ -493,8 +564,17 @@ final class ParabolicSarIndicatorDefinition
 
 /// 成交量副图，输出涨跌着色柱和可选的成交量均线。
 final class VolumeIndicatorDefinition
-    implements IncrementalIndicatorDefinition {
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'legacy.vol';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('fastPeriod', '快速周期', 5),
+    IndicatorParameterSpec.integer('slowPeriod', '慢速周期', 10),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -504,6 +584,12 @@ final class VolumeIndicatorDefinition
       IndicatorRendererDescriptor(
         placement: IndicatorPlacement.separatePanel,
         includeZeroInRange: true,
+        legend: IndicatorLegendDescriptor(
+          labelTemplates: const {
+            'ma5': 'MA({fastPeriod})',
+            'ma10': 'MA({slowPeriod})',
+          },
+        ),
         series: [
           IndicatorSeriesDescriptor(
             id: 'volume',
@@ -529,8 +615,8 @@ final class VolumeIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final fastPeriod = _positiveInt(config, 'fastPeriod', 5);
-    final slowPeriod = _positiveInt(config, 'slowPeriod', 10);
+    final fastPeriod = _parameters[0].readInt(config);
+    final slowPeriod = _parameters[1].readInt(config);
     final volumes =
         input.data.map((item) => item.baseVolume).toList(growable: false);
     return _result(this, input, config, [
@@ -557,8 +643,8 @@ final class VolumeIndicatorDefinition
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final fastPeriod = _positiveInt(config, 'fastPeriod', 5);
-    final slowPeriod = _positiveInt(config, 'slowPeriod', 10);
+    final fastPeriod = _parameters[0].readInt(config);
+    final slowPeriod = _parameters[1].readInt(config);
     final volume =
         _resize(previous.seriesById('volume')!.values, input.data.length);
     final ma5 = _resize(previous.seriesById('ma5')!.values, input.data.length);
@@ -586,8 +672,19 @@ final class VolumeIndicatorDefinition
 }
 
 /// MACD：快慢 EMA 的 DIF、DIF 的 DEA，以及二者差值形成的柱状图。
-final class MacdIndicatorDefinition implements IncrementalIndicatorDefinition {
+final class MacdIndicatorDefinition
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'legacy.macd';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('fastPeriod', '快速周期', 12),
+    IndicatorParameterSpec.integer('slowPeriod', '慢速周期', 26),
+    IndicatorParameterSpec.integer('signalPeriod', '信号周期', 9),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -623,9 +720,9 @@ final class MacdIndicatorDefinition implements IncrementalIndicatorDefinition {
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final fastPeriod = _positiveInt(config, 'fastPeriod', 12);
-    final slowPeriod = _positiveInt(config, 'slowPeriod', 26);
-    final signalPeriod = _positiveInt(config, 'signalPeriod', 9);
+    final fastPeriod = _parameters[0].readInt(config);
+    final slowPeriod = _parameters[1].readInt(config);
+    final signalPeriod = _parameters[2].readInt(config);
     final macd = List<double?>.filled(input.data.length, null);
     final difValues = List<double?>.filled(input.data.length, null);
     final deaValues = List<double?>.filled(input.data.length, null);
@@ -677,9 +774,9 @@ final class MacdIndicatorDefinition implements IncrementalIndicatorDefinition {
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final fastPeriod = _positiveInt(config, 'fastPeriod', 12);
-    final slowPeriod = _positiveInt(config, 'slowPeriod', 26);
-    final signalPeriod = _positiveInt(config, 'signalPeriod', 9);
+    final fastPeriod = _parameters[0].readInt(config);
+    final slowPeriod = _parameters[1].readInt(config);
+    final signalPeriod = _parameters[2].readInt(config);
     final macd =
         _resize(previous.seriesById('macd')!.values, input.data.length);
     final difValues =
@@ -734,8 +831,19 @@ final class MacdIndicatorDefinition implements IncrementalIndicatorDefinition {
 }
 
 /// 随机指标（KDJ），以滚动高低点归一化 RSV，再平滑得到 K、D、J。
-final class KdjIndicatorDefinition implements IncrementalIndicatorDefinition {
+final class KdjIndicatorDefinition
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'legacy.kdj';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period', '周期', 14),
+    IndicatorParameterSpec.integer('kSmoothing', 'K 平滑', 3),
+    IndicatorParameterSpec.integer('dSmoothing', 'D 平滑', 3),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -751,9 +859,9 @@ final class KdjIndicatorDefinition implements IncrementalIndicatorDefinition {
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final period = _positiveInt(config, 'period', 14);
-    final kSmoothing = _positiveInt(config, 'kSmoothing', 3);
-    final dSmoothing = _positiveInt(config, 'dSmoothing', 3);
+    final period = _parameters[0].readInt(config);
+    final kSmoothing = _parameters[1].readInt(config);
+    final dSmoothing = _parameters[2].readInt(config);
     final kValues = List<double?>.filled(input.data.length, null);
     final dValues = List<double?>.filled(input.data.length, null);
     final jValues = List<double?>.filled(input.data.length, null);
@@ -819,9 +927,9 @@ final class KdjIndicatorDefinition implements IncrementalIndicatorDefinition {
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final period = _positiveInt(config, 'period', 14);
-    final kSmoothing = _positiveInt(config, 'kSmoothing', 3);
-    final dSmoothing = _positiveInt(config, 'dSmoothing', 3);
+    final period = _parameters[0].readInt(config);
+    final kSmoothing = _parameters[1].readInt(config);
+    final dSmoothing = _parameters[2].readInt(config);
     final kValues =
         _resize(previous.seriesById('k')!.values, input.data.length);
     final dValues =
@@ -877,8 +985,17 @@ final class KdjIndicatorDefinition implements IncrementalIndicatorDefinition {
 }
 
 /// 相对强弱指标（RSI），通过 Wilder 平滑比较上涨与下跌幅度。
-final class RsiIndicatorDefinition implements IncrementalIndicatorDefinition {
+final class RsiIndicatorDefinition
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'legacy.rsi';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period', '周期', 14),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -887,6 +1004,9 @@ final class RsiIndicatorDefinition implements IncrementalIndicatorDefinition {
   IndicatorRendererDescriptor get rendererDescriptor => _lines(
         IndicatorPlacement.separatePanel,
         const [('rsi', 'RSI')],
+        legend: IndicatorLegendDescriptor(
+          labelTemplates: const {'rsi': 'RSI({period})'},
+        ),
       );
 
   @override
@@ -894,7 +1014,7 @@ final class RsiIndicatorDefinition implements IncrementalIndicatorDefinition {
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final period = _positiveInt(config, 'period', 14);
+    final period = _parameters[0].readInt(config);
     final values = List<double?>.filled(input.data.length, null);
     final absoluteValues = List<double?>.filled(input.data.length, 0);
     final maximumValues = List<double?>.filled(input.data.length, 0);
@@ -943,7 +1063,7 @@ final class RsiIndicatorDefinition implements IncrementalIndicatorDefinition {
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final period = _positiveInt(config, 'period', 14);
+    final period = _parameters[0].readInt(config);
     final values =
         _resize(previous.seriesById('rsi')!.values, input.data.length);
     final absoluteValues = _resize(
@@ -1000,8 +1120,16 @@ final class RsiIndicatorDefinition implements IncrementalIndicatorDefinition {
 
 /// 威廉指标（WR），衡量收盘价在滚动高低区间中的相对位置。
 final class WilliamsRIndicatorDefinition
-    implements IncrementalIndicatorDefinition {
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'legacy.wr';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period', '周期', 14),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -1017,7 +1145,7 @@ final class WilliamsRIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final declaredPeriod = _positiveInt(config, 'period', 14);
+    final declaredPeriod = _parameters[0].readInt(config);
     final legacyWindow = declaredPeriod + 1;
     final values = List<double?>.filled(input.data.length, null);
     for (var index = declaredPeriod - 1; index < input.data.length; index++) {
@@ -1048,7 +1176,7 @@ final class WilliamsRIndicatorDefinition
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final declaredPeriod = _positiveInt(config, 'period', 14);
+    final declaredPeriod = _parameters[0].readInt(config);
     final legacyWindow = declaredPeriod + 1;
     final values =
         _resize(previous.seriesById('wr')!.values, input.data.length);
@@ -1079,8 +1207,17 @@ final class WilliamsRIndicatorDefinition
 }
 
 /// 能量潮（OBV），按收盘价涨跌方向累计成交量。
-final class ObvIndicatorDefinition implements IncrementalIndicatorDefinition {
+final class ObvIndicatorDefinition
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'legacy.obv';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period', '均线周期', 30),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -1096,7 +1233,7 @@ final class ObvIndicatorDefinition implements IncrementalIndicatorDefinition {
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final period = _positiveInt(config, 'period', 30);
+    final period = _parameters[0].readInt(config);
     final obv = List<double?>.filled(input.data.length, null);
     var current = 0.0;
     for (var index = 0; index < input.data.length; index++) {
@@ -1132,7 +1269,7 @@ final class ObvIndicatorDefinition implements IncrementalIndicatorDefinition {
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final period = _positiveInt(config, 'period', 30);
+    final period = _parameters[0].readInt(config);
     final obv = _resize(previous.seriesById('obv')!.values, input.data.length);
     final ma = _resize(previous.seriesById('ma')!.values, input.data.length);
     for (var index = change.currentStart; index < input.data.length; index++) {
@@ -1166,15 +1303,19 @@ final class ObvIndicatorDefinition implements IncrementalIndicatorDefinition {
 
 IndicatorRendererDescriptor _lines(
   IndicatorPlacement placement,
-  List<(String, String)> definitions,
-) =>
+  List<(String, String)> definitions, {
+  IndicatorLegendDescriptor? legend,
+  Set<String> hiddenSeriesIds = const {},
+}) =>
     IndicatorRendererDescriptor(
       placement: placement,
+      legend: legend,
       series: definitions.map(
         (definition) => IndicatorSeriesDescriptor(
           id: definition.$1,
           label: definition.$2,
           drawingKind: IndicatorDrawingKind.line,
+          showInChart: !hiddenSeriesIds.contains(definition.$1),
         ),
       ),
     );
@@ -1252,9 +1393,12 @@ List<double?> _simpleMovingAverage(List<double> values, int period) {
   return result;
 }
 
-List<int> _configuredPeriods(IndicatorConfig config, List<int> defaults) => [
-      for (var index = 0; index < defaults.length; index++)
-        _positiveInt(config, 'period${index + 1}', defaults[index]),
+List<int> _configuredPeriods(
+  IndicatorConfig config,
+  List<IndicatorParameterSpec> specs,
+) =>
+    [
+      for (final spec in specs) spec.readInt(config),
     ];
 
 double _nextEma(double previous, double value, int period) {
@@ -1264,23 +1408,3 @@ double _nextEma(double previous, double value, int period) {
 
 double _smoothed(double value, double previous, int period) =>
     (value + (period - 1) * previous) / period;
-
-int _positiveInt(IndicatorConfig config, String key, int defaultValue) {
-  final value = config.parameter(key) ?? defaultValue;
-  if (value <= 0 || value.toInt() != value) {
-    throw ArgumentError.value(value, key, 'Must be a positive integer.');
-  }
-  return value.toInt();
-}
-
-double _positiveDouble(
-  IndicatorConfig config,
-  String key,
-  double defaultValue,
-) {
-  final value = (config.parameter(key) ?? defaultValue).toDouble();
-  if (value <= 0) {
-    throw ArgumentError.value(value, key, 'Must be positive.');
-  }
-  return value;
-}

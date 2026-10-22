@@ -2,6 +2,7 @@
 library;
 
 export 'chart_drawing.dart';
+export 'chart_drawing_snapshot.dart';
 export 'chart_drawing_command_history.dart';
 export 'chart_drawing_editor.dart';
 export 'chart_drawing_hit_test.dart';

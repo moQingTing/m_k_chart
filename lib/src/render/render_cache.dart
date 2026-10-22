@@ -44,7 +44,7 @@ final class ChartVisibleWindow {
 
 /// 单图表有界渲染缓存；它绝不拥有业务状态。
 ///
-/// 缓存键由数据版本、视口、布局和渲染模式组成。不要把可变控制器、网络数据或 Widget 引用放入
+/// 缓存键由数据版本、数据列表身份、视口、布局和渲染模式组成。不要把可变控制器、网络数据或 Widget 引用放入
 /// 缓存；宿主销毁图表时必须调用 [dispose]，以释放缓存的 [Picture] 与 [TextPainter]。
 final class ChartRenderCache {
   ChartRenderCache({
@@ -83,6 +83,12 @@ final class ChartRenderCache {
 
   bool get isDisposed => _isDisposed;
   RenderCacheStats get stats => RenderCacheStats._(_hits, _misses);
+
+  /// 供内部 Path/Picture 键复用与几何缓存相同的仓库身份语义。
+  static Object dataIdentityKey<TTheme extends Object>(
+    RenderSnapshot<TTheme> snapshot,
+  ) =>
+      _DataIdentity(snapshot.data.data);
 
   ChartVisibleWindow windowFor<TTheme extends Object>(
     RenderSnapshot<TTheme> snapshot,
@@ -124,7 +130,12 @@ final class ChartRenderCache {
       _resolve(
         kind: RenderCacheKind.candleProjection,
         cache: _candleProjections,
-        key: (snapshot.data.version, snapshot.versions.data, snapshot.mainMode),
+        key: (
+          dataIdentityKey(snapshot),
+          snapshot.data.version,
+          snapshot.versions.data,
+          snapshot.mainMode,
+        ),
         create: () => ChartCandleProjection.fromKlines(
           source: snapshot.data.data,
           mode: snapshot.mainMode,
@@ -231,6 +242,7 @@ final class ChartRenderCache {
     RenderSnapshot<TTheme> snapshot,
   ) =>
       (
+        dataIdentityKey(snapshot),
         snapshot.data.version,
         snapshot.versions.data,
         snapshot.versions.viewport,
@@ -258,6 +270,21 @@ final class ChartRenderCache {
       throw StateError('ChartRenderCache has been disposed.');
     }
   }
+}
+
+/// 版本号只在单仓库内单调；跨仓库版本相同也不能共用投射、X 变换或量程。
+/// 使用 identical 而非 List.==，避免宿主自定义列表的值相等实现合并不同快照。
+final class _DataIdentity {
+  const _DataIdentity(this.data);
+
+  final Object data;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _DataIdentity && identical(data, other.data);
+
+  @override
+  int get hashCode => identityHashCode(data);
 }
 
 final class _CacheLookup<T> {

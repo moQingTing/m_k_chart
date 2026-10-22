@@ -4,6 +4,7 @@ import '../model/model.dart';
 import 'indicator_change.dart';
 import 'indicator_config.dart';
 import 'indicator_definition.dart';
+import 'indicator_parameter_spec.dart';
 import 'indicator_registry.dart';
 import 'indicator_renderer_descriptor.dart';
 import 'indicator_series.dart';
@@ -81,8 +82,17 @@ final class AverageValueLineIndicatorDefinition
 /// 趋势反转处两条输出序列会主动断开，避免渲染器在多头、空头区段之间画出错误的对角连接线。
 /// 描述符中的填充规则会将价格与当前趋势线之间渲染为半透明区域。
 final class SuperTrendIndicatorDefinition
-    implements IncrementalIndicatorDefinition {
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'builtin.super';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period', '周期', 10),
+    IndicatorParameterSpec.number('multiplier', '倍数', 3),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -91,6 +101,15 @@ final class SuperTrendIndicatorDefinition
   IndicatorRendererDescriptor get rendererDescriptor =>
       IndicatorRendererDescriptor(
         placement: IndicatorPlacement.mainChart,
+        legend: IndicatorLegendDescriptor(
+          display: IndicatorLegendDisplay.firstAvailable,
+          labelTemplates: const {
+            'up': 'SUPERTREND({period},{multiplier})',
+            'down': 'SUPERTREND({period},{multiplier})',
+          },
+          separator: ' ',
+          neutralLabel: true,
+        ),
         series: [
           IndicatorSeriesDescriptor(
             id: 'up',
@@ -118,8 +137,8 @@ final class SuperTrendIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final period = _positiveInt(config, 'period', 10);
-    final multiplier = _positiveDouble(config, 'multiplier', 3);
+    final period = _parameters[0].readInt(config);
+    final multiplier = _parameters[1].readDouble(config);
     final state = _calculateSuperTrend(input.data, period, multiplier);
     return _statefulResult(this, input, config, [
       IndicatorSeries.takeOwnership(id: 'up', values: state.up),
@@ -143,8 +162,8 @@ final class SuperTrendIndicatorDefinition
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final period = _positiveInt(config, 'period', 10);
-    final multiplier = _positiveDouble(config, 'multiplier', 3);
+    final period = _parameters[0].readInt(config);
+    final multiplier = _parameters[1].readDouble(config);
     final firstReadyIndex = period - 1;
     if (change.currentStart <= firstReadyIndex) {
       return calculate(input, config);
@@ -265,8 +284,17 @@ final class VwapIndicatorDefinition implements IncrementalIndicatorDefinition {
 }
 
 /// 平均真实波幅（ATR）。使用 Wilder 平滑，常被其他趋势类指标复用。
-final class AtrIndicatorDefinition implements IncrementalIndicatorDefinition {
+final class AtrIndicatorDefinition
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'builtin.atr';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period', '周期', 14),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -282,7 +310,7 @@ final class AtrIndicatorDefinition implements IncrementalIndicatorDefinition {
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final period = _positiveInt(config, 'period', 14);
+    final period = _parameters[0].readInt(config);
     final tr = _trueRanges(input.data);
     final atr = _wilderAverage(tr, period);
     return _result(this, input, config, [
@@ -301,7 +329,7 @@ final class AtrIndicatorDefinition implements IncrementalIndicatorDefinition {
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final period = _positiveInt(config, 'period', 14);
+    final period = _parameters[0].readInt(config);
     if (change.currentStart < period) {
       return calculate(input, config);
     }
@@ -317,8 +345,18 @@ final class AtrIndicatorDefinition implements IncrementalIndicatorDefinition {
 }
 
 /// 顺势指标（CCI）：用典型价格相对均值的偏离衡量超买、超卖。
-final class CciIndicatorDefinition implements IncrementalIndicatorDefinition {
+final class CciIndicatorDefinition
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'builtin.cci';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period', '周期', 20),
+    IndicatorParameterSpec.number('constant', '常数', 0.015),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -334,8 +372,8 @@ final class CciIndicatorDefinition implements IncrementalIndicatorDefinition {
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final period = _positiveInt(config, 'period', 20);
-    final constant = _positiveDouble(config, 'constant', 0.015);
+    final period = _parameters[0].readInt(config);
+    final constant = _parameters[1].readDouble(config);
     final values = List<double?>.filled(input.data.length, null);
     for (var index = period - 1; index < input.data.length; index++) {
       values[index] = _cciAt(input.data, index, period, constant);
@@ -356,8 +394,8 @@ final class CciIndicatorDefinition implements IncrementalIndicatorDefinition {
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final period = _positiveInt(config, 'period', 20);
-    final constant = _positiveDouble(config, 'constant', 0.015);
+    final period = _parameters[0].readInt(config);
+    final constant = _parameters[1].readDouble(config);
     final values = _buffer(previous.seriesById('cci')!.values, input);
     final end = math.min(input.data.length, change.currentEnd + period - 1);
     for (var index = change.currentStart; index < end; index++) {
@@ -372,8 +410,18 @@ final class CciIndicatorDefinition implements IncrementalIndicatorDefinition {
 }
 
 /// 动向指标（DMI），输出 +DI、-DI 与 ADX 三条序列。
-final class DmiIndicatorDefinition implements IncrementalIndicatorDefinition {
+final class DmiIndicatorDefinition
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'builtin.dmi';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period', '周期', 14),
+    IndicatorParameterSpec.integer('adxPeriod', 'ADX 周期', 14),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -389,8 +437,8 @@ final class DmiIndicatorDefinition implements IncrementalIndicatorDefinition {
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final period = _positiveInt(config, 'period', 14);
-    final adxPeriod = _positiveInt(config, 'adxPeriod', 14);
+    final period = _parameters[0].readInt(config);
+    final adxPeriod = _parameters[1].readInt(config);
     final length = input.data.length;
     final plusDi = List<double?>.filled(length, null);
     final minusDi = List<double?>.filled(length, null);
@@ -456,8 +504,8 @@ final class DmiIndicatorDefinition implements IncrementalIndicatorDefinition {
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final period = _positiveInt(config, 'period', 14);
-    final adxPeriod = _positiveInt(config, 'adxPeriod', 14);
+    final period = _parameters[0].readInt(config);
+    final adxPeriod = _parameters[1].readInt(config);
     if (change.currentStart <= period) {
       return calculate(input, config);
     }
@@ -514,8 +562,17 @@ final class DmiIndicatorDefinition implements IncrementalIndicatorDefinition {
 }
 
 /// 变动率（ROC）：当前收盘价相对指定周期前收盘价的百分比变化。
-final class RocIndicatorDefinition implements IncrementalIndicatorDefinition {
+final class RocIndicatorDefinition
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'builtin.roc';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('period', '周期', 12),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -531,7 +588,7 @@ final class RocIndicatorDefinition implements IncrementalIndicatorDefinition {
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final period = _positiveInt(config, 'period', 12);
+    final period = _parameters[0].readInt(config);
     final values = List<double?>.filled(input.data.length, null);
     for (var index = period; index < input.data.length; index++) {
       values[index] = _rocAt(input.data, index, period);
@@ -552,7 +609,7 @@ final class RocIndicatorDefinition implements IncrementalIndicatorDefinition {
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final period = _positiveInt(config, 'period', 12);
+    final period = _parameters[0].readInt(config);
     final values = _buffer(previous.seriesById('roc')!.values, input);
     final end = math.min(input.data.length, change.currentEnd + period);
     for (var index = change.currentStart; index < end; index++) {
@@ -566,8 +623,19 @@ final class RocIndicatorDefinition implements IncrementalIndicatorDefinition {
 
 /// 随机 RSI（Stoch RSI）：将 RSI 在滚动区间内再次归一化，并输出 K/D 平滑线。
 final class StochRsiIndicatorDefinition
-    implements IncrementalIndicatorDefinition {
+    implements
+        IncrementalIndicatorDefinition,
+        ParameterizedIndicatorDefinition {
   static const definitionId = 'builtin.stochRsi';
+  static const _parameters = [
+    IndicatorParameterSpec.integer('rsiPeriod', 'RSI 周期', 14),
+    IndicatorParameterSpec.integer('stochPeriod', '随机周期', 14),
+    IndicatorParameterSpec.integer('kPeriod', 'K 平滑', 3),
+    IndicatorParameterSpec.integer('dPeriod', 'D 平滑', 3),
+  ];
+
+  @override
+  List<IndicatorParameterSpec> get parameterSpecs => _parameters;
 
   @override
   String get id => definitionId;
@@ -583,10 +651,10 @@ final class StochRsiIndicatorDefinition
     VersionedKlineData input,
     IndicatorConfig config,
   ) {
-    final rsiPeriod = _positiveInt(config, 'rsiPeriod', 14);
-    final stochPeriod = _positiveInt(config, 'stochPeriod', 14);
-    final kPeriod = _positiveInt(config, 'kPeriod', 3);
-    final dPeriod = _positiveInt(config, 'dPeriod', 3);
+    final rsiPeriod = _parameters[0].readInt(config);
+    final stochPeriod = _parameters[1].readInt(config);
+    final kPeriod = _parameters[2].readInt(config);
+    final dPeriod = _parameters[3].readInt(config);
     final state = _calculateStochState(
       input.data,
       rsiPeriod,
@@ -616,10 +684,10 @@ final class StochRsiIndicatorDefinition
     IndicatorResult previous,
     IndicatorDataChange change,
   ) {
-    final rsiPeriod = _positiveInt(config, 'rsiPeriod', 14);
-    final stochPeriod = _positiveInt(config, 'stochPeriod', 14);
-    final kPeriod = _positiveInt(config, 'kPeriod', 3);
-    final dPeriod = _positiveInt(config, 'dPeriod', 3);
+    final rsiPeriod = _parameters[0].readInt(config);
+    final stochPeriod = _parameters[1].readInt(config);
+    final kPeriod = _parameters[2].readInt(config);
+    final dPeriod = _parameters[3].readInt(config);
     if (change.currentStart <= rsiPeriod) {
       return calculate(input, config);
     }
@@ -815,26 +883,6 @@ IndicatorValueBuffer _stateBuffer(
   VersionedKlineData input,
 ) =>
     _buffer(previous.computationState!.seriesById(id)!.values, input);
-
-int _positiveInt(IndicatorConfig config, String key, int defaultValue) {
-  final value = config.parameter(key) ?? defaultValue;
-  if (value <= 0 || value.toInt() != value) {
-    throw ArgumentError.value(value, key, 'Must be a positive integer.');
-  }
-  return value.toInt();
-}
-
-double _positiveDouble(
-  IndicatorConfig config,
-  String key,
-  double defaultValue,
-) {
-  final value = (config.parameter(key) ?? defaultValue).toDouble();
-  if (value <= 0) {
-    throw ArgumentError.value(value, key, 'Must be positive.');
-  }
-  return value;
-}
 
 double _typicalPrice(Kline item) => (item.high + item.low + item.close) / 3;
 

@@ -101,6 +101,68 @@ void main() {
       );
     });
 
+    test('多个指标实例复用同一对快照的变化范围识别', () {
+      final definition = _CumulativeCloseIndicator();
+      final cache = IndicatorCache(
+        IndicatorRegistry()..register(definition),
+      );
+      final store = KlineStore()..replace(buildV2KlineFixture(5));
+      final configs = [
+        for (var index = 0; index < 6; index++)
+          _config(instanceId: 'sum-$index'),
+      ];
+      for (final config in configs) {
+        cache.resolve(store.snapshot, config);
+      }
+      expect(cache.changeClassifications, 0);
+
+      final last = store.snapshot.lastOrNull!;
+      store.update(last.copyWith(close: last.close + 0.1));
+      final expected = _sum(store.snapshot.data);
+      for (final config in configs) {
+        final result = cache.resolve(store.snapshot, config);
+        expect(result.series.single.values.last, closeTo(expected, 1e-9));
+      }
+
+      expect(cache.changeClassifications, 1);
+      expect(definition.incrementalCalls, 6);
+      store.append(buildV2KlineFixture(1, startIndex: 5));
+      for (final config in configs) {
+        cache.resolve(store.snapshot, config);
+      }
+      expect(cache.changeClassifications, 2);
+      expect(definition.incrementalCalls, 12);
+    });
+
+    test('变化分类只按快照身份复用，不按相同版本号混用', () {
+      final cache = IndicatorCache(
+        IndicatorRegistry()..register(_CumulativeCloseIndicator()),
+      );
+      final firstStore = KlineStore()..replace(buildV2KlineFixture(3));
+      final secondStore = KlineStore()..replace(buildV2KlineFixture(3));
+      final firstConfig = _config(instanceId: 'first');
+      final secondConfig = _config(instanceId: 'second');
+      cache.resolve(firstStore.snapshot, firstConfig);
+      cache.resolve(secondStore.snapshot, secondConfig);
+
+      final firstLast = firstStore.snapshot.lastOrNull!;
+      final secondLast = secondStore.snapshot.lastOrNull!;
+      firstStore.update(firstLast.copyWith(close: firstLast.close + 0.1));
+      secondStore.update(secondLast.copyWith(close: secondLast.close + 0.2));
+      final first = cache.resolve(firstStore.snapshot, firstConfig);
+      final second = cache.resolve(secondStore.snapshot, secondConfig);
+
+      expect(
+        first.series.single.values.last,
+        closeTo(_sum(firstStore.snapshot.data), 1e-9),
+      );
+      expect(
+        second.series.single.values.last,
+        closeTo(_sum(secondStore.snapshot.data), 1e-9),
+      );
+      expect(cache.changeClassifications, 2);
+    });
+
     test('falls back to full calculation for unsupported changes', () {
       final definition = _CumulativeCloseIndicator();
       final cache = IndicatorCache(
@@ -140,6 +202,42 @@ void main() {
       expect(markKey.priceSource, KlinePriceSource.mark);
       expect(tradeKey, isNot(markKey));
       expect(definition.fullCalls, 3);
+    });
+
+    test('相同版本号但不同仓库或参数时不复用旧指标结果', () {
+      final definition = _CumulativeCloseIndicator();
+      final cache = IndicatorCache(
+        IndicatorRegistry()..register(definition),
+      );
+      final firstStore = KlineStore()..replace(buildV2KlineFixture(2));
+      final secondStore = KlineStore()
+        ..replace([
+          ...buildV2KlineFixture(1),
+          buildV2KlineFixture(2).last.copyWith(close: 999, high: 1001),
+        ]);
+      expect(firstStore.snapshot.version, secondStore.snapshot.version);
+      final config = _config();
+      final first = cache.resolve(firstStore.snapshot, config);
+      final second = cache.resolve(secondStore.snapshot, config);
+      final changedParameters = cache.resolve(
+        secondStore.snapshot,
+        IndicatorConfig(
+          instanceId: config.instanceId,
+          definitionId: config.definitionId,
+          parameters: const {'period': 2},
+        ),
+      );
+      expect(
+        first.series.single.values.last,
+        isNot(second.series.single.values.last),
+      );
+      expect(
+        second.series.single.values.last,
+        999 + secondStore.snapshot.data.first.close,
+      );
+      expect(changedParameters, isNot(same(second)));
+      expect(definition.fullCalls, 3);
+      expect(cache.cacheHits, 0);
     });
 
     test('bounds entries with LRU eviction and supports clear', () {

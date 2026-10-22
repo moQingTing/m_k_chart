@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:m_k_chart/src/model/model.dart';
 import 'package:m_k_chart/src/viewport/viewport.dart';
@@ -148,6 +150,15 @@ void main() {
         () => ChartXTransform(
           viewport: ChartViewport(itemCount: 2),
           data: _StableData([data.data.last, data.data.first]),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ChartXTransform(
+          viewport: ChartViewport(itemCount: 2),
+          data: _StableData(
+            UnmodifiableListView([data.data.last, data.data.first]),
+          ),
         ),
         throwsArgumentError,
       );
