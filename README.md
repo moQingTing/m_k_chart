@@ -6,6 +6,16 @@
 
 ## 图片展示
 
+### V2 实时行情（Binance BTCUSDT · 1 分钟）
+
+下面是在 Android 真机上运行 V2 交易图 Demo 时截取的真实数据画面，行情来自 Binance 公共 K 线接口，包含实时价格倒计时、EMA、Supertrend 和成交量指标。
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/moQingTing/m_k_chart/codex/kline-v2/docs/release-evidence/v2-android-sm-g986u1-binance-btcusdt-1m.png" alt="V2 交易图 Demo：Binance BTCUSDT 1 分钟真实行情" width="360">
+</p>
+
+### 经典图表示例
+
 ![K线图表演示1](https://github.com/moQingTing/m_k_chart/raw/main/example/0d45c754e1d760926e2a97cdec01a464.jpg)
 
 ![K线图表演示2](https://github.com/moQingTing/m_k_chart/raw/main/example/39d489b40a933d2fa64ceec7b28997cf.jpg)
